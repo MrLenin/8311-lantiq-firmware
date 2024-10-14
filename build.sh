@@ -18,8 +18,8 @@ padding=12288 bs=262144 nblocks=$((padding/bs)) rest=$((padding%bs))
 
 padding=32887 bs=262144 nblocks=$((padding/bs)) rest=$((padding%bs))
 {
-  dd if=/dev/zero ibs=1 bs=$bs count=$nblocks | tr "\000" "\377" >> build/alcatel-g010sp_8311.img
-  dd if=/dev/zero ibs=1 bs=$rest count=1 | tr "\000" "\377" >> build/alcatel-g010sp_8311.img
+  dd if=/dev/zero bs=$bs count=$nblocks | tr "\000" "\377" >> build/alcatel-g010sp_8311.img
+  dd if=/dev/zero bs=$rest count=1 | tr "\000" "\377" >> build/alcatel-g010sp_8311.img
 } 2>/dev/null >> build/alcatel-g010sp_8311.img
 
 cp build/alcatel-g010sp_8311.img out/alcatel-g010sp_8311.img
