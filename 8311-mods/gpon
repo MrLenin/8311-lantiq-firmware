@@ -38,7 +38,7 @@ config gpon 'onu'
 	option mib_customized '0'
 	option vendor_id 'ALCL'
 	option ont_version '3FE56641AAAA01'
-	option equipment_id 'BVL3A5HNAAG010SP\0\0\0\0\0'
+	option equipment_id 'BVL3A5HNAAG010SP'
 	option uni_type 'pptp'
 
 config gpon 'goi'
