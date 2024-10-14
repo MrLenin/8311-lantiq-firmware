@@ -27,13 +27,15 @@ load_config() {
 }
 
 set_config() {
+	local equipid="BVL3A5HNAAG010SP"
+	local hwver="3FE56641AAAA01"
+
 	local nSerial=`uci -q get gpon.onu.nSerial`
 	local omci_loid=`uci -q get gpon.onu.omci_loid`
 	local omci_password=`uci -q get gpon.onu.omci_lpwd`
 	local ploam_password=`uci -q get gpon.onu.ploam_password`
 	local mib_customized=`uci -q get gpon.onu.mib_customized`
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
-	local equipmentid=`uci -q get gpon.onu.nSerial`
 	local ont_version=`uci -q get gpon.onu.ont_version`
 
 	local nSerial_old=`fw_printenv nSerial 2>&- | cut -f 2 -d '='`
@@ -53,16 +55,16 @@ set_config() {
 	local nSerial_oldtmp=`echo $nSerial_old | tr [a-z] [A-Z]`
 
 	if [ -n "$nSerialtmp" ] && [ "$nSerial" != "$nSerial_oldtmp" ]; then
-		logger -t "[config_onu]" "Setting Equipment ID: $nSerial."
-		/opt/lantiq/bin/sfp_i2c -i6 -s ${nSerial}
-		uci set gpon.onu.equipment_id="BVL3A5HNAAG010SP\0\0\0\0\0"
+		logger -t "[config_onu]" "Setting Equipment ID: $equipid."
+		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipid}
+		uci set gpon.onu.equipment_id=${equipid}
 		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Setting Vendor ID: $vendorid."
 		/opt/lantiq/bin/sfp_i2c -i7 -s ${vendorid}
 		uci set gpon.onu.vendor_id=${vendorid}
 		uci commit gpon.onu.vendor_id
 		logger -t "[config_onu]" "Setting ONT Version."
-		uci set gpon.onu.ont_version="3FE56641AAAA01"
+		uci set gpon.onu.ont_version=${hwver}
 		uci commit gpon.onu.ont_version
 		logger -t "[config_onu]" "Setting GPON SN: $nSerial."
 		/opt/lantiq/bin/sfp_i2c -i8 -s ${nSerial}
@@ -84,7 +86,7 @@ set_config() {
 		uci commit gpon.onu.vendor_id
 	elif [ -z "$mib_customized" ]; then
 		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id="BVL3A5HNAAG010SP\0\0\0\0\0"
+		uci set gpon.onu.equipment_id=${equipid}
 		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Resetting Vendor ID."
 		uci set gpon.onu.vendor_id="ALCL"
@@ -97,7 +99,7 @@ set_config() {
 		uci commit gpon.onu.ont_version
 	elif [ -z "$mib_customized" ]; then
 		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set gpon.onu.ont_version="3FE56641AAAA01"
+		uci set gpon.onu.ont_version=${hwver}
 		uci commit gpon.onu.ont_version
 	fi
 
@@ -125,6 +127,9 @@ set_config() {
 }
 
 init_config() {
+	local equipid="BVL3A5HNAAG010SP"
+	local hwver="3FE56641AAAA01"
+
 	local nSerial=`uci -q get gpon.onu.nSerial`
 	local omci_loid=`uci -q get gpon.onu.omci_loid`
 	local omci_password=`uci -q get gpon.onu.omci_lpwd`
@@ -132,7 +137,6 @@ init_config() {
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
 	local mib_customized=`uci -q get gpon.onu.mib_customized`
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
-	local equipmentid=`uci -q get gpon.onu.nSerial`
 	local nSerial_len=`expr length ${nSerial}`
 	local ont_version=`uci -q get gpon.onu.ont_version`
 
@@ -155,7 +159,7 @@ init_config() {
 		uci commit gpon.onu.vendor_id
 	elif [ -z "$mib_customized" ]; then
 		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id="BVL3A5HNAAG010SP\0\0\0\0\0"
+		uci set gpon.onu.equipment_id=${equipid}
 		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Resetting Vendor ID."
 		uci set gpon.onu.vendor_id="ALCL"
@@ -168,7 +172,7 @@ init_config() {
 		uci commit gpon.onu.ont_version
 	elif [ -z "$mib_customized" ]; then
 		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set gpon.onu.ont_version="3FE56641AAAA01"
+		uci set gpon.onu.ont_version=${hwver}
 		uci commit gpon.onu.ont_version
 	fi
 
