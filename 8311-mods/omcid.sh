@@ -41,12 +41,13 @@ generate_custom_mib()
 	ont_version=`uci -q get gpon.onu.ont_version` || return 1
 	equipment_id=`uci -q get gpon.onu.equipment_id` || return 1
 	uni_type=`uci -q get gpon.onu.uni_type | tr [A-Z] [a-z]` || return 1
+    
+	vendor_id=$(printf '%.4s' ${vendor_id})
+	ont_version=$(printf '%.14s' ${ont_version//\\0})
+	equipment_id=$(printf '%.20s' ${equipment_id//\\0})
 
-	ont_version=${ont_version//\\0}
-	equipment_id=${equipment_id//\\0}
-
-    ont_version=$(printf %s "$ont_version" $(yes "" | head -n $((14-${#ont_version}+1)) | sed ':a;N;$!ba;s/\n/\\0/g'))
-	equipment_id=$(printf %s "$equipment_id" $(yes "" | head -n $((20-${#equipment_id}+1)) | sed ':a;N;$!ba;s/\n/\\0/g'))
+    ont_version=$(printf %s "$ont_version" $(printf '%*s' $((14-${#ont_version})) | sed 's/[[:space:]]/\\0/g'))
+	equipment_id=$(printf %s "$equipment_id" $(printf '%*s' $((20-${#equipment_id})) | sed 's/[[:space:]]/\\0/g'))
 
 	mibsrc='/etc/mibs/nameless.ini'
 	mibtgt='/etc/mibs/custom.ini'
