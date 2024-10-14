@@ -46,7 +46,7 @@ generate_custom_mib()
 	ont_version=$(printf '%.14s' ${ont_version//\\0})
 	equipment_id=$(printf '%.20s' ${equipment_id//\\0})
 
-    ont_version=$(printf %s "$ont_version" $(printf '%*s' $((14-${#ont_version})) | sed 's/[[:space:]]/\\0/g'))
+	ont_version=$(printf %s "$ont_version" $(printf '%*s' $((14-${#ont_version})) | sed 's/[[:space:]]/\\0/g'))
 	equipment_id=$(printf %s "$equipment_id" $(printf '%*s' $((20-${#equipment_id})) | sed 's/[[:space:]]/\\0/g'))
 
 	mibsrc='/etc/mibs/nameless.ini'
@@ -64,7 +64,7 @@ generate_custom_mib()
 	fi
 
 	cp ${mibsrc} ${mibtgt}
-    echo -e "\n" >> ${mibtgt}
+	echo -e "\n" >> ${mibtgt}
 	echo "# ONT-G" >> ${mibtgt}
 	echo "256 0 ${vendor_id} ${ont_version} 00000000 2 0 0 0 0 #0" >> ${mibtgt}
 	echo -e "\n" >> ${mibtgt}
@@ -77,7 +77,7 @@ generate_custom_mib()
 		cat ${pptpsrc} >> ${mibtgt}
 	fi
 
-    echo -e "\n" >> ${mibtgt}
+	echo -e "\n" >> ${mibtgt}
 }
 
 start_service() {
