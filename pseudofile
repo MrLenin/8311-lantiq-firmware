@@ -1,0 +1,15 @@
+etc/config/gpon F 1651459937 644 0 0 cat ./8311-mods/gpon
+etc/config/luci F 1650266713 644 0 0 cat ./8311-mods/luci
+etc/config/system F 1650024473 644 0 0 cat ./8311-mods/system
+etc/init.d/omcid.sh F 1697697141 755 0 0 cat ./8311-mods/omcid.sh
+etc/mibs/nameless.ini F 1671589540 644 0 0 cat ./8311-mods/nameless.ini
+etc/mibs/pptp.ini F 1671589540 644 0 0 cat ./8311-mods/pptp.ini
+etc/mibs/veip.ini F 1671589540 644 0 0 cat ./8311-mods/veip.ini
+opt/lantiq/bin/config_onu.sh F 1697598990 755 0 0 cat ./8311-mods/config_onu.sh
+opt/lantiq/bin/system_info.sh F 1697697003 755 0 0 cat ./8311-mods/system_info.sh
+usr/lib/lua/luci/controller/lantiq/gpon.lua F 1685060524 664 0 0 cat ./8311-mods/gpon.lua
+usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua F 1696933081 664 0 0 cat ./8311-mods/gpon-config-cal.lua
+usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua F 1696932821 644 0 0 cat ./8311-mods/gpon-config-ipaddr.lua
+usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua F 1696932750 644 0 0 cat ./8311-mods/gpon-config-onu.lua
+usr/lib/lua/luci/view/admin_status/index.htm F 1683953405 644 0 0 cat ./8311-mods/index.htm
+usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm F 1683951626 644 0 0 cat ./8311-mods/gpon-gtc-info.htm

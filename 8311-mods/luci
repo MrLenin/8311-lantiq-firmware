@@ -1,0 +1,58 @@
+
+config core 'main'
+	option resourcebase '/luci-static/resources'
+	option mediaurlbase '/luci-static/bootstrap'
+	option lang 'en'
+
+config extern 'flash_keep'
+	option uci '/etc/config/'
+	option dropbear '/etc/dropbear/'
+	option openvpn '/etc/openvpn/'
+	option passwd '/etc/passwd'
+	option opkg '/etc/opkg.conf'
+	option firewall '/etc/firewall.user'
+	option uploads '/lib/uci/upload/'
+
+config internal 'languages'
+	option en 'English'
+	option de 'Deutsch'
+	option ja '日本語'
+	option ru 'Русский'
+	option zh_cn 'chinese'
+
+config internal 'sauth'
+	option sessionpath '/tmp/luci-sessions'
+	option sessiontime '3600'
+
+config internal 'ccache'
+	option enable '1'
+
+config internal 'themes'
+	option Bootstrap '/luci-static/bootstrap'
+
+config command
+	option command '/opt/lantiq/bin/config_onu.sh load'
+	option name 'Load GPON settings'
+
+config command
+	option command '/usr/sbin/fw_printenv'
+	option name 'Get uboot_env (mtd1)'
+
+config command
+	option param '1'
+	option command '/opt/lantiq/bin/sfp_i2c -i7 -s'
+	option name 'Vendor ID Modification'
+
+config command
+	option param '1'
+	option command '/opt/lantiq/bin/sfp_i2c -i6 -s'
+	option name 'Equipment ID Modification'
+
+config command
+	option command '/opt/lantiq/bin/debug'
+	option name 'One-click Log Collection'
+
+config command
+	option command 'cat /tmp/log/one_click'
+	option public '1'
+	option name 'One-Click Log Acquisition'
