@@ -1,5 +1,8 @@
 #!/bin/sh
 
+[ -d build ] || mkdir build
+[ -d out ] || mkdir out
+
 mkimage -A mips -O linux -T kernel -C lzma -a 0X80002000 -e 0X80002000 -n SFP_7.5.3 -d source/kernel_g-010s-p.lzma build/uImage_g-010s-p
 
 unsquashfs -exclude-file excludes -pf build/8311_g-010s-p.pseudo source/rootfs_g-010s-p.sqsh
