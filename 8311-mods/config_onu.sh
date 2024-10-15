@@ -2,6 +2,10 @@
 
 command=$1
 
+equipid="BVL3A5HNAAG010SP"
+hwver="3FE56641AAAA01"
+vendid="ALCL"
+
 load_config() {
 	local nSerial=`fw_printenv nSerial 2>&- | cut -f 2 -d '='`
 	local omci_loid=`fw_printenv omci_loid 2>&- | cut -f 2 -d '='`
@@ -18,24 +22,20 @@ load_config() {
 	uci commit gpon.onu.omci_lpwd
 	uci set gpon.onu.ploam_password=${ploam_password}
 	uci commit gpon.onu.ploam_password
-	#uci set gpon.onu.equipment_id=${nSerial}
-	#uci commit gpon.onu.equipment_id
 	uci set gpon.onu.vendor_id=${vendorid}
 	uci commit gpon.onu.vendor_id
-	uci set gpon.onu.uni_type=${uni_type}
-	uci commit gpon.onu.uni_type
 }
 
 set_config() {
-	local equipid="BVL3A5HNAAG010SP"
-	local hwver="3FE56641AAAA01"
-
 	local nSerial=`uci -q get gpon.onu.nSerial`
 	local omci_loid=`uci -q get gpon.onu.omci_loid`
 	local omci_password=`uci -q get gpon.onu.omci_lpwd`
 	local ploam_password=`uci -q get gpon.onu.ploam_password`
 	local mib_customized=`uci -q get gpon.onu.mib_customized`
+	local mib_customized_old=`uci -q get gpon.onu.mib_customized_old`
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
+	local vendor_id=`uci -q get gpon.onu.vendor_id`
+	local equipment_id=`uci -q get gpon.onu.equipment_id`
 	local ont_version=`uci -q get gpon.onu.ont_version`
 
 	local nSerial_old=`fw_printenv nSerial 2>&- | cut -f 2 -d '='`
@@ -55,17 +55,10 @@ set_config() {
 	local nSerial_oldtmp=`echo $nSerial_old | tr [a-z] [A-Z]`
 
 	if [ -n "$nSerialtmp" ] && [ "$nSerial" != "$nSerial_oldtmp" ]; then
-		logger -t "[config_onu]" "Setting Equipment ID: $equipid."
-		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipid}
-		uci set gpon.onu.equipment_id=${equipid}
-		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Setting Vendor ID: $vendorid."
 		/opt/lantiq/bin/sfp_i2c -i7 -s ${vendorid}
 		uci set gpon.onu.vendor_id=${vendorid}
 		uci commit gpon.onu.vendor_id
-		logger -t "[config_onu]" "Setting ONT Version."
-		uci set gpon.onu.ont_version=${hwver}
-		uci commit gpon.onu.ont_version
 		logger -t "[config_onu]" "Setting GPON SN: $nSerial."
 		/opt/lantiq/bin/sfp_i2c -i8 -s ${nSerial}
 	elif [ -z "$nSerial" ]; then
@@ -73,34 +66,43 @@ set_config() {
 		/opt/lantiq/bin/sfp_i2c -i8 -s ""
 	fi
 
-	if [ -n "$nSerial" ] && [ "$mib_customized" == "1" ]; then
-		local vendor_id=`uci -q get gpon.onu.vendor_id`
-		local equipment_id=`uci -q get gpon.onu.equipment_id`
-		logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
-		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipment_id}
-		uci set gpon.onu.equipment_id=${equipment_id}
-		uci commit gpon.onu.equipment_id
+	if [ -n "$vendor_id" ] && [ "$mib_customized" == "1" ]; then
 		logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
 		/opt/lantiq/bin/sfp_i2c -i7 -s ${vendor_id}
 		uci set gpon.onu.vendor_id=${vendor_id}
 		uci commit gpon.onu.vendor_id
-	elif [ -z "$mib_customized" ]; then
-		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id=${equipid}
+	fi
+
+	if [ -n "$equipment_id" ] && [ "$mib_customized" == "1" ]; then
+		logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
+		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipment_id}
+		uci set gpon.onu.equipment_id=${equipment_id}
 		uci commit gpon.onu.equipment_id
-		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set gpon.onu.vendor_id="ALCL"
-		uci commit gpon.onu.vendor_id
 	fi
 
 	if [ -n "$ont_version" ] && [ "$mib_customized" == "1" ]; then
 		logger -t "[config_onu]" "Setting ONT Version: $ont_version."
 		uci set gpon.onu.ont_version=${ont_version}
 		uci commit gpon.onu.ont_version
-	elif [ -z "$mib_customized" ]; then
+	fi
+
+	if [ -z "$mib_customized_old" ] && [ "$mib_customized" == "1" ]; then
+		uci set gpon.onu.mib_customized_old=${mib_customized}
+		uci commit gpon.onu.mib_customized_old
+	fi
+	
+	if [ -z "$mib_customized" ] && [ "$mib_customized_old" == "1" ]; then
+		logger -t "[config_onu]" "Resetting Vendor ID."
+		uci set gpon.onu.vendor_id=${vendid}
+		uci commit gpon.onu.vendor_id
+		logger -t "[config_onu]" "Resetting Equipment ID."
+		uci set gpon.onu.equipment_id=${equipid}
+		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Resetting ONT Version."
 		uci set gpon.onu.ont_version=${hwver}
 		uci commit gpon.onu.ont_version
+		uci delete gpon.onu.mib_customized_old
+		uci commit gpon.onu.mib_customized_old
 	fi
 
 	if [ -n "$omci_loid" ] && [ "$omci_loid" != "$omci_loid_old" ]; then
@@ -127,17 +129,17 @@ set_config() {
 }
 
 init_config() {
-	local equipid="BVL3A5HNAAG010SP"
-	local hwver="3FE56641AAAA01"
-
 	local nSerial=`uci -q get gpon.onu.nSerial`
 	local omci_loid=`uci -q get gpon.onu.omci_loid`
 	local omci_password=`uci -q get gpon.onu.omci_lpwd`
 	local ploam_password=`uci -q get gpon.onu.ploam_password`
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
 	local mib_customized=`uci -q get gpon.onu.mib_customized`
+	local mib_customized_old=`uci -q get gpon.onu.mib_customized_old`
 	local vendorid=`uci -q get gpon.onu.nSerial | cut -c -4`
 	local nSerial_len=`expr length ${nSerial}`
+	local vendor_id=`uci -q get gpon.onu.vendor_id`
+	local equipment_id=`uci -q get gpon.onu.equipment_id`
 	local ont_version=`uci -q get gpon.onu.ont_version`
 
 	if [ -n "$nSerial_len" ] && [ "$nSerial_len" == "16" ]; then
@@ -146,34 +148,43 @@ init_config() {
 		nSerial=$nSerial_a$nSerial_b
 	fi
 
-	if [ -n "$nSerial" ] && [ "$mib_customized" == "1" ]; then
-		local vendor_id=`uci -q get gpon.onu.vendor_id`
-		local equipment_id=`uci -q get gpon.onu.equipment_id`
-		logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
-		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipment_id}
-		uci set gpon.onu.equipment_id=${equipment_id}
-		uci commit gpon.onu.equipment_id
+	if [ -n "$vendor_id" ] && [ "$mib_customized" == "1" ]; then
 		logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
 		/opt/lantiq/bin/sfp_i2c -i7 -s ${vendor_id}
 		uci set gpon.onu.vendor_id=${vendor_id}
 		uci commit gpon.onu.vendor_id
-	elif [ -z "$mib_customized" ]; then
-		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id=${equipid}
+	fi
+	
+	if [ -n "$equipment_id" ] && [ "$mib_customized" == "1" ]; then
+		logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
+		/opt/lantiq/bin/sfp_i2c -i6 -s ${equipment_id}
+		uci set gpon.onu.equipment_id=${equipment_id}
 		uci commit gpon.onu.equipment_id
-		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set gpon.onu.vendor_id="ALCL"
-		uci commit gpon.onu.vendor_id
 	fi
 
 	if [ -n "$ont_version" ] && [ "$mib_customized" == "1" ]; then
 		logger -t "[config_onu]" "Setting ONT Version: $ont_version."
 		uci set gpon.onu.ont_version=${ont_version}
 		uci commit gpon.onu.ont_version
-	elif [ -z "$mib_customized" ]; then
+	fi
+
+	if [ -z "$mib_customized_old" ] && [ "$mib_customized" == "1" ]; then
+		uci set gpon.onu.mib_customized_old=${mib_customized}
+		uci commit gpon.onu.mib_customized_old
+	fi
+
+	if [ -z "$mib_customized" ] && [ "$mib_customized_old" == "1" ]; then
+		logger -t "[config_onu]" "Resetting Vendor ID."
+		uci set gpon.onu.vendor_id=${vendid}
+		uci commit gpon.onu.vendor_id
+		logger -t "[config_onu]" "Resetting Equipment ID."
+		uci set gpon.onu.equipment_id=${equipid}
+		uci commit gpon.onu.equipment_id
 		logger -t "[config_onu]" "Resetting ONT Version."
 		uci set gpon.onu.ont_version=${hwver}
 		uci commit gpon.onu.ont_version
+		uci delete gpon.onu.mib_customized_old
+		uci commit gpon.onu.mib_customized_old
 	fi
 
 	if [ -n "$nSerial" ]; then
