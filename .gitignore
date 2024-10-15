@@ -1,5 +1,2 @@
-build/8311_g-010s-p.pseudo
-build/8311.squashfs
-build/alcatel-g010sp_8311.img
-build/uImage_g-010s-p
-out/alcatel-g010sp_8311.img
+build/*
+out/*
