@@ -6,6 +6,7 @@ etc/mibs/nameless.ini F 1671589540 644 0 0 cat ./8311-mods/nameless.ini
 etc/mibs/pptp.ini F 1671589540 644 0 0 cat ./8311-mods/pptp.ini
 etc/mibs/veip.ini F 1671589540 644 0 0 cat ./8311-mods/veip.ini
 opt/lantiq/bin/config_onu.sh F 1697598990 755 0 0 cat ./8311-mods/config_onu.sh
+opt/lantiq/bin/omcid F 1697590949 755 0 0 cat ./8311-mods/omcid
 opt/lantiq/bin/system_info.sh F 1697697003 755 0 0 cat ./8311-mods/system_info.sh
 usr/lib/lua/luci/controller/lantiq/gpon.lua F 1685060524 664 0 0 cat ./8311-mods/gpon.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua F 1696933081 664 0 0 cat ./8311-mods/gpon-config-cal.lua
