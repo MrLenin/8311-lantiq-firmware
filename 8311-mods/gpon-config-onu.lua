@@ -165,7 +165,7 @@ v:depends("mod_omcid", "1")
 buttona = s:option(Button, "ButtonA", translate("Restore OMCID Software Version"))
 buttona.inputtitle = translate("Restore")
 buttona.inputstyle = "apply"
-buttona:depends("mod_omcid", "")
+buttona:depends("mod_omcid", "1")
 
 v = s:option(Flag, "mod_omcc", translate("Custom OMCC Version"),
     translate("WARNING: Custom OMCC version may result in infinite-reboot loop!!!!"))
