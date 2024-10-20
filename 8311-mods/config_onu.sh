@@ -5,6 +5,7 @@ command=$1
 equipid="BVL3A5HNAAG010SP"
 hwver="3FE56641AAAA01"
 vendid="ALCL"
+omcid_stock_csum="b78fb6fa62fa967096af0e21c5a5879d"
 
 load_config() {
 	local nSerial=`fw_printenv nSerial 2>&- | cut -f 2 -d '='`
@@ -260,7 +261,7 @@ mod_omcid_version() {
 
 	logger -t "[config_onu]" "Patching OMCID with new version ..."
 
-	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "b78fb6fa62fa967096af0e21c5a5879d" ]) ||
+	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_stock_csum" ]) ||
 		([ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]); then
 		local mod_omcid=`uci -q get gpon.onu.mod_omcid`
 		local omcid_version_user=`uci -q get gpon.onu.omcid_version`
@@ -289,7 +290,7 @@ mod_omcid_8021x() {
 
 	logger -t "[config_onu]" "Patching OMCID 802.1x behaviour ..."
 			
-	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "b78fb6fa62fa967096af0e21c5a5879d" ]) ||
+	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_stock_csum" ]) ||
 		([ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]); then
 		if [ -n "$disable_8021x" ]; then
 			local disable_8021x=`uci -q get gpon.onu.omcid_8021x`
