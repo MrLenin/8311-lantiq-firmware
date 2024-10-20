@@ -255,53 +255,97 @@ set_ip() {
 }
 
 mod_omcid_version() {
-	local mod_omcid=`uci -q get gpon.onu.mod_omcid`
-	local omcid_version_user=`uci -q get gpon.onu.omcid_version`
-	local omcid_version_cut=`echo $omcid_version_user | cut -c 1-58`
-	local omcid_version_current=`/opt/lantiq/bin/omcid -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75`
-	printf "$omcid_version_cut" | hexdump -e '60/1 "%02x" "\n"' | awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '\x00'; print ""}' | cut -c 1-116 | xxd -r -p > /tmp/omcid_ver
-	#local omcid_version_offset_1=307944
-	local omcid_version_offset_2=316133
-	if [ -n "$mod_omcid" ] && [ "$omcid_version_cut" != "$omcid_version_current" ]; then
-		logger -t "[config_onu]" "Modding OMCID version: $omcid_version_cut."
-		cp /opt/lantiq/bin/omcid /tmp/omcid
-		#dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_1 conv=notrunc
-		dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>> /dev/null
-		cp /tmp/omcid /opt/lantiq/bin/omcid
+	local omcid_csum=`uci -q get gpon.onu.omcid_csum`
+	local omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+
+	logger -t "[config_onu]" "Patching OMCID with new version ..."
+
+	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "b78fb6fa62fa967096af0e21c5a5879d" ]) ||
+		([ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]); then
+		local mod_omcid=`uci -q get gpon.onu.mod_omcid`
+		local omcid_version_user=`uci -q get gpon.onu.omcid_version`
+		local omcid_version_cut=`echo $omcid_version_user | cut -c 1-58`
+		local omcid_version_current=`/opt/lantiq/bin/omcid -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75`
+		printf "$omcid_version_cut" | hexdump -e '60/1 "%02x" "\n"' | awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '\x00'; print ""}' | cut -c 1-116 | xxd -r -p > /tmp/omcid_ver
+		#local omcid_version_offset_1=307944
+		local omcid_version_offset_2=316133
+		if [ -n "$mod_omcid" ] && [ "$omcid_version_cut" != "$omcid_version_current" ]; then
+			logger -t "[config_onu]" "Modding OMCID version: $omcid_version_cut."
+			cp /opt/lantiq/bin/omcid /tmp/omcid
+			#dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_1 conv=notrunc
+			dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>> /dev/null
+			cp /tmp/omcid /opt/lantiq/bin/omcid
+			uci set gpon.onu.omcid_csum=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+			uci commit gpon.onu
+		fi
+	else
+		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, patching aborted ..."
 	fi
 }
 
 mod_omcid_8021x() {
-	local disable_8021x=`uci -q get gpon.onu.omcid_8021x`
-	local omcid_8021x_offset=275849
-	if [ -n "$disable_8021x" ]; then
-		logger -t "[config_onu]" "Disabling enforcement of 802.1x ..."
-		cp /opt/lantiq/bin/omcid /tmp/omcid
-		printf '\x00' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
-		cp /tmp/omcid /opt/lantiq/bin/omcid
+	local omcid_csum=`uci -q get gpon.onu.omcid_csum`
+	local omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+
+	logger -t "[config_onu]" "Patching OMCID 802.1x behaviour ..."
+			
+	if ([ -z "$omcid_csum" ] && [ "$omcid_csum_current" == "b78fb6fa62fa967096af0e21c5a5879d" ]) ||
+		([ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]); then
+		if [ -n "$disable_8021x" ]; then
+			local disable_8021x=`uci -q get gpon.onu.omcid_8021x`
+			local omcid_8021x_offset=275849
+			logger -t "[config_onu]" "Disabling enforcement of 802.1x ..."
+			cp /opt/lantiq/bin/omcid /tmp/omcid
+			printf '\x00' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
+			cp /tmp/omcid /opt/lantiq/bin/omcid
+			uci set gpon.onu.omcid_csum=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+			uci commit gpon.onu
+		fi
+	else
+		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, patching aborted ..."
 	fi
 }
 
 restore_omcid_8021x() {
-	logger -t "[config_onu]" "Restoring OMCID 802.1x behaviour ..."
 	local omcid_8021x_offset=275849
-	logger -t "[config_onu]" "Re-enabling enforcement of 802.1x ..."
-	cp /opt/lantiq/bin/omcid /tmp/omcid
-	printf '\x01' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
-	cp /tmp/omcid /opt/lantiq/bin/omcid
+	local omcid_csum=`uci -q get gpon.onu.omcid_csum`
+	local omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+	
+	logger -t "[config_onu]" "Restoring OMCID 802.1x behaviour ..."
+
+	if [ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]; then
+		logger -t "[config_onu]" "Re-enabling enforcement of 802.1x ..."
+		cp /opt/lantiq/bin/omcid /tmp/omcid
+		printf '\x01' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
+		cp /tmp/omcid /opt/lantiq/bin/omcid
+		uci -q delete gpon.onu.omcid_csum
+		uci commit gpon.onu
+	else
+		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
+	fi
 }
 
 restore_omcid_version() {
+	local omcid_csum=`uci -q get gpon.onu.omcid_csum`
+	local omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
+
 	logger -t "[config_onu]" "Restoring OMCID version."
-	local omcid_version="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
-	printf "$omcid_version" | hexdump -e '60/1 "%02x" "\n"' | awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '\x00'; print ""}' | cut -c 1-116 | xxd -r -p > /tmp/omcid_ver
-	#local omcid_version_offset_1=307944
-	local omcid_version_offset_2=316133
-	logger -t "[config_onu]" "Restoring OMCID version: $omcid_version."
-	cp /opt/lantiq/bin/omcid /tmp/omcid
-	#dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_1 conv=notrunc
-	dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>> /dev/null
-	cp /tmp/omcid /opt/lantiq/bin/omcid
+
+	if [ -n "$omcid_csum" ] && [ "$omcid_csum_current" == "$omcid_csum" ]; then
+		local omcid_version="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
+		printf "$omcid_version" | hexdump -e '60/1 "%02x" "\n"' | awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '\x00'; print ""}' | cut -c 1-116 | xxd -r -p > /tmp/omcid_ver
+		#local omcid_version_offset_1=307944
+		local omcid_version_offset_2=316133
+		logger -t "[config_onu]" "Restoring OMCID version: $omcid_version."
+		cp /opt/lantiq/bin/omcid /tmp/omcid
+		#dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_1 conv=notrunc
+		dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>> /dev/null
+		cp /tmp/omcid /opt/lantiq/bin/omcid
+		uci -q delete gpon.onu.omcid_csum
+		uci commit gpon.onu
+	else
+		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
+	fi
 }
 
 disable_rx_los_status() {
