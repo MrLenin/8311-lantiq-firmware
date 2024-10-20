@@ -254,7 +254,7 @@ set_ip() {
 	fi
 }
 
-mod_omcid() {
+mod_omcid_version() {
 	local mod_omcid=`uci -q get gpon.onu.mod_omcid`
 	local omcid_version_user=`uci -q get gpon.onu.omcid_version`
 	local omcid_version_cut=`echo $omcid_version_user | cut -c 1-58`
@@ -271,8 +271,28 @@ mod_omcid() {
 	fi
 }
 
-restore_omcid() {
-	logger -t "[config_onu]" "Restoring OMCID."
+mod_omcid_8021x() {
+	local disable_8021x=`uci -q get gpon.onu.omcid_8021x`
+	local omcid_8021x_offset=275849
+	if [ -n "$disable_8021x" ]; then
+		logger -t "[config_onu]" "Disabling enforcement of 802.1x ..."
+		cp /opt/lantiq/bin/omcid /tmp/omcid
+		printf '\x00' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
+		cp /tmp/omcid /opt/lantiq/bin/omcid
+	fi
+}
+
+restore_omcid_8021x() {
+	logger -t "[config_onu]" "Restoring OMCID 802.1x behaviour ..."
+	local omcid_8021x_offset=275849
+	logger -t "[config_onu]" "Re-enabling enforcement of 802.1x ..."
+	cp /opt/lantiq/bin/omcid /tmp/omcid
+	printf '\x01' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
+	cp /tmp/omcid /opt/lantiq/bin/omcid
+}
+
+restore_omcid_version() {
+	logger -t "[config_onu]" "Restoring OMCID version."
 	local omcid_version="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
 	printf "$omcid_version" | hexdump -e '60/1 "%02x" "\n"' | awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '\x00'; print ""}' | cut -c 1-116 | xxd -r -p > /tmp/omcid_ver
 	#local omcid_version_offset_1=307944
@@ -423,11 +443,17 @@ setip)
 update)
 	update_goi
 	;;
-mod)
-	mod_omcid
+mod_version)
+	mod_omcid_version
 	;;
-restore)
-	restore_omcid
+mod_8021x)
+	mod_omcid_8021x
+	;;
+restore_version)
+	restore_omcid_version
+	;;
+restore_8021x)
+	restore_omcid_8021x
 	;;
 ignore)
 	ignore_rx_loss

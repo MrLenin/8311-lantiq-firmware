@@ -151,21 +151,31 @@ v.addremove = true
 v.rmempty = true
 v:depends("mib_customized", "1")
 
-v = s:option(Flag, "mod_omcid", translate("Custom OMCID Software Version"),
-    translate("Patch the OMCID binary so that it reports a custom software version. " ..
-                  "WARNING: Patching OMCID software version may result in infinite-reboot loop!!!!"))
+v = s:option(Flag, "mod_omcid", translate("Patch OMCID behaviours"),
+    translate("Patch the OMCID binary to change its behaviour. " ..
+                  "WARNING: Patching OMCID may result in infinite-reboot loop!!!!"))
 v.addremove = true
 v.rmempty = true
 
-v = s:option(Value, "omcid_version", translate("Software Version"), translate("The software version to report."))
+v = s:option(Value, "omcid_version", translate("Patch Software Version"), translate("Modify the software version OMCID reports."))
 v.addremove = true
 v.rmempty = true
 v:depends("mod_omcid", "1")
 
-buttona = s:option(Button, "ButtonA", translate("Restore OMCID Software Version"))
+buttona = s:option(Button, "ButtonA", translate("Restore Software Version"))
 buttona.inputtitle = translate("Restore")
 buttona.inputstyle = "apply"
 buttona:depends("mod_omcid", "1")
+
+v = s:option(Value, "omcid_8021x", translate("Patch 802.1x Enforcement"), translate("Disable enforcement of 802.1x by the ONU. May help in deployments where the ONU is erroneously dropping 802.1x traffic."))
+v.addremove = true
+v.rmempty = true
+v:depends("mod_omcid", "1")
+
+buttonc = s:option(Button, "ButtonC", translate("Restore 802.1x Enforcement"))
+buttonc.inputtitle = translate("Restore")
+buttonc.inputstyle = "apply"
+buttonc:depends("mod_omcid", "1")
 
 v = s:option(Flag, "mod_omcc", translate("Custom OMCC Version"),
     translate("WARNING: Custom OMCC version may result in infinite-reboot loop!!!!"))
@@ -295,16 +305,21 @@ v.rmempty = true
 v:depends("rebootdirect", "1")
 
 function buttona.write(self, section, value)
-    luci.sys.call("/opt/lantiq/bin/config_onu.sh restore")
+    luci.sys.call("/opt/lantiq/bin/config_onu.sh restore_version")
 end
 
 function buttonb.write(self, section, value)
     luci.sys.call("/opt/lantiq/bin/config_onu.sh switch")
 end
 
+function buttonb.write(self, section, value)
+    luci.sys.call("/opt/lantiq/bin/config_onu.sh restore_8021x")
+end
+
 function m.on_after_commit(map)
     luci.sys.call("/opt/lantiq/bin/config_onu.sh set")
-    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod")
+    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod_8021x")
+    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod_version")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh disable")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh ignore")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh reboot")
