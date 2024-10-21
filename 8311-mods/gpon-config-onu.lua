@@ -50,7 +50,7 @@ v.rmempty = true
 
 v = s:option(Value, "uvlan", translate("Upstream VLAN ID"),
     translate("Specifies the default upstream VLAN ID for the tagging operation, enter ‘u’ to use " ..
-                  "untagged mode (VLAN range: 1-4094)."))
+        "untagged mode (VLAN range: 1-4094)."))
 v.addremove = true
 v.rmempty = true
 v:depends("iopmask", "1")
@@ -62,8 +62,8 @@ v:depends("iopmask", "1")
 
 v = s:option(Flag, "forcemerule", translate("Force MEs 47 and 171"),
     translate("Force creation of ‘MAC bridge port configuration data’ and ‘Extended VLAN tagging " ..
-                  "operation configuration data’ managed entities. Try enabling this if O5 status " ..
-                  "still isn't being obtained."))
+        "operation configuration data’ managed entities. Try enabling this if O5 status " ..
+        "still isn't being obtained."))
 v.addremove = true
 v:depends("iopmask", "1")
 
@@ -76,8 +76,8 @@ v:depends("iopmask", "1")
 
 v = s:option(Value, "mvlan", translate("Downstream Multicast TCI"),
     translate("Specify downstream multicast TCI in the form ‘A[@B]’ where ‘A’ is a VLAN and ‘B’ " ..
-                  "is a priority. Controls the downstream tagging of both the IGMP/MLD and " ..
-                  "multicast frames (Priority range: 0-7, VLAN range: 1-4094)."))
+        "is a priority. Controls the downstream tagging of both the IGMP/MLD and " ..
+        "multicast frames (Priority range: 0-7, VLAN range: 1-4094)."))
 v.addremove = true
 v.rmempty = true
 v.datatype = "and(uinteger,range(1,4094))"
@@ -85,17 +85,17 @@ v:depends("iopmask", "1")
 
 v = s:option(Value, "tvlan", translate("VLAN Tagging Operations"),
     translate("Specify VLAN tagging operations in the form ‘A[@B]:C[@D]’ where ‘A’ and ‘C’ is a " ..
-                  "VLAN and ‘B’ and ‘D’ is a priority. Multiple comma-separated pairs can be " ..
-                  "entered. For example, ‘2:41,3:43,4:u,5:44@5’ would bridge downstream VLANs: " ..
-                  "2,3,4,5 to upstream VLANs: 41,43,untagged,44 respectively, where ‘@5’ specifies " ..
-                  "VLAN priority. (Priority range: 0-7, VLAN range: 1-4094 and ‘u’ on the right hand side)"))
+        "VLAN and ‘B’ and ‘D’ is a priority. Multiple comma-separated pairs can be " ..
+        "entered. For example, ‘2:41,3:43,4:u,5:44@5’ would bridge downstream VLANs: " ..
+        "2,3,4,5 to upstream VLANs: 41,43,untagged,44 respectively, where ‘@5’ specifies " ..
+        "VLAN priority. (Priority range: 0-7, VLAN range: 1-4094 and ‘u’ on the right hand side)"))
 v.addremove = true
 v.rmempty = true
 v:depends("iopmask", "1")
 
 v = s:option(Flag, "mtvlan", translate("Enable N:1 VLAN Mode"),
     translate("When enabled, multiple downstream VLANs can be bridged to a single upstream VLAN " ..
-                  "(note: each downstream VLAN will be represented by a unique MAC address)."))
+        "(note: each downstream VLAN will be represented by a unique MAC address)."))
 v.addremove = true
 v:depends("iopmask", "1")
 
@@ -108,14 +108,14 @@ s = m:section(NamedSection, "onu", translate("ONU"), translate("Multicast"))
 
 v = s:option(ListValue, "igmp_version", translate("IGMP Version"),
     translate("Configure the IGMP version reported in ‘multicast operations profile’ managed " ..
-                  "entity. Try enabling this if IPoE-based multicast IPTV isn't working correctly."))
+        "entity. Try enabling this if IPoE-based multicast IPTV isn't working correctly."))
 v.default = 3
 v:value(3, translate("IGMP v3"))
 v:value(2, translate("IGMP v2"))
 
 v = s:option(Flag, "forceme309", translate("Force ME 309 creation"),
     translate("Force creation of ‘multicast operations profile’ managed entity. Try enabling " ..
-                  "this if IPoE-based multicast IPTV isn't working correctly."))
+        "this if IPoE-based multicast IPTV isn't working correctly."))
 v.addremove = true
 v.rmempty = true
 
@@ -123,9 +123,9 @@ s = m:section(NamedSection, "onu", translate("ONU"), translate("Advanced"))
 
 v = s:option(ListValue, "uni_type", translate("Custom UNI Type"),
     translate("Most SFU ONUs will be expected to be using ethernet PPTP UNI by the OLT, however " ..
-                  "HGU ONUs may be expected to be using VEIP UNI. WARNING: Having the fibre " ..
-                  "inserted for too long with the wrong UNI type active may cause the OLT to " ..
-                  "de-register the GPON SN!!!!!"))
+        "HGU ONUs may be expected to be using VEIP UNI. WARNING: Having the fibre " ..
+        "inserted for too long with the wrong UNI type active may cause the OLT to " ..
+        "de-register the GPON SN!!!!!"))
 v.default = "pptp"
 v:value("pptp", translate("Ethernet PPTP"))
 v:value("veip", translate("VEIP"))
@@ -151,13 +151,14 @@ v.addremove = true
 v.rmempty = true
 v:depends("mib_customized", "1")
 
-v = s:option(Flag, "mod_omcid", translate("Patch OMCID behaviours"),
-    translate("Patch the OMCID binary to change its behaviour. " ..
-                  "WARNING: Patching OMCID may result in infinite-reboot loop!!!!"))
+v = s:option(Flag, "mod_omcid", translate("Patch OMCID"),
+    translate("Change the behavior of OMCID by patching the binary. " ..
+        "WARNING: Patching OMCID may result in infinite-reboot loop!!!!"))
 v.addremove = true
 v.rmempty = true
 
-v = s:option(Value, "omcid_version", translate("Patch Software Version"), translate("Modify the software version OMCID reports."))
+v = s:option(Value, "omcid_version", translate("Patch Software Version"),
+    translate("Modify the software version OMCID reports."))
 v.addremove = true
 v.rmempty = true
 v:depends("mod_omcid", "1")
@@ -167,7 +168,9 @@ buttona.inputtitle = translate("Restore")
 buttona.inputstyle = "apply"
 buttona:depends("mod_omcid", "1")
 
-v = s:option(Value, "omcid_8021x", translate("Patch 802.1x Enforcement"), translate("Disable enforcement of 802.1x by the ONU. May help in deployments where the ONU is erroneously dropping 802.1x traffic."))
+v = s:option(Value, "omcid_8021x", translate("Patch 802.1x Enforcement"),
+    translate("Disable enforcement of 802.1x by the ONU. May help in " ..
+        "|deployments where the ONU is erroneously dropping 802.1x traffic."))
 v.addremove = true
 v.rmempty = true
 v:depends("mod_omcid", "1")
@@ -189,7 +192,7 @@ v:depends("mod_omcc", "1")
 
 v = s:option(Flag, "disable_sigstatus", translate("Disable Network Reset/Recovery"),
     translate("Disable network configuration reset of host and LCT on quick repeated " ..
-                  "removals and reinsertions of the fibre cable."))
+        "removals and reinsertions of the fibre cable."))
 v.addremove = true
 v.rmempty = true
 
@@ -205,7 +208,7 @@ v.rmempty = true
 
 v = s:option(Flag, "ignore_rx_loss", translate("Ignore RX_LOSS messages"),
     translate("Avoid dropouts due to ‘PLOAM Rx - message lost’ by making the ONU driver " ..
-                  "ignore RX_LOSS messages (only enable if you have this problem)."))
+        "ignore RX_LOSS messages (only enable if you have this problem)."))
 v.addremove = true
 v.rmempty = true
 
@@ -267,14 +270,14 @@ v:depends("lct_restart_try", "1")
 
 v = s:option(Value, "total_lct_wait", translate("Number of Wait Intervals"),
     translate("Number of 5 or 15 second intervals to wait before restarting the LCT interface, " ..
-                  "recommend around 5-10 intervals."))
+        "recommend around 5-10 intervals."))
 v.addremove = true
 v.rmempty = true
 v:depends("lct_restart_try", "1")
 
 v = s:option(Value, "trackip1", translate("Monitor IP 1"),
     translate("IP address to be monitored, a LAN IP address is recommended. Make sure that the " ..
-                  "IP address entered is accessible, otherwise it may lead to infinite-reboot loop!!!!"))
+        "IP address entered is accessible, otherwise it may lead to infinite-reboot loop!!!!"))
 v.addremove = true
 v.rmempty = true
 v.datatype = "ip4addr"
@@ -282,7 +285,7 @@ v:depends("lct_restart_try", "1")
 
 v = s:option(Value, "trackip2", translate("Monitor IP 2"),
     translate("IP address to be monitored, a LAN IP address is recommended. Make sure that the " ..
-                  "IP address entered is accessible, otherwise it may lead to infinite-reboot loop!!!!"))
+        "IP address entered is accessible, otherwise it may lead to infinite-reboot loop!!!!"))
 v.addremove = true
 v.rmempty = true
 v.datatype = "ip4addr"
