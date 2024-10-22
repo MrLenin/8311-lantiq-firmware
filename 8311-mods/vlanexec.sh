@@ -91,7 +91,7 @@ oltstatus1() {
 		let totalizerflag++
 	fi
 
-	echo "$oltstatus1"  >/tmp/oltstatus1
+	echo "$oltstatus1" >/tmp/oltstatus1
 }
 
 oltstatus2() {
@@ -107,7 +107,7 @@ oltstatus2() {
 		let totalizerflag++
 	fi
 	
-	echo "$oltstatus2"  >/tmp/oltstatus2
+	echo "$oltstatus2" >/tmp/oltstatus2
 }
 
 rest() {
@@ -161,7 +161,7 @@ olttype() {
 		fi
 	done
 
-	echo "olt type:$olt_type"   >/tmp/collect
+	echo "olt type:$olt_type" >/tmp/collect
 }
 
 extendvlan() {
