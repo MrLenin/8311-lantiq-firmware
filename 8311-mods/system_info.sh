@@ -158,7 +158,7 @@ vendor() {
 		vendorname="Alcatel-Lucent"
 	fi
 
-	echo "$vendorname" > /tmp/vendorname
+	echo "$vendorname" >/tmp/vendorname
 }
 
 model() {
