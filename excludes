@@ -6,6 +6,7 @@ etc/mibs/nameless.ini
 opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh
+opt/lantiq/bin/vlanexec.sh
 usr/lib/lua/luci/controller/lantiq/gpon.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua
