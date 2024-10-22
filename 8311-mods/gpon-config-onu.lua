@@ -321,8 +321,7 @@ end
 
 function m.on_after_commit(map)
     luci.sys.call("/opt/lantiq/bin/config_onu.sh set")
-    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod_8021x")
-    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod_version")
+    luci.sys.call("/opt/lantiq/bin/config_onu.sh mod")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh disable")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh ignore")
     luci.sys.call("/opt/lantiq/bin/config_onu.sh reboot")
