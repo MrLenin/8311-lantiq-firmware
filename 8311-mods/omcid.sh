@@ -74,7 +74,7 @@ generate_custom_mib() {
 		else #if [ -n "$uni_type" ] && [ "$uni_type" == "pptp" ]; then
 			printf '\n%s\n' "$(cat ${pptpsrc})"
 		fi
-	} >> ${mibtgt}
+	} >>${mibtgt}
 }
 
 start_service() {
