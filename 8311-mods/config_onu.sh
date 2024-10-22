@@ -43,7 +43,7 @@ set_config() {
 	local vendor_id
 	local equipment_id
 	local ont_version
-	
+
 	nSerial=$(uci -q get gpon.onu.nSerial)
 	omci_loid=$(uci -q get gpon.onu.omci_loid)
 	omci_password=$(uci -q get gpon.onu.omci_lpwd)
@@ -308,7 +308,7 @@ set_ip() {
 		uci set network.lct.proto=static
 		uci commit network.lct
 	fi
-	
+
 	if [ "$host_mac_cap" != "$host_mac_old_cap" ]; then
 		logger -t "[config_onu]" "Setting Host MAC Address: $host_mac_cap."
 		fw_setenv ethaddr "${host_mac_cap}"
@@ -417,8 +417,8 @@ restore_omcid_version() {
 	if [ -n "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_csum" ]; then
 		local omcid_version="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
 
-		printf '%s' "$omcid_version" | hexdump -e '60/1 "%02x" "\n"' | 
-			awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '"'\x00'"'; print ""}' | 
+		printf '%s' "$omcid_version" | hexdump -e '60/1 "%02x" "\n"' |
+			awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf -e '"'\x00'"'; print ""}' |
 			cut -c 1-116 | xxd -r -p >/tmp/omcid_ver
 
 		#local omcid_version_offset_1=307944
@@ -449,7 +449,7 @@ disable_rx_los_status() {
 
 	if [ "$disable_rx_los_status" = "1" ] && [ "$rx_los_status_current" != "00" ]; then
 		logger -t "[config_onu]" "Disabling rx_los status ..."
-		printf '%b' '\x0' > /tmp/mod_optic
+		printf '%b' '\x0' >/tmp/mod_optic
 		cp /lib/modules/3.10.49/mod_optic.ko /tmp/mod_optic.ko
 		dd if=/tmp/mod_optic of=/tmp/mod_optic.ko obs=1 seek=$mod_optic_offset conv=notrunc 2>>/dev/null
 		cp /tmp/mod_optic.ko /lib/modules/3.10.49/mod_optic.ko
@@ -502,7 +502,7 @@ rebootcause() {
 	local rebootcause
 
 	rebootcause=$(fw_printenv rebootcause 2>&- | cut -f 2 -d '=')
-	echo "$rebootcause" > /tmp/rebootcause
+	echo "$rebootcause" >/tmp/rebootcause
 
 	fw_setenv rebootcause 0
 }
@@ -517,13 +517,13 @@ rebootnum() {
 	if [ -z "$reboottrynum" ]; then
 		reboottrynum=0
 	fi
-	
+
 	if [ -z "$omcidrebootnum" ]; then
 		omcidrebootnum=0
 	fi
 
-	echo "$reboottrynum" > /tmp/reboottrynum
-	echo "$omcidrebootnum" > /tmp/omcidrebootnum
+	echo "$reboottrynum" >/tmp/reboottrynum
+	echo "$omcidrebootnum" >/tmp/omcidrebootnum
 }
 
 rebootdelay() {
@@ -532,7 +532,7 @@ rebootdelay() {
 
 	rebootdirect=$(uci -q get gpon.onu.rebootdirect)
 	rebootwait=$(uci -q get gpon.onu.rebootwait)
-	
+
 	if [ "$rebootdirect" = "1" ] && [ -n "$rebootwait" ]; then
 		logger -t "[config_onu]" "Reboot enabled, waiting ..."
 		reboot -f -d "$rebootwait" &
@@ -541,7 +541,7 @@ rebootdelay() {
 
 switchimage() {
 	local imagenext
-	
+
 	imagenext=$(grep image /proc/mtd | cut -c 31)
 
 	fw_setenv committed_image "$imagenext"
@@ -551,7 +551,7 @@ switchimage() {
 switchasc() {
 	local ascenv
 	local asc
-	
+
 	ascenv=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
 	asc=$(uci -q get gpon.onu.asc)
 
@@ -569,7 +569,7 @@ switchasc() {
 initasc() {
 	local ascenv
 	local asc
-	
+
 	ascenv=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
 	asc=$(uci -q get gpon.onu.asc)
 
@@ -578,7 +578,7 @@ initasc() {
 		uci -q set gpon.onu.asc=1
 		uci commit gpon.onu.asc
 	fi
-	 
+
 	if [ "$ascenv" != "0" ] && [ "$asc" = "1" ]; then
 		logger -t "[config_onu]" "TTL console disabled, syncing system config ..."
 		uci -q delete gpon.onu.asc
@@ -616,11 +616,8 @@ setip)
 update)
 	update_goi
 	;;
-mod_version)
-	mod_omcid_version
-	;;
-mod_8021x)
-	mod_omcid_8021x
+mod)
+	mod_omcid
 	;;
 restore_version)
 	restore_omcid_version
