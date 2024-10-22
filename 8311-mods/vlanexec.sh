@@ -91,7 +91,7 @@ oltstatus1() {
 		let totalizerflag++
 	fi
 
-	echo "$oltstatus1" > /tmp/oltstatus1
+	echo "$oltstatus1"  >/tmp/oltstatus1
 }
 
 oltstatus2() {
@@ -107,7 +107,7 @@ oltstatus2() {
 		let totalizerflag++
 	fi
 	
-	echo "$oltstatus2" > /tmp/oltstatus2
+	echo "$oltstatus2"  >/tmp/oltstatus2
 }
 
 rest() {
@@ -161,41 +161,41 @@ olttype() {
 		fi
 	done
 
-	echo "olt type:$olt_type"  > /tmp/collect
+	echo "olt type:$olt_type"   >/tmp/collect
 }
 
 extendvlan() {
 	me171=$($omci md | grep "Extended VLAN conf data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | head -n 1 | sed s/[[:space:]]//g)
 	
 	if [ -z "$me171" ]; then
-		echo "extendvlan null" >> /tmp/collect  
+		echo "extendvlan null" >>/tmp/collect  
 	else
-		echo "extendvlan instance:$me171" >> /tmp/collect
+		echo "extendvlan instance:$me171" >>/tmp/collect
 	fi
 }
 
 bridgeget() {
 	number=$($omci md | grep -c "Bridge config data")
 
-	echo "bridge number is:$number" >> /tmp/collect
+	echo "bridge number is:$number" >>/tmp/collect
 
-	for i in $(echo "$me47_instance_number")
+	for i in $me47_instance_number
 	do
 		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 
-		echo "Bridge port config data:$me47_tptype,$me47_tpptr" >> /tmp/collect
+		echo "Bridge port config data:$me47_tptype,$me47_tpptr" >>/tmp/collect
 
 		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then 
-			echo "pptp uni brige port already created" >> /tmp/collect
+			echo "pptp uni brige port already created" >>/tmp/collect
 			return
 		elif [ "$me47_tptype" = "0b" ]; then
-			echo "veip bridge port created" >> /tmp/collect
+			echo "veip bridge port created" >>/tmp/collect
 			return
 		fi
 	done
 
-	echo "warning: pptp uni brige port or veip bridge port not created!!!!" >> /tmp/collect
+	echo "warning: pptp uni brige port or veip bridge port not created!!!!" >>/tmp/collect
 }
 
 collect() {
@@ -206,14 +206,14 @@ collect() {
 
 mibdata() {
 	if [ ! -e /tmp/mibcounter ]; then
-		data1=$($omci meadg 2 0 1 | cut -f 3 -d '=' | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g > /tmp/mibcounter)
+		data1=$($omci meadg 2 0 1 | cut -f 3 -d '=' | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g >/tmp/mibcounter)
 	else
 		data2=$($omci meadg 2 0 1 | cut -f 3 -d '=' | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g)
 		last=$(cat /tmp/mibcounter)
 
 		if [ "$data2" != "$last" ]; then
 			logger -t "[vlanexec]" "mib data unsync"
-			echo "$data2" > /tmp/mibcounter
+			echo "$data2" >/tmp/mibcounter
 			let totalizerflag++
 		fi
 	 fi
@@ -255,7 +255,7 @@ uvlancheck() {
 		uvlan=$($uci get gpon.onu.uvlan 2>&-)
 
 		if [ -n "$uvlan" ]; then
-			echo "$uvlan" > /tmp/uvlandata
+			echo "$uvlan" >/tmp/uvlandata
 			let totalizerflag++
 		fi
 	else
@@ -264,7 +264,7 @@ uvlancheck() {
 		
 		if [ "$uvlandata2" != "$ulastdata" ]; then
 			logger -t "[vlanexec]" "uvlan rule changed."
-			echo "$uvlandata2" > /tmp/uvlandata
+			echo "$uvlandata2" >/tmp/uvlandata
 			let totalizerflag++
 		fi
 	fi
@@ -318,12 +318,12 @@ uvlanset() {
 mvlancheck() {
 	if [ ! -e /tmp/mvlandata ]; then
 		if [ -n "$mvlan" ]; then
-			echo "$mvlan" > /tmp/mvlandata
+			echo "$mvlan" >/tmp/mvlandata
 			let totalizerflag++
 		fi
 	elif [ ! -e /tmp/mvlansourcedata ]; then
 		if [ -n "$mvlansource" ]; then
-			echo "$mvlansource" > /tmp/mvlansourcedata
+			echo "$mvlansource" >/tmp/mvlansourcedata
 			let totalizerflag++
 		fi
 	else
@@ -334,11 +334,11 @@ mvlancheck() {
 
 		if [ "$mvlandata2" != "$mlastdata" ]; then
 			logger -t "[vlanexec]" "mvlan rule changed."
-			echo "$mvlandata2" > /tmp/mvlandata
+			echo "$mvlandata2" >/tmp/mvlandata
 			let totalizerflag++
 		elif [ "$mvlansourcedata2" != "$mlastsourcedata" ]; then
 			logger -t "[vlanexec]" "mvlansource rule changed."
-			echo "$mvlansourcedata2" > /tmp/mvlansourcedata
+			echo "$mvlansourcedata2" >/tmp/mvlansourcedata
 			let totalizerflag++
 		fi
 	fi
@@ -430,8 +430,8 @@ vlantranscheck() {
 
 		if [ -e "/tmp/vlan$tvlanseqa" ] && [ -e "/tmp/vlan$tvlanseqb" ]; then
 			if [ -n "$vlana" ] && [ -n "$vlanb" ]; then
-				echo "$vlana" > "/tmp/vlan$tvlanseqa"
-				echo "$vlanb" > "/tmp/vlan$tvlanseqb"
+				echo "$vlana" >"/tmp/vlan$tvlanseqa"
+				echo "$vlanb" >"/tmp/vlan$tvlanseqb"
 				let totalizerflag++
 			fi
 		else
@@ -441,8 +441,8 @@ vlantranscheck() {
 			if [ "$vlana" != "$vlana_lastdata" ] || [ "$vlanb" != "$vlanb_lastdata" ]; then
 				logger -t "[vlanexec]" "vlantrans$i vlan$tvlanseqa:vlan$tvlanseqb $vlana:$vlanb ($vlana_lastdata:$vlanb_lastdata) changed."
 				deletetrans "$vlana_lastdata"
-				echo "$vlana" > "/tmp/vlan$tvlanseqa"
-				echo "$vlanb" > "/tmp/vlan$tvlanseqb"
+				echo "$vlana" >"/tmp/vlan$tvlanseqa"
+				echo "$vlanb" >"/tmp/vlan$tvlanseqb"
 				let totalizerflag++
 			fi
 		fi
@@ -450,7 +450,7 @@ vlantranscheck() {
 }
 
 mtvlanset() {
-	gem_port_idx=$($gtop  -b -g "GPE DS GEM port" | awk 'BEGIN{FS=";"} NR>5  {print $1}' | sed s/[[:space:]]//g)
+	gem_port_idx=$($gtop -b -g "GPE DS GEM port" | awk 'BEGIN{FS=";"} NR>5  {print $1}' | sed s/[[:space:]]//g)
 
 	if [ "$mtvlan" = "1" ]; then
 		if [ -n "$vlandebug" ]; then
@@ -464,7 +464,7 @@ mtvlanset() {
 		gpe_vlanmode=0
 	fi
 
-	for i in $(echo "$gem_port_idx")
+	for i in $gem_port_idx
 	do
 		$onu gpe_vlan_mode_set "$i" 0 "$gpe_vlanmode"
 	done
@@ -472,6 +472,7 @@ mtvlanset() {
 
 vlantransset() {
 	tvlannum=$(echo "$tvlan" | grep -o ":" | grep -c ":")
+
 	for i in $(seq 1 "$tvlannum")
 	do
 		vlana=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
@@ -552,7 +553,7 @@ me47pptpunibridge() {
 		logger -t "[vlan]" "me47_instance_number: $me47_instance_number"
 	fi
 
-	for i in $(echo "$me47_instance_number")
+	for i in $me47_instance_number
 	do
 		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
@@ -600,7 +601,7 @@ me171create() {
 	me171_line=$($omci md | grep -c "Extended VLAN conf data")
 
 	if [ "$me171_line" -gt 1 ]; then
-		for i in $(echo "$me171")
+		for i in $me171
 		do
 			Associated_ME_ptr=$($omci meadg 171 "$i" 7 | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g)
 
@@ -623,7 +624,7 @@ me171create() {
 		;;
 		1)  if [ -z "$me171" ]; then
 				# new create me171,untag discard,tag transparnet
-				me171_instance_1=$(expr "$me47_instance")
+				me171_instance_1=$me47_instance
 				me171_instance_2=$(printf "%04x" "$me171_instance_1")
 				me171_instance_3=$(echo "$me171_instance_2" | sed 's/../& /g' | sed 's/[ ]*$//g')
 				source=$(sed -n '2p' /etc/me171 | cut -c 43-50)
@@ -682,7 +683,8 @@ me309create() {
 tptypealcl() {
 	me47_instance_number=$($omci md | grep "Bridge port config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
 	spanning_tree=$($omci meadg 45 1 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-	for i in $(echo "$me47_instance_number")
+
+	for i in $me47_instance_number
 	do
 		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
@@ -719,7 +721,7 @@ me171rulecheck() {
 	me171_doubletag="0xe80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
 	me171_singtagget=$($omci meg 171 "$me171" | grep "0xf8 0x00 0x00 0x00 0xe8" | tail -n 1 | sed s/[[:space:]]//g)
 	me171_doubletagget=$($omci meg 171 "$me171" | grep "0xe8 0x00 0x00 0x00 0xe8" | tail -n 1 | sed s/[[:space:]]//g)
-	$omci meg 171 "$me171" | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -v "0xe8 0x00 0x00 0x00 0xe8" | sed 's/^   //g' | sed 's/0x//g' > /tmp/me171_rule
+	$omci meg 171 "$me171" | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -v "0xe8 0x00 0x00 0x00 0xe8" | sed 's/^   //g' | sed 's/0x//g' >/tmp/me171_rule
 	me171_rule_line=$($omci meg 171 1 | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -vc "0xf8 0x00 0x00 0x00 0xe8")
 	
 	if [ "$me171_rule_line" -ge 1 ] && [ -n "$vlandebug" ]; then
