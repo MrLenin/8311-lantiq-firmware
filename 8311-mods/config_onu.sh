@@ -318,9 +318,11 @@ set_ip() {
 }
 
 mod_omcid() {
+	local mod_omcid
 	local omcid_csum
 	local omcid_csum_current
 
+	mod_omcid=$(uci -q get gpon.onu.mod_omcid)
 	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
