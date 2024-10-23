@@ -168,9 +168,9 @@ buttona.inputtitle = translate("Restore")
 buttona.inputstyle = "apply"
 buttona:depends("mod_omcid", "1")
 
-v = s:option(Value, "omcid_8021x", translate("Patch 802.1x Enforcement"),
+v = s:option(Flag, "omcid_8021x", translate("Patch 802.1x Enforcement"),
     translate("Disable enforcement of 802.1x by the ONU. May help in " ..
-        "|deployments where the ONU is erroneously dropping 802.1x traffic."))
+        "deployments where the ONU is erroneously dropping 802.1x traffic."))
 v.addremove = true
 v.rmempty = true
 v:depends("mod_omcid", "1")
@@ -315,7 +315,7 @@ function buttonb.write(self, section, value)
     luci.sys.call("/opt/lantiq/bin/config_onu.sh switch")
 end
 
-function buttonb.write(self, section, value)
+function buttonc.write(self, section, value)
     luci.sys.call("/opt/lantiq/bin/config_onu.sh restore_8021x")
 end
 
