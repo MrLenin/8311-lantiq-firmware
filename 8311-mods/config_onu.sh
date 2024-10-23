@@ -383,11 +383,13 @@ mod_omcid_8021x() {
 }
 
 restore_omcid_8021x() {
+	local omcid_version
 	local omcid_csum
 	local omcid_csum_current
 
 	local omcid_8021x_offset=275849
 
+	omcid_version=$(uci -q get gpon.onu.omcid_version)
 	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
@@ -400,17 +402,24 @@ restore_omcid_8021x() {
 		printf '\x01' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
 		cp /tmp/omcid /opt/lantiq/bin/omcid
 
-		uci -q delete gpon.onu.omcid_csum
-		uci commit gpon.onu
+		if [ -z "$omcid_version" ]; then 
+			uci -q delete gpon.onu.omcid_csum
+			uci commit gpon.onu
+		else
+			uci set gpon.onu.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
+			uci commit gpon.onu
+		fi
 	else
 		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
 	fi
 }
 
 restore_omcid_version() {
+	local disable_8021x
 	local omcid_csum
 	local omcid_csum_current
 
+	disable_8021x=$(uci -q get gpon.onu.omcid_8021x)
 	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
@@ -433,8 +442,13 @@ restore_omcid_version() {
 		dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>>/dev/null
 		cp /tmp/omcid /opt/lantiq/bin/omcid
 
-		uci -q delete gpon.onu.omcid_csum
-		uci commit gpon.onu
+		if [ -z "$disable_8021x" ]; then 
+			uci -q delete gpon.onu.omcid_csum
+			uci commit gpon.onu
+		else
+			uci set gpon.onu.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
+			uci commit gpon.onu
+		fi
 	else
 		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
 	fi
