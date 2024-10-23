@@ -140,7 +140,7 @@ resetparameter() {
 		tvlanseq=$i
 		tvlanseqb=$((i + tvlanseq))
 
-		if [ -e "/tmp/vlan$tvlanseqa" ] && [ -e "/tmp/vlan$tvlanseqa" ]; then
+		if [ -e "/tmp/vlan$tvlanseqa" ] || [ -e "/tmp/vlan$tvlanseqa" ]; then
 			rm -f /tmp/vlan$tvlanseqa
 			rm -f /tmp/vlan$tvlanseqa
 		fi
