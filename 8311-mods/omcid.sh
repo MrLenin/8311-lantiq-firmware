@@ -41,7 +41,7 @@ generate_custom_mib() {
 	ont_version=$(uci -q get gpon.onu.ont_version) || return 1
 	equipment_id=$(uci -q get gpon.onu.equipment_id) || return 1
 	uni_type=$(uci -q get gpon.onu.uni_type | tr 'A-Z' 'a-z') || return 1
-    
+
 	vendor_id=$(printf '%.4s' "${vendor_id}")
 	ont_version=$(printf '%.14s' "${ont_version//\\0}")
 	equipment_id=$(printf '%.20s' "${equipment_id//\\0}")
@@ -102,16 +102,16 @@ start_service() {
 	elif [ -n "$mibtmp2" ] && [ "$(echo "$mibtmp2" | grep -c "auto.ini")" != "1" ]; then
 		mib_file="$mibtmp2"
 	else
-        if [ "$mc" = "1" ]; then
-		    generate_custom_mib
-            ln -sf /etc/mibs/custom.ini /etc/mibs/auto.ini
-        else
-            if [ -n "$uni" ] && [ "$uni" = "veip" ]; then
-                ln -sf /etc/mibs/data_1v_8q.ini /etc/mibs/auto.ini
-            else #if [ -n "$uni" ] && [ "$uni" == "pptp" ]; then
-                ln -sf /etc/mibs/data_1g_8q_us1280_ds512.ini /etc/mibs/auto.ini
-            fi
-        fi
+		if [ "$mc" = "1" ]; then
+			generate_custom_mib
+			ln -sf /etc/mibs/custom.ini /etc/mibs/auto.ini
+		else
+			if [ -n "$uni" ] && [ "$uni" = "veip" ]; then
+				ln -sf /etc/mibs/data_1v_8q.ini /etc/mibs/auto.ini
+			else #if [ -n "$uni" ] && [ "$uni" == "pptp" ]; then
+				ln -sf /etc/mibs/data_1g_8q_us1280_ds512.ini /etc/mibs/auto.ini
+			fi
+		fi
 		mib_file="/etc/mibs/auto.ini"
 		uci set gpon.onu.mib_file=$mib_file
 		uci commit gpon
