@@ -137,16 +137,19 @@ v.rmempty = true
 
 v = s:option(Value, "vendor_id", translate("Vendor ID"),
     translate("Typically the first four digits of the serial number."))
+v.default = "ALCL"
 v.addremove = true
 v.rmempty = true
 v:depends("mib_customized", "1")
 
 v = s:option(Value, "equipment_id", translate("Equipment ID"), translate("The equipment ID of the ONU."))
+v.default = "BVL3A5HNAAG010SP"
 v.addremove = true
 v.rmempty = true
 v:depends("mib_customized", "1")
 
 v = s:option(Value, "ont_version", translate("Hardware Version"), translate("The hardware version of the ONU."))
+v.default = "3FE56641AAAA01"
 v.addremove = true
 v.rmempty = true
 v:depends("mib_customized", "1")
@@ -159,6 +162,7 @@ v.rmempty = true
 
 v = s:option(Value, "omcid_version", translate("Patch Software Version"),
     translate("Modify the software version OMCID reports."))
+v.default = "6BA1896SPE2C05"
 v.addremove = true
 v.rmempty = true
 v:depends("mod_omcid", "1")
