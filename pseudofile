@@ -30,7 +30,7 @@ usr/lib/lua/luci/view/admin_status/index.htm F 1729910614 644 0 0 cat ./8311-mod
 usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
 www/luci-static/bootstrap D 1729910614 755 0 0
 www/luci-static/bootstrap/cascade.css F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/cascade.css
-www/luci-static/bootstrap/favicon.ico F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/favicon.ico
+www/luci-static/bootstrap/favicon.png F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/favicon.png
 www/luci-static/bootstrap/mobile.css F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/mobile.css
 www/luci-static/resources/jquery-3.7.1.min.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/jquery-3.7.1.min.js
 www/luci-static/resources/jquery.validate.min.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/jquery.validate.min.js
