@@ -3,6 +3,7 @@ etc/config/luci
 etc/config/system
 etc/init.d/omcid.sh
 etc/mibs/nameless.ini
+etc/uci-defaults/luci-theme-bootstrap
 opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh

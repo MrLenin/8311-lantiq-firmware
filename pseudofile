@@ -5,6 +5,7 @@ etc/init.d/omcid.sh F 1729910614 755 0 0 cat ./8311-mods/etc/init.d/omcid.sh
 etc/mibs/nameless.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/nameless.ini
 etc/mibs/pptp.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/pptp.ini
 etc/mibs/veip.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/veip.ini
+etc/uci-defaults/30_luci-theme-bootstrap F 1729910614 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
 opt/lantiq/bin/config_onu.sh F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/system_info.sh
