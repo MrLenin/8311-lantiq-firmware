@@ -1,0 +1,119 @@
+<%
+local tools = require "8311.tools"
+local esc = tools.html_escape
+
+local action = "validate"
+local upload_enable = true
+local install_enable = false
+local cancel_enable = false
+local reboot_enable = false
+local i18n = require "luci.i18n"
+local translate = i18n.translate
+-%>
+
+<%+header%>
+<link rel="stylesheet" href="<%=resource%>/view/8311.css" />
+<script type="text/javascript" src="<%=resource%>/jquery-3.7.1.min.js"></script>
+<script type="text/javascript" src="<%=resource%>/jquery.validate.min.js"></script>
+<script type="text/javascript" src="<%=resource%>/view/8311.js"></script>
+
+<h2 name="content"><%:Firmware%></h2>
+<br />
+
+<div class="cbi-section fade-in" style="">
+	<h3><%:Active Firmware%> (<%= esc(version.bank) %>)</h3>
+	<div>
+		<div class="table">
+			<div class="tr">
+				<div class="td left" width="33%"><%:Version%></div>
+				<div class="td left"><%= esc(version.version) %></div>
+			</div>
+			<div class="tr">
+				<div class="td left"><%:Revision%></div>
+				<div class="td left"><%= esc(version.revision) %></div>
+			</div>
+			<div class="tr">
+				<div class="td left"><%:Variant%></div>
+				<div class="td left"><%= esc(version.variant) %></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="cbi-section fade-in" style="">
+	<h3><%:Inactive Firmware%> (<%= esc(altversion.bank) %>)</h3>
+	<div>
+		<div class="table">
+			<div class="tr">
+				<div class="td left" width="33%"><%:Version%></div>
+				<div class="td left"><%= esc(altversion.version) %></div>
+			</div>
+			<div class="tr">
+				<div class="td left"><%:Revision%></div>
+				<div class="td left"><%= esc(altversion.revision) %></div>
+			</div>
+			<div class="tr">
+				<div class="td left"><%:Variant%></div>
+				<div class="td left"><%= esc(altversion.variant) %></div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="cbi-section fade-in">
+	<h3><%:Firmware Upgrade%></h3>
+
+	<form id="firmware-form" method="post" action="<%=REQUEST_URI%>" enctype="multipart/form-data">
+		<div id="zone-content-wrapper">
+			<div id="zone-content">
+<% if not firmware_file_exists then %>
+				<div class="cbi-value">
+					<button type="button" class="firmware-button cbi-button cbi-button-neutral important" onclick="$('#firmware-file').click();">Browse</button>
+					<input type="file" name="firmware_file" id="firmware-file" required="required" />
+					<div class="upload-description">
+						<%:Upload firmware file here, typically named local-upgrade.tar%>
+					</div>
+				</div>
+<% end %>
+<% if firmware_file_exists then
+	cancel_enable = true
+	upload_enable = false
+
+	if firmware_exec and firmware_exec.code ~= 0 then
+		action = "cancel"
+	else
+		if firmware_action == "validate" then
+			install_enable = true
+		elseif firmware_action == "install" then
+			reboot_enable = true
+		elseif firmware_action == "install_reboot" then
+			cancel_enable = false
+		elseif firmware_action == "reboot" then
+			cancel_enable = false
+			firmware_output = translate("Rebooting...")
+		end
+	end
+%>
+<pre id="firmware_output" style="font-size:10pt; font-family: monospace;"><%= esc(firmware_output) %></pre>
+<% end %>
+			</div>
+		</div>
+<% if upload_enable then %>
+		<button class="firmware-button cbi-button cbi-button-action" title="<%:Upload firmware%>" onclick="return uploadFirmware(this);"><%:Upload%></button>
+<% end %>
+<% if install_enable then %>
+		<button class="firmware-button cbi-button cbi-button-action important" type="button" title="<%:Install firmware%>" onclick="return installFirmware(this, false);"><%:Install%></button>
+		<button class="firmware-button cbi-button cbi-button-action important" type="button" title="<%:Install firmware and reboot%>" onclick="return installFirmware(this, true);"><%:Install and Reboot%></button>
+<% end %>
+<% if cancel_enable then %>
+		<button class="firmware-button cbi-button cbi-button-reset" type="button" title="<%:Cancel firmware upgrade and cleanup%>" onclick="return cancelFirmware(this);"><%:Cancel%></button>
+<% end %>
+<% if reboot_enable then %>
+		<button class="firmware-button cbi-button cbi-button-action important" type="button" title="<%:Reboot to new firmware%>" onclick="return rebootFirmware(this);"><%:Reboot%></button>
+<% end %>
+
+		<input id="firmware-action" type="hidden" name="action" value="<%= action %>" />
+	</form>
+</div>
+
+<%+footer%>
