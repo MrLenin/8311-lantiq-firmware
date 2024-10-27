@@ -2,6 +2,8 @@ etc/config/gpon
 etc/config/luci
 etc/config/system
 etc/init.d/omcid.sh
+etc/mibs/data_1g_8q_us1280_ds512.ini
+etc/mibs/data_1v_8q.ini
 etc/mibs/nameless.ini
 etc/uci-defaults/luci-theme-bootstrap
 opt/lantiq/bin/config_onu.sh
@@ -9,9 +11,11 @@ opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh
 opt/lantiq/bin/vlanexec.sh
 usr/lib/lua/luci/controller/admin/network.lua
+usr/lib/lua/luci/controller/admin/status.lua
 usr/lib/lua/luci/controller/admin/system.lua
 usr/lib/lua/luci/controller/commands.lua
 usr/lib/lua/luci/controller/firewall.lua
+usr/lib/lua/luci/controller/lantiq
 usr/lib/lua/luci/controller/lantiq/gpon.lua
 usr/lib/lua/luci/model/cbi/admin_network
 usr/lib/lua/luci/model/cbi/admin_network/hosts.lua
@@ -47,12 +51,15 @@ usr/lib/lua/luci/view/admin_network/wifi_status.htm
 usr/lib/lua/luci/view/admin_status/index.htm
 usr/lib/lua/luci/view/admin_system/ipkg.htm
 usr/lib/lua/luci/view/admin_system/packages.htm
+usr/lib/lua/luci/view/cbi/full_valuefooter.htm
 usr/lib/lua/luci/view/commands.htm
 usr/lib/lua/luci/view/firewall
 usr/lib/lua/luci/view/firewall/cbi_addforward.htm
 usr/lib/lua/luci/view/firewall/cbi_addrule.htm
 usr/lib/lua/luci/view/firewall/cbi_addsnat.htm
 usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
+usr/lib/lua/luci/view/themes/bootstrap/footer.htm
+usr/lib/lua/luci/view/themes/bootstrap/header.htm
 www/luci-static/bootstrap
 www/luci-static/bootstrap/cascade.css
 www/luci-static/bootstrap/favicon.ico

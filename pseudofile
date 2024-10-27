@@ -3,6 +3,8 @@ etc/config/luci F 1729910614 644 0 0 cat ./8311-mods/etc/config/luci
 etc/config/system F 1729910614 644 0 0 cat ./8311-mods/etc/config/system
 etc/init.d/omcid.sh F 1729910614 755 0 0 cat ./8311-mods/etc/init.d/omcid.sh
 etc/mibs/nameless.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/nameless.ini
+etc/mibs/data_1g_8q_us1280_ds512.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/data_1g_8q_us1280_ds512.ini
+etc/mibs/data_1v_8q.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q.ini
 etc/mibs/pptp.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/pptp.ini
 etc/mibs/veip.ini F 1729910614 644 0 0 cat ./8311-mods/etc/mibs/veip.ini
 etc/uci-defaults/30_luci-theme-bootstrap F 1729910614 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
@@ -10,12 +12,13 @@ opt/lantiq/bin/config_onu.sh F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin
 opt/lantiq/bin/omcid F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/system_info.sh
 opt/lantiq/bin/vlanexec.sh F 1729910614 755 0 0 cat ./8311-mods/opt/lantiq/bin/vlanexec.sh
-usr/lib/lua/8311 D 1729910614 644 0 0
+usr/bin/luci-me-dump F 1729910614 775 0 0 cat ./8311-mods/usr/bin/luci-me-dump
+usr/lib/lua/8311 D 1729910614  0 0
 usr/lib/lua/8311/tools.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/8311/tools.lua
 usr/lib/lua/8311/version.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/8311/version.lua
 usr/lib/lua/base64.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/base64.lua
 usr/lib/lua/luci/controller/admin/system.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/controller/admin/system.lua
-usr/lib/lua/luci/controller/lantiq/gpon.lua F 1729910614 664 0 0 cat ./8311-mods/usr/lib/lua/luci/controller/lantiq/gpon.lua
+usr/lib/lua/luci/controller/8311.lua F 1729910614 664 0 0 cat ./8311-mods/usr/lib/lua/luci/controller/8311.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua F 1729910614 664 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua
@@ -28,7 +31,10 @@ usr/lib/lua/luci/view/8311/pon_status.htm F 1729910614 644 0 0 cat ./8311-mods/u
 usr/lib/lua/luci/view/8311/support.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/support.htm
 usr/lib/lua/luci/view/8311/vlans.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/vlans.htm
 usr/lib/lua/luci/view/admin_status/index.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/admin_status/index.htm
+usr/lib/lua/luci/view/cbi/full_valuefooter.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/cbi/full_valuefooter.htm
 usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
+usr/lib/lua/luci/view/themes/bootstrap/footer.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/footer.htm
+usr/lib/lua/luci/view/themes/bootstrap/header.htm F 1729910614 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/header.htm
 www/luci-static/bootstrap D 1729910614 755 0 0
 www/luci-static/bootstrap/cascade.css F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/cascade.css
 www/luci-static/bootstrap/favicon.png F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/favicon.png
@@ -36,7 +42,6 @@ www/luci-static/bootstrap/mobile.css F 1729910614 644 0 0 cat ./8311-mods/www/lu
 www/luci-static/resources/jquery-3.7.1.min.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/jquery-3.7.1.min.js
 www/luci-static/resources/jquery.validate.min.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/jquery.validate.min.js
 www/luci-static/resources/logo_8311.png F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/logo_8311.png
-www/luci-static/resources/menu-bootstrap.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/menu-bootstrap.js
 www/luci-static/resources/view D 1729910614 644 0 0
 www/luci-static/resources/view/8311.css F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/view/8311.css
 www/luci-static/resources/view/8311.js F 1729910614 644 0 0 cat ./8311-mods/www/luci-static/resources/view/8311.js
