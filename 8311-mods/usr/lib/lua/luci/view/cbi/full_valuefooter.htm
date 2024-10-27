@@ -2,10 +2,7 @@
 			<% if not luci.util.instanceof(self, luci.cbi.DynamicList) and (not luci.util.instanceof(self, luci.cbi.Flag) or self.orientation == "horizontal") then -%>
 				<br />
 			<%- end %>
-			<div class="cbi-value-description">
-				<span class="cbi-value-helpicon"><img src="<%=resource%>/cbi/help.gif" alt="<%:help%>" /></span>
-				<%=self.description%>
-			</div>
+			<div class="cbi-value-description"><%=self.description%></div>
 		<%- end %>
 	<%- if self.title and #self.title > 0 then -%>
 	</div>
