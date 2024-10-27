@@ -182,7 +182,6 @@ function pontop_page_details()
 	}
 end
 
-
 function pontop_pages()
 	local details = pontop_page_details()
 	local pages = {}
@@ -640,7 +639,7 @@ function action_pontop(page)
 	cmd = "/opt/lantiq/bin/gtop -g " .. pages[page] .. " -b"
 	luci.http.prepare_content("text/plain; charset=utf-8")
 
-	local output = luci.sys.exec(cmd)
+	local output = util.exec(cmd)
 	luci.http.write(output)
 end
 
@@ -771,9 +770,11 @@ function action_pon_explorer()
 end
 
 function action_pon_dump(me_id, instance_id)
-	cmd = { "/usr/bin/omci_pipe.sh", "meg", me_id, instance_id }
+	local cmd = "/opt/lantiq/bin/omci_pipe.sh meg " .. me_id .. " " .. instance_id
+	local output = util.exec(cmd)
+
 	luci.http.prepare_content("text/plain; charset=utf-8")
-	luci.sys.process.exec(cmd, http.write)
+	luci.http.write(output)
 end
 
 function action_firmware()
