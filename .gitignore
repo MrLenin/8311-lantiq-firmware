@@ -1,3 +1,4 @@
 build/*
 out/*
 8311-mods/usr/lib/lua/8311/version.lua
+8311-mods/etc/8311_version
