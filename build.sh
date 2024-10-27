@@ -1,5 +1,7 @@
 #!/bin/sh
 
+FW_VARIANT="G-010S-P"
+
 blk_size=262144
 pad_end=4226953
 img_end=4259840
@@ -27,11 +29,25 @@ FW_VER="${FW_VER:-${GIT_TAG:-""}}"
 FW_REV="${FW_REV:-$GIT_HASH}"
 FW_REVISION="$FW_REV$FW_SUFFIX"
 
+FW_LONG_VERSION="${FW_VER}_${FW_VARIANT}_${FW_REV}${FW_SUFFIX}"
+
+VERSION_FILE="./8311-mods/etc/8311_version"
+cat > "$VERSION_FILE" <<8311_VER
+FW_VER=$FW_VER
+FW_VERSION=$FW_VERSION
+FW_LONG_VERSION=$FW_LONG_VERSION
+FW_REV=$FW_REV
+FW_REVISION=$FW_REVISION
+FW_VARIANT=$FW_VARIANT
+FW_SUFFIX=$FW_SUFFIX
+8311_VER
+
 LUA8311="./8311-mods/usr/lib/lua/8311"
 mkdir -pv "$LUA8311"
 cat > "$LUA8311/version.lua" <<8311VER
 module "8311.version"
 
+variant = "${FW_VARIANT}"
 version = "${FW_VERSION}"
 revision = "${FW_REVISION}"
 8311VER
