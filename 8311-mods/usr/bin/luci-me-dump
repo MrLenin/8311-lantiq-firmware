@@ -1,2 +1,2 @@
 #!/bin/sh
-omci_pipe.sh md | sed -r 's#^(\|\s+(\d+)\s+\|\s+(\d+)\s+.+)$#<a href="\#" onclick="showPonMe(\2, \3); return false;">\1</a>#g'
+/opt/lantiq/bin/omci_pipe.sh md | sed -E 's#^(\|[[:space:]]+([[:digit:]]+)[[:space:]]+\|[[:space:]]+([[:digit:]]+)+.+)$#<a href="\#" onclick="showPonMe(\2, \3); return false;">\1</a>#g'
