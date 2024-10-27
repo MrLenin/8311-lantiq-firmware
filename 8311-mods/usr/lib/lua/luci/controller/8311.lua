@@ -30,12 +30,12 @@ local fs = require "nixio.fs"
 local support_file = "/tmp/support.tar.gz"
 
 function index()
-	entry({"admin", "8311"}, firstchild(), translate("8311"), 99).dependent=false
-	entry({"admin", "8311", "config"}, call("action_config"), translate("Configuration"), 1)
-	entry({"admin", "8311", "pon_status"}, call("action_pon_status"), translate("PON Status"), 2)
-	entry({"admin", "8311", "pon_explorer"}, call("action_pon_explorer"), translate("PON ME Explorer"), 3)
-	entry({"admin", "8311", "vlans"}, call("action_vlans"), translate("VLAN Tables"), 4)
-	-- entry({"admin", "8311", "support"}, post_on({ data = true }, "action_support"), translate("Support"), 5)
+	entry({"admin", "8311"}, firstchild(), _("8311"), 99).dependent=false
+	entry({"admin", "8311", "config"}, call("action_config"), _("Configuration"), 1)
+	entry({"admin", "8311", "pon_status"}, call("action_pon_status"), _("PON Status"), 2)
+	entry({"admin", "8311", "pon_explorer"}, call("action_pon_explorer"), _("PON ME Explorer"), 3)
+	entry({"admin", "8311", "vlans"}, call("action_vlans"), _("VLAN Tables"), 4)
+	-- entry({"admin", "8311", "support"}, post_on({ data = true }, "action_support"), _("Support"), 5)
 
 	-- entry({"admin", "8311", "save"}, post_on({ data = true }, "action_save"))
 	entry({"admin", "8311", "get_hook_script"}, call("action_get_hook_script")).leaf=true
@@ -45,13 +45,13 @@ function index()
 	entry({"admin", "8311", "vlans", "extvlans"}, call("action_vlan_extvlans"))
 	entry({"admin", "8311", "support", "support.tar.gz"}, call("action_support_download"))
 
-	entry({"admin", "8311", "firmware"}, call("action_firmware"), translate("Firmware"), 6);
+	entry({"admin", "8311", "firmware"}, call("action_firmware"), _("Firmware"), 6);
 
 	entry({"admin", "gpon"}, alias("admin", "gpon", "config-onu"), "8311", 80).index = true
-	entry({"admin", "gpon", "config-onu"}, cbi("lantiq/gpon-config-onu"), translate("Interoperability/Compatibility"), 30).index = true
-	entry({"admin", "gpon", "config-goi"}, cbi("lantiq/gpon-config-ipaddr"), translate("IP/MAC Addresses"), 40).index = true
-	entry({"admin", "gpon", "config-cal"}, cbi("lantiq/gpon-config-cal"), translate("Optic Calibration"), 50).index = true
-	entry({"admin", "gpon", "config-info"}, call("action_information"), translate("Module Information"), 60).index = true
+	entry({"admin", "gpon", "config-onu"}, cbi("lantiq/gpon-config-onu"), _("Interoperability/Compatibility"), 30).index = true
+	entry({"admin", "gpon", "config-goi"}, cbi("lantiq/gpon-config-ipaddr"), _("IP/MAC Addresses"), 40).index = true
+	entry({"admin", "gpon", "config-cal"}, cbi("lantiq/gpon-config-cal"), _("Optic Calibration"), 50).index = true
+	entry({"admin", "gpon", "config-info"}, call("action_information"), _("Module Information"), 60).index = true
 end
 
 function action_information()
