@@ -11,31 +11,42 @@ You may obtain a copy of the License at
 	http://www.apache.org/licenses/LICENSE-2.0
 
 -%>
+
 <%
 	local disp = require "luci.dispatcher"
-
 	local request  = disp.context.path
-
 	local category = request[1]
-
 	local tree = disp.node()
 
 	local categories = disp.node_childs(tree)
+  local ver = require "luci.version"
+  local ver8311 = require "8311.version"
+  local lang = luci.i18n.context.lang
 %>
-   <footer><a href="http://luci.subsignal.org/">Powered by <%= luci.__appname__ .. " (" .. luci.__version__ .. ")" %></a>
 
-    <%=luci.version.distversion%>
+      <footer>
+        <div style="margin: auto; text-align: center">
+          <a href="https://github.com/openwrt/luci">Powered by <%= ver.luciname %> (<%= ver.luciversion %>)</a> / <%= ver.distversion %><br />
 
-    <% if #categories > 1 then %>
-     <ul class="breadcrumb pull-right" id="modemenu">
-	    <% for i, r in ipairs(categories) do %>
-		    <li<% if request[1] == r then %> class="active"<%end%>><a href="<%=controller%>/<%=r%>/"><%=striptags(translate(tree.nodes[r].title))%></a> <span class="divider">|</span></li>
-	    <% end %>
-     </ul>
-    <% end %>
-   </footer>
+          <a href="https://github.com/MrLenin/8311-lantiq-firmware"><%:8311 Community Firmware MOD%></a> by <a href="https://github.com/MrLenin">ibutsu</a> -
+          [<%= ver8311.variant %>] - <%= ver8311.version %> (<%= ver8311.revision %>) - <a href="https://discord.com/servers/8311-886329492438671420"><%:8311 Community Discord Server%></a>
+          <% if lang ~="en" then %>
+          <br /><%= lang %>: Translated by <a href="<%:TranslatorURL%>"><%:Translator%></a>
+          <% end %>
+        </div>
+        <div style="margin-top: 10px">
+          <a href="https://discord.com/servers/8311-886329492438671420"><img src="<%=resource%>/logo_8311.png" alt="8311 Logo" style="display: block; margin-left: auto; margin-right: auto;" /></a>
+        </div>
+        <ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+      </footer>
    </div>
-  </div>
+   <% if #categories > 1 then %>
+   <ul class="breadcrumb pull-right" id="modemenu">
+    <% for i, r in ipairs(categories) do %>
+      <li<% if request[1] == r then %> class="active"<%end%>><a href="<%=controller%>/<%=r%>/"><%=striptags(translate(tree.nodes[r].title))%></a> <span class="divider">|</span></li>
+    <% end %>
+   </ul>
+  <% end %>
  </body>
 </html>
 
