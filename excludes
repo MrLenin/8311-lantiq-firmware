@@ -17,6 +17,7 @@ usr/lib/lua/luci/controller/commands.lua
 usr/lib/lua/luci/controller/firewall.lua
 usr/lib/lua/luci/controller/lantiq
 usr/lib/lua/luci/controller/lantiq/gpon.lua
+usr/lib/lua/luci/dispatcher.lua
 usr/lib/lua/luci/model/cbi/admin_network
 usr/lib/lua/luci/model/cbi/admin_network/hosts.lua
 usr/lib/lua/luci/model/cbi/admin_network/iface_add.lua
