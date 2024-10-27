@@ -10,7 +10,7 @@ You may obtain a copy of the License at
 	http://www.apache.org/licenses/LICENSE-2.0
 
 ]]--
-module("luci.controller.lantiq.gpon", package.seeall)
+module("luci.controller.8311", package.seeall)
 
 require("luci.tools.gpon")
 require("luci.util")
