@@ -180,6 +180,10 @@ function pontop_page_details()
 			page="GPE bridge",
 			label=translate("GPE Bridge")
 		},{
+			id="gpe_arbiter",
+			page="GPE arbiter dump",
+			label=translate("GPE Arbiter Dump")
+		},{
 			id="gtop_version",
 			page="Version",
 			label=translate("gtop Version")
