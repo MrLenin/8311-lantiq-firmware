@@ -60,124 +60,159 @@ end
 
 function pontop_page_details()
 	return {{
-			id="a",
+			id="gtop_status",
 			page="Status",
-			label=translate("Status")
+			label=translate("gtop Status")
 		},{
-			id="b",
-			page="Capability and Configuration",
-			label=translate("Capability")
+			id="gpe_cap",
+			page="GPE capability",
+			label=translate("GPE capability")
 		},{
-			id="lan",
-			page="LAN Interface Status & Counters",
-			label=translate("LAN Info"),
-			display=false
+			id="gtop_config",
+			page="Configuration",
+			label=translate("gtop Configuration")
+		},{
+			id="gtc_alarms",
+			page="GTC alarms",
+			label=translate("GTC Alarms")
+		},{
+			id="gtc_counters",
+			page="GTC counters",
+			label=translate("GTC Counters")
+		},{
+			id="bwm_trace",
+			page="BWM trace",
+			label=translate("BWM Trace")
+		},{
+			id="gpe_info",
+			page="GPE info",
+			label=translate("GPE Info")
+		},{
+			id="gem_port",
+			page="GEM port",
+			label=translate("GEM Port")
+		},{
+			id="alloc_id",
+			page="Alloc ID",
+			label=translate("Alloc ID")
+		},{
+			id="br_port",
+			page="Bridge port counter",
+			label=translate("Bridge Port Counter"),
+		},{
+			id="us_flow",
+			page="Upstream flow",
+			label=translate("Upstream Flow")
+		},{
+			id="gpe_vlan_start_id",
+			page="GPE VLAN Start ID",
+			label=translate("GPE VLAN Start ID")
+		},{
+			id="gpe_ds_gem",
+			page="GPE DS GEM port",
+			label=translate("GPE DS GEM Port")
+		},{
+			id="gpe_us_gem",
+			page="GPE US GEM port",
+			label=translate("GPE US GEM Port")
+		},{
+			id="gpe_tag_filter",
+			page="GPE tagging filter",
+			label=translate("GPE Tagging Filter")
+		},{
+			id="gpe_fid_assign",
+			page="GPE FID assignment",
+			label=translate("GPE FID Assignment")
+		},{
+			id="gpe_vlan",
+			page="GPE VLAN",
+			label=translate("GPE VLAN")
+		},{
+			id="gpe_ext_vlan",
+			page="GPE extended VLAN",
+			label=translate("GPE Extended VLAN")
+		},{
+			id="gpe_vlan_rule",
+			page="GPE VLAN rule",
+			label=translate("GPE VLAN Rule")
+		},{
+			id="gpe_vlan_treat",
+			page="GPE VLAN treatment",
+			label=translate("GPE VLAN Treatment")
+		},{
+			id="gpe_lan_gen",
+			page="GPE LAN port General",
+			label=translate("GPE LAN Port General")
+		},{
+			id="gpe_lan_vlan",
+			page="GPE LAN port VLAN",
+			label=translate("GPE LAN Port VLAN")
+		},{
+			id="gpe_lan_acs",
+			page="GPE LAN port Access Ctrl",
+			label=translate("GPE LAN Port Access Ctrl")
+		},{
+			id="gpe_lan_traff_mgmt",
+			page="GPE LAN port Traffic Mgmt",
+			label=translate("GPE LAN Port Traffic Mgmt")
+		},{
+			id="gpe_lan_oam",
+			page="GPE LAN port OAM",
+			label=translate("GPE LAN Port OAM")
+		},{
+			id="gpe_br_port",
+			page="GPE bridge port",
+			label=translate("GPE Bridge Port")
+		},{
+			id="gpe_lan_port",
+			page="GPE LAN port",
+			label=translate("GPE LAN Port")
+		},{
+			id="gpe_policer",
+			page="GPE policer",
+			label=translate("GPE Policer")
+		},{
+			id="gpe_activity",
+			page="GPE activity",
+			label=translate("GPE Activity")
+		},{
+			id="gpe_bridge",
+			page="GPE bridge",
+			label=translate("GPE Bridge")
+		},{
+			id="gtop_version",
+			page="Version",
+			label=translate("gtop Version")
+		},{
+			id="otop_status",
+			page="status (1)",
+			label=translate("otop Status"),
+			otop=true
+		},{
+			id="otop_config",
+			page="configuration",
+			label=translate("otop Configuration"),
+			otop=true
 		},{
 			id="alarms",
-			page="Active alarms",
-			label=translate("Alarms")
+			page="alarms",
+			label=translate("Alarms"),
+			otop=true
 		},{
-			id="gem",
-			page="GEM/XGEM Port Status",
-			label=translate("GEM Status")
+			id="range_set",
+			page="range settings",
+			label=translate("Range Settings"),
+			otop=true
 		},{
-			id="gem_stats",
-			page="GEM/XGEM Port Counters",
-			label=translate("GEM Stats")
+			id="mon_calib",
+			page="monitor calibr.",
+			label=translate("Monitor Calibration"),
+			otop=true
 		},{
-			id="gem_ds",
-			page="GEM/XGEM port DS Counters",
-			label=translate("GEM DS"),
-			display=false
-		},{
-			id="gem_us",
-			page="GEM/XGEM port US Counters",
-			label=translate("GEM US"),
-			display=false
-		},{
-			id="eth_ds",
-			page="GEM/XGEM port Eth DS Cnts",
-			label=translate("ETH DS Stats"),
-		},{
-			id="eth_us",
-			page="GEM/XGEM port Eth US Cnts",
-			label=translate("ETH US Stats")
-		},{
-			id="fec",
-			page="FEC Status & Counters",
-			label=translate("FEC Info")
-		},{
-			id="gtc",
-			page="GTC/XGTC Status & Counters",
-			label=translate("GTC Info")
-		},{
-			id="power_save",
-			page="Power Save Status",
-			label=translate("PS Status")
-		},{
-			id="psm",
-			page="PSM Configuration",
-			label=translate("PSM")
-		},{
-			id="alloc_stats",
-			page="Allocation Counters",
-			label=translate("Alloc Stats")
-		},{
-			id="ploam_ds",
-			page="PLOAM Downstream Counters",
-			label=translate("PLOAM DS")
-		},{
-			id="ploam_us",
-			page="PLOAM Upstream Counters",
-			label=translate("PLOAM US")
-		},{
-			id="optical",
-			page="Optical Interface Status",
-			label=translate("Optical Status")
-		},{
-			id="optical_info",
-			page="Optical Interface Info",
-			label=translate("Optical Info")
-		},{
-			id="debug_burst",
-			page="Debug Burst Profile",
-			label=translate("Burst Profile")
-		},{
-			id="cqm",
-			page="CQM ofsc",
-			label=translate("CQM")
-		},{
-			id="cqm_map",
-			page="CQM Queue Map",
-			label=translate("CQM Q Map")
-		},{
-			id="datapath_ports",
-			page="Datapath Ports",
-			label=translate("DP Ports")
-		},{
-			id="datapath_qos",
-			page="Datapath QOS",
-			label=translate("DP QoS")
-		},{
-			id="pp4_buffers",
-			page="PPv4 Buffer MGR HW Stats",
-			label=translate("PPv4 Buffers")
-		},{
-			id="pp4_pps",
-			page="PPv4 QoS Queue PPS",
-			label=translate("PPv4 PPS")
-		},{
-			id="pp4_stats",
-			page="PPv4 QoS Queues Stats",
-			label=translate("PPv4 Stats")
-		},{
-			id="pp4_tree",
-			page="PPv4 QoS Tree",
-			label=translate("PPv4 Tree")
-		},{
-			id="pp4_qstats",
-			page="PPv4 QoS QStats",
-			label=translate("PPv4 QStats")
+			id="otop_version",
+			page="Version",
+			label=translate("otop Version"),
+			otop=true
 		}
 	}
 end
@@ -186,7 +221,7 @@ function pontop_pages()
 	local details = pontop_page_details()
 	local pages = {}
 	for _, page in pairs(details) do
-		pages[page.id] = page.page
+		pages[page.id] = { page = page.page, otop = page.otop or false }
 	end
 
 	return pages
@@ -625,18 +660,23 @@ function fwenvs_8311()
 	}
 end
 
-function action_pontop(page)
+function action_pontop(page_id)
 	local cmd
-
-	page = page or "Status"
+	
+	page_id = page_id or "Status"
 
 	local pages = pontop_pages()
 
-	if not pages[page] then
+	if not pages[page_id] then
 		return false
 	end
 
-	cmd = "/opt/lantiq/bin/gtop -g " .. pages[page] .. " -b"
+	if not pages[page_id].otop then
+		cmd = string.format("/opt/lantiq/bin/%s -g \"%s\" -b", "gtop", pages[page_id].page)
+	else
+		cmd = string.format("/opt/lantiq/bin/%s -g \"%s\" -b", "otop", pages[page_id].page)
+	end
+
 	luci.http.prepare_content("text/plain; charset=utf-8")
 
 	local output = util.exec(cmd)
