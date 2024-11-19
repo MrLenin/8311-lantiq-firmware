@@ -2,22 +2,23 @@
 # Copyright (C) 2013 OpenWrt.org
 # Copyright (C) 2013 lantiq.com
 
-. $IPKG_INSTROOT/lib/falcon.sh
-. $IPKG_INSTROOT/opt/lantiq/bin/gpio_setup.sh
+. "$IPKG_INSTROOT/lib/falcon.sh"
+. "$IPKG_INSTROOT/opt/lantiq/bin/gpio_setup.sh"
+
 LTQ_BIN=/opt/lantiq/bin
 
 START=63
 
 load_sfp_pins() {
 
-	config_get name $1 name
-	config_get pin $1 pin
-	config_get restriction $1 restriction
+	config_get name "$1" name
+	config_get pin "$1" pin
+	config_get restriction "$1" restriction
 
 	#echo "$name: <$pin> - $restriction"
 	[ -z "$restriction" ] || {
 		for r in $restriction_list; do
-			if [ "$r" == "$restriction" ]; then
+			if [ "$r" = "$restriction" ]; then
 				#printf "*** Restrictions for %s apply!\n\n" $name
 				return
 			fi
@@ -47,22 +48,27 @@ get_restrictions() {
 
 apply_pins() {
 	#local tx_fault_pin_set
+	local disable_rx_los_status
+	local rx_los_status_current1
+	local rx_los_status_current2
+
 	# apply pinconf for asc0
 	#$LTQ_BIN/onu onu_asc0_pin_cfg_set `expr 1 + $(falcon_asc0_pin_mode)`
 
 	#tx_fault_pin_set=`fw_printenv tx_fault_pin 2>&- | cut -f 2 -d '='`
 
-	$LTQ_BIN/optic optic_pin_cfg_set $tx_disable_pin 255 > /dev/null
+	$LTQ_BIN/optic optic_pin_cfg_set "$tx_disable_pin" 255 > /dev/null
 
-	local disable_rx_los_status=`uci -q get gpon.onu.disable_rx_los_status`
-	local rx_los_status_current1=`$LTQ_BIN/onu onu_los_pin_cfg_get > /dev/null | cut -f 3 -d '='`
-	local rx_los_status_current2=`cat /sys/kernel/debug/gpio | grep "gpio-$los_pin" | grep -c "lo"`
-	if [ "$disable_rx_los_status" == "1" ]; then
+	disable_rx_los_status=$(uci -q get gpon.onu.disable_rx_los_status)
+	rx_los_status_current1=$($LTQ_BIN/onu onu_los_pin_cfg_get | tee /dev/null | cut -f 3 -d '=')
+	rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
+
+	if [ "$disable_rx_los_status" = "1" ]; then
 		if [ "$rx_los_status_current1" != "-1" ] || [ "$rx_los_status_current2" != "1" ]; then
 			logger -t "[pin_cfg]" "Disabling rx_los status ..."
-			$LTQ_BIN/onu onu_los_pin_cfg_set -1 > /dev/null
-			$LTQ_BIN/gpio_setup.sh $los_pin low > /dev/null
-			rx_los_status_current2=`cat /sys/kernel/debug/gpio | grep "gpio-$los_pin" | grep -c "lo"`
+			$LTQ_BIN/onu onu_los_pin_cfg_set -1 >/dev/null
+			$LTQ_BIN/gpio_setup.sh "$los_pin" low >/dev/null
+			rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 			if [ "$rx_los_status_current2" != "1" ]; then
 				logger -t "[pin_cfg]" "Disable rx_los status failed, resync system config ..."
 				uci -q delete gpon.onu.disable_rx_los_status
@@ -70,9 +76,9 @@ apply_pins() {
 			fi
 		fi
 	elif [ -z "$disable_rx_los_status" ]; then
-		if [ "$rx_los_status_current1" == "-1" ] || [ "$rx_los_status_current2" == "1" ]; then
+		if [ "$rx_los_status_current1" = "-1" ] || [ "$rx_los_status_current2" = "1" ]; then
 			logger -t "[pin_cfg]" "Enabling rx_los status ..."
-			$LTQ_BIN/onu onu_los_pin_cfg_set $los_pin > /dev/null
+			$LTQ_BIN/onu onu_los_pin_cfg_set "$los_pin" > /dev/null
 		fi
 	fi
 	# set pin to LOW (module availability indication)
