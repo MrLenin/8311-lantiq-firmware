@@ -3,12 +3,15 @@ etc/config/gpon F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/gpon
 etc/config/luci F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/luci
 etc/config/system F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/system
 etc/init.d/omcid.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/omcid.sh
+etc/init.d/pin_cfg.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/pin_cfg.sh
 etc/mibs/nameless.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/nameless.ini
 etc/mibs/data_1g_8q_us1280_ds512.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1g_8q_us1280_ds512.ini
 etc/mibs/data_1v_8q.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q.ini
 etc/mibs/pptp.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/pptp.ini
 etc/mibs/veip.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/veip.ini
 etc/uci-defaults/30_luci-theme-bootstrap F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
+etc/uci-defaults/sfp-pins-preconfig F @TIMESTAMP 664 0 0 cat ./8311-mods/etc/uci-defaults/sfp-pins-preconfig
+lib/modules/3.10.49/mod_optic.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_optic.ko
 opt/lantiq/bin/config_onu.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/system_info.sh

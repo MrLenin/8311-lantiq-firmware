@@ -1,0 +1,46 @@
+#!/bin/sh
+# Copyright (C) 2011 OpenWrt.org
+# Copyright (C) 2015 Lantiq Beteiligungs-GmbH Co. KG
+
+. /lib/functions/uci-defaults.sh
+. /lib/falcon.sh
+
+ucidef_pin_add() {
+	local name=$1
+	local pin=$2
+	local restriction=$3
+	local section
+
+	section=$(uci add sfp_pins pin)
+	uci set "sfp_pins.${section}.name=${name}"
+	uci set "sfp_pins.${section}.pin=${pin}"
+	[ -z "$restriction" ] || uci set "sfp_pins.${section}.restriction=${restriction}"
+}
+
+if [ ! -f "/etc/config/sfp_pins" ]; then
+
+	# uci has errors if the file does not exist:
+	touch /etc/config/sfp_pins
+
+	# is this a SFP stick?
+	case $(falcon_board_name) in
+	# only synce sticks use the new pinning up to now
+	easy98035sync*)
+		ucidef_pin_add "tx_fault" "2" "ASC_TX"
+		ucidef_pin_add "tx_disable" "1"
+		ucidef_pin_add "los" "3"
+		ucidef_pin_add "mod_def" "41"
+		;;
+	SFP|GFAST*)
+	# (old) default pin mapping
+		ucidef_pin_add "tx_fault" "2"
+		ucidef_pin_add "tx_disable" "255"
+		ucidef_pin_add "los" "5"
+		ucidef_pin_add "mod_def" "32"
+		;;
+	*)
+		;;
+	esac
+
+	uci commit sfp_pins
+fi
