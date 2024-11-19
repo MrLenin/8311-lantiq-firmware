@@ -6,10 +6,14 @@
 . /lib/falcon.sh
 
 ucidef_pin_add() {
-	local name=$1
-	local pin=$2
-	local restriction=$3
+	local name
+	local pin
+	local restriction
 	local section
+
+	name=$1
+	pin=$2
+	restriction=$3
 
 	section=$(uci add sfp_pins pin)
 	uci set "sfp_pins.${section}.name=${name}"
@@ -34,8 +38,8 @@ if [ ! -f "/etc/config/sfp_pins" ]; then
 	SFP|GFAST*)
 	# (old) default pin mapping
 		ucidef_pin_add "tx_fault" "2"
-		ucidef_pin_add "tx_disable" "255"
-		ucidef_pin_add "los" "5"
+		ucidef_pin_add "tx_disable" "1"
+		ucidef_pin_add "los" "3"
 		ucidef_pin_add "mod_def" "32"
 		;;
 	*)
