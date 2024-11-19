@@ -57,32 +57,40 @@ apply_pins() {
 
 	#tx_fault_pin_set=`fw_printenv tx_fault_pin 2>&- | cut -f 2 -d '='`
 
-	$LTQ_BIN/optic optic_pin_cfg_set "$tx_disable_pin" 255 > /dev/null
+	$LTQ_BIN/optic optic_pin_cfg_set "$tx_disable_pin" 255 >/dev/null
 
 	disable_rx_los_status=$(uci -q get gpon.onu.disable_rx_los_status)
 	rx_los_status_current1=$($LTQ_BIN/onu onu_los_pin_cfg_get | tee /dev/null | cut -f 3 -d '=')
 	rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 
-	if [ "$disable_rx_los_status" = "1" ]; then
-		if [ "$rx_los_status_current1" -ne -1 ] || [ "$rx_los_status_current2" -ne 1 ]; then
-			logger -t "[pin_cfg]" "Disabling rx_los status ..."
-			$LTQ_BIN/onu onu_los_pin_cfg_set -1 >/dev/null
-			$LTQ_BIN/gpio_setup.sh "$los_pin" low >/dev/null
-			rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
-			if [ "$rx_los_status_current2" -ne 1 ]; then
-				logger -t "[pin_cfg]" "Disable rx_los status failed, resync system config ..."
-				uci -q delete gpon.onu.disable_rx_los_status
-				uci commit gpon.onu
-			fi
+	if [ "$disable_rx_los_status" = "1" ] &&
+		[ "$rx_los_status_current1" -ne -1 ] ||
+		[ "$rx_los_status_current2" -ne 1 ]; then
+		
+		logger -t "[pin_cfg]" "Disabling rx_los status ..."
+
+		$LTQ_BIN/onu onu_los_pin_cfg_set -1 >/dev/null
+		$LTQ_BIN/gpio_setup.sh "$los_pin" low >/dev/null
+
+		rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
+
+		if [ "$rx_los_status_current2" -ne 1 ]; then
+			logger -t "[pin_cfg]" "Disable rx_los status failed, resync system config ..."
+			uci -q delete gpon.onu.disable_rx_los_status
+			uci commit gpon.onu
 		fi
-	elif [ -z "$disable_rx_los_status" ]; then
-		if [ "$rx_los_status_current1" -eq -1 ] || [ "$rx_los_status_current2" -eq 1 ]; then
-			logger -t "[pin_cfg]" "Enabling rx_los status ..."
-			$LTQ_BIN/onu onu_los_pin_cfg_set "$los_pin" > /dev/null
-		fi
+	elif [ -z "$disable_rx_los_status" ] &&
+		[ "$rx_los_status_current1" -eq -1 ] ||
+		[ "$rx_los_status_current2" -eq 1 ]; then
+		
+		logger -t "[pin_cfg]" "Enabling rx_los status ..."
+		
+		echo "$los_pin" >/sys/class/gpio/unexport
+		$LTQ_BIN/onu onu_los_pin_cfg_set "$los_pin" >/dev/null
 	fi
 	# set pin to LOW (module availability indication)
 	#[ -z "$mod_def_pin" ] || gpio_setup $mod_def_pin low
+
 }
 
 start() {
