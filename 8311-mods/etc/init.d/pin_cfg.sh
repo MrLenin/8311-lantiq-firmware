@@ -64,19 +64,19 @@ apply_pins() {
 	rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 
 	if [ "$disable_rx_los_status" = "1" ]; then
-		if [ "$rx_los_status_current1" != "-1" ] || [ "$rx_los_status_current2" != "1" ]; then
+		if [ "$rx_los_status_current1" -ne -1 ] || [ "$rx_los_status_current2" -ne 1 ]; then
 			logger -t "[pin_cfg]" "Disabling rx_los status ..."
 			$LTQ_BIN/onu onu_los_pin_cfg_set -1 >/dev/null
 			$LTQ_BIN/gpio_setup.sh "$los_pin" low >/dev/null
 			rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
-			if [ "$rx_los_status_current2" != "1" ]; then
+			if [ "$rx_los_status_current2" -ne 1 ]; then
 				logger -t "[pin_cfg]" "Disable rx_los status failed, resync system config ..."
 				uci -q delete gpon.onu.disable_rx_los_status
 				uci commit gpon.onu
 			fi
 		fi
 	elif [ -z "$disable_rx_los_status" ]; then
-		if [ "$rx_los_status_current1" = "-1" ] || [ "$rx_los_status_current2" = "1" ]; then
+		if [ "$rx_los_status_current1" -eq -1 ] || [ "$rx_los_status_current2" -eq 1 ]; then
 			logger -t "[pin_cfg]" "Enabling rx_los status ..."
 			$LTQ_BIN/onu onu_los_pin_cfg_set "$los_pin" > /dev/null
 		fi
