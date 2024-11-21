@@ -1,11 +1,14 @@
 etc/config/gpon
 etc/config/luci
 etc/config/system
+etc/init.d/iop.sh
 etc/init.d/omcid.sh
+etc/init.d/onu.sh
 etc/init.d/pin_cfg.sh
 etc/mibs/data_1g_8q_us1280_ds512.ini
 etc/mibs/data_1v_8q.ini
 etc/mibs/nameless.ini
+etc/rc.d/S94iop.sh
 etc/uci-defaults/luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig
 lib/modules/3.10.49/mod_optic.ko
@@ -64,6 +67,7 @@ usr/lib/lua/luci/view/firewall/cbi_addsnat.htm
 usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
 usr/lib/lua/luci/view/themes/bootstrap/footer.htm
 usr/lib/lua/luci/view/themes/bootstrap/header.htm
+www/index.html
 www/luci-static/bootstrap
 www/luci-static/bootstrap/cascade.css
 www/luci-static/bootstrap/favicon.ico

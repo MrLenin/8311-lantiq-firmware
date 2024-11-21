@@ -35,23 +35,23 @@ function index()
 	entry({"admin", "8311", "pon_status"}, call("action_pon_status"), _("PON Status"), 2)
 	entry({"admin", "8311", "pon_explorer"}, call("action_pon_explorer"), _("PON ME Explorer"), 3)
 	entry({"admin", "8311", "vlans"}, call("action_vlans"), _("VLAN Tables"), 4)
-	-- entry({"admin", "8311", "support"}, post_on({ data = true }, "action_support"), _("Support"), 5)
+--	entry({"admin", "8311", "support"}, post_on({ data = true }, "action_support"), _("Support"), 5)
 
 	-- entry({"admin", "8311", "save"}, post_on({ data = true }, "action_save"))
-	entry({"admin", "8311", "get_hook_script"}, call("action_get_hook_script")).leaf=true
-	entry({"admin", "8311", "save_hook_script"}, call("action_save_hook_script")).leaf=true
+	--entry({"admin", "8311", "get_hook_script"}, call("action_get_hook_script")).leaf=true
+	--entry({"admin", "8311", "save_hook_script"}, call("action_save_hook_script")).leaf=true
 	entry({"admin", "8311", "pontop"}, call("action_pontop")).leaf=true
 	entry({"admin", "8311", "pon_dump"}, call("action_pon_dump")).leaf=true
 	entry({"admin", "8311", "vlans", "extvlans"}, call("action_vlan_extvlans"))
-	entry({"admin", "8311", "support", "support.tar.gz"}, call("action_support_download"))
+--	entry({"admin", "8311", "support", "support.tar.gz"}, call("action_support_download"))
 
-	entry({"admin", "8311", "firmware"}, call("action_firmware"), _("Firmware"), 6);
+--	entry({"admin", "8311", "firmware"}, call("action_firmware"), _("Firmware"), 6);
 
-	entry({"admin", "gpon"}, alias("admin", "gpon", "config-onu"), "8311", 80).index = true
-	entry({"admin", "gpon", "config-onu"}, cbi("lantiq/gpon-config-onu"), _("Interoperability/Compatibility"), 30).index = true
-	entry({"admin", "gpon", "config-goi"}, cbi("lantiq/gpon-config-ipaddr"), _("IP/MAC Addresses"), 40).index = true
-	entry({"admin", "gpon", "config-cal"}, cbi("lantiq/gpon-config-cal"), _("Optic Calibration"), 50).index = true
-	entry({"admin", "gpon", "config-info"}, call("action_information"), _("Module Information"), 60).index = true
+	entry({"admin", "gpon"}, alias("admin", "gpon", "config"), _("8311"), 80).index = true
+	entry({"admin", "gpon", "config"}, cbi("8311-config"), _("Configuration"), 30).index = true
+	entry({"admin", "gpon", "management"}, cbi("8311-management"), _("Network Addresses"), 40).index = true
+	entry({"admin", "gpon", "optic-cal"}, cbi("8311-optic-cal"), _("Optic Calibration"), 50).index = true
+	entry({"admin", "gpon", "mod-info"}, call("action_information"), _("Module Information"), 60).index = true
 end
 
 function action_information()
@@ -588,9 +588,9 @@ function fwenvs_8311()
 				}
 			}
 		},{
-			id="manage",
-			category=translate("Management"),
-			items={	{
+		id="manage",
+		category=translate("Management"),
+		items={	{
 					id="lct_vlan",
 					name=translate("Management VLAN"),
 					description=translate("Set the management VLAN ID (0 to 4095). Defaults to 0 (untagged)."),
@@ -739,18 +739,7 @@ function populate_8311_fwenvs()
 	local fwenvs_values = tools.fw_getenvs_8311()
 
 	for catid, cat in pairs(fwenvs) do
-		for itemid, item in pairs(cat.items) do
-			if item.base then
-				value = tools.fw_getenv{item.id}
-			else
-				value = fwenvs_values[item.id] or ''
-			end
-			if item.base64 and value ~= '' then
-				value = base64.dec(value)
-			end
-
-			fwenvs[catid]["items"][itemid]["value"] = value
-		end
+		fwenvs[catid]["model"] = cat.model
 	end
 
 	return fwenvs

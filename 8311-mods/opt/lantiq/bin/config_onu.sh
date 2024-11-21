@@ -8,32 +8,32 @@ vendid="ALCL"
 omcid_stock_csum="b78fb6fa62fa967096af0e21c5a5879d"
 
 load_config() {
-	local nSerial
+	local gpon_sn
 	local omci_loid
 	local omci_password
 	local ploam_password
 	local vendorid
 
-	nSerial=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=')
+	gpon_sn=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=')
 	omci_loid=$(fw_printenv omci_loid 2>&- | cut -f 2 -d '=')
 	omci_password=$(fw_printenv omci_lpwd 2>&- | cut -f 2 -d '=')
 	ploam_password=$(fw_printenv nPassword 2>&- | cut -f 2 -d '=' | /usr/bin/xxd -r)
 	vendorid=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=' | cut -c -4)
 
-	uci set gpon.onu.nSerial="${nSerial}"
-	uci commit gpon.onu.nSerial
-	uci set gpon.onu.omci_loid="${omci_loid}"
-	uci commit gpon.onu.omci_loid
-	uci set gpon.onu.omci_lpwd="${omci_password}"
-	uci commit gpon.onu.omci_lpwd
-	uci set gpon.onu.ploam_password="${ploam_password}"
-	uci commit gpon.onu.ploam_password
-	uci set gpon.onu.vendor_id="${vendorid}"
-	uci commit gpon.onu.vendor_id
+	uci set 8311.config.gpon_sn="${gpon_sn}"
+	uci commit 8311.config.gpon_sn
+	uci set 8311.config.omci_loid="${omci_loid}"
+	uci commit 8311.config.omci_loid
+	uci set 8311.config.omci_lpwd="${omci_password}"
+	uci commit 8311.config.omci_lpwd
+	uci set 8311.config.ploam_password="${ploam_password}"
+	uci commit 8311.config.ploam_password
+	uci set 8311.config.vendor_id="${vendorid}"
+	uci commit 8311.config.vendor_id
 }
 
 set_config() {
-	local nSerial
+	local gpon_sn
 	local omci_loid
 	local omci_password
 	local ploam_password
@@ -42,54 +42,54 @@ set_config() {
 	local vendorid
 	local vendor_id
 	local equipment_id
-	local ont_version
+	local hw_ver
 
-	nSerial=$(uci -q get gpon.onu.nSerial)
-	omci_loid=$(uci -q get gpon.onu.omci_loid)
-	omci_password=$(uci -q get gpon.onu.omci_lpwd)
-	ploam_password=$(uci -q get gpon.onu.ploam_password)
-	mib_customized=$(uci -q get gpon.onu.mib_customized)
-	mib_customized_old=$(uci -q get gpon.onu.mib_customized_old)
-	vendorid=$(uci -q get gpon.onu.nSerial | cut -c -4)
-	vendor_id=$(uci -q get gpon.onu.vendor_id)
-	equipment_id=$(uci -q get gpon.onu.equipment_id)
-	ont_version=$(uci -q get gpon.onu.ont_version)
+	gpon_sn=$(uci -q get 8311.config.gpon_sn)
+	omci_loid=$(uci -q get 8311.config.omci_loid)
+	omci_password=$(uci -q get 8311.config.omci_lpwd)
+	ploam_password=$(uci -q get 8311.config.ploam_password)
+	mib_customized=$(uci -q get 8311.config.mib_customized)
+	mib_customized_old=$(uci -q get 8311.config.mib_customized_old)
+	vendorid=$($gpon_sn | cut -c -4)
+	vendor_id=$(uci -q get 8311.config.vendor_id)
+	equipment_id=$(uci -q get 8311.config.equipment_id)
+	hw_ver=$(uci -q get 8311.config.hw_ver)
 
-	local nSerial_old
+	local gpon_sn_old
 	local omci_loid_old
 	local omci_password_old
 	local ploam_password_old
 
-	nSerial_old=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=')
+	gpon_sn_old=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=')
 	omci_loid_old=$(fw_printenv omci_loid 2>&- | cut -f 2 -d '=')
 	omci_password_old=$(fw_printenv omci_lpwd 2>&- | cut -f 2 -d '=')
 	ploam_password_old=$(fw_printenv nPassword 2>&- | cut -f 2 -d '=' | /usr/bin/xxd -r)
 
-	local nSerial_len
+	local gpon_sn_len
 
-	nSerial_len=${#nSerial}
+	gpon_sn_len=${#gpon_sn}
 
-	if [ -n "$nSerial_len" ] && [ "$nSerial_len" = "16" ]; then
-		nSerial_a=$(echo "$nSerial" | cut -c 1-8 | /usr/bin/xxd -r -ps)
-		nSerial_b=$(echo "$nSerial" | cut -c 9-16)
-		nSerial=$nSerial_a$nSerial_b
-		vendorid=$nSerial_a
+	if [ -n "$gpon_sn_len" ] && [ "$gpon_sn_len" = "16" ]; then
+		gpon_sn_a=$(echo "$gpon_sn" | cut -c 1-8 | /usr/bin/xxd -r -ps)
+		gpon_sn_b=$(echo "$gpon_sn" | cut -c 9-16)
+		gpon_sn=$gpon_sn_a$gpon_sn_b
+		vendorid=$gpon_sn_a
 	fi
 
-	local nSerialtmp
-	local nSerial_oldtmp
+	local gpon_sn_tmp
+	local gpon_sn_oldtmp
 
-	nSerialtmp=$(echo "$nSerial" | tr 'a-z' 'A-Z')
-	nSerial_oldtmp=$(echo "$nSerial_old" | tr 'a-z' 'A-Z')
+	gpon_sn_tmp=$(echo "$gpon_sn" | tr 'a-z' 'A-Z')
+	gpon_sn_oldtmp=$(echo "$gpon_sn_old" | tr 'a-z' 'A-Z')
 
-	if [ -n "$nSerialtmp" ] && [ "$nSerial" != "$nSerial_oldtmp" ]; then
+	if [ -n "$gpon_sn_tmp" ] && [ "$gpon_sn" != "$gpon_sn_oldtmp" ]; then
 		logger -t "[config_onu]" "Setting Vendor ID: $vendorid."
 		/opt/lantiq/bin/sfp_i2c -i7 -s "${vendorid}"
-		uci set gpon.onu.vendor_id="${vendorid}"
-		uci commit gpon.onu.vendor_id
-		logger -t "[config_onu]" "Setting GPON SN: $nSerial."
-		/opt/lantiq/bin/sfp_i2c -i8 -s "${nSerial}"
-	elif [ -z "$nSerial" ]; then
+		uci set 8311.config.vendor_id="${vendorid}"
+		uci commit 8311.config.vendor_id
+		logger -t "[config_onu]" "Setting GPON SN: $gpon_sn."
+		/opt/lantiq/bin/sfp_i2c -i8 -s "${gpon_sn}"
+	elif [ -z "$gpon_sn" ]; then
 		logger -t "[config_onu]" "Clearing GPON SN."
 		/opt/lantiq/bin/sfp_i2c -i8 -s ""
 	fi
@@ -98,39 +98,39 @@ set_config() {
 		if [ -n "$vendor_id" ]; then
 			logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
 			/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
-			uci set gpon.onu.vendor_id="${vendor_id}"
-			uci commit gpon.onu.vendor_id
+			uci set 8311.config.vendor_id="${vendor_id}"
+			uci commit 8311.config.vendor_id
 		fi
 
 		if [ -n "$equipment_id" ]; then
 			logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
 			/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
-			uci set gpon.onu.equipment_id="${equipment_id}"
-			uci commit gpon.onu.equipment_id
+			uci set 8311.config.equipment_id="${equipment_id}"
+			uci commit 8311.config.equipment_id
 		fi
 
-		if [ -n "$ont_version" ]; then
-			logger -t "[config_onu]" "Setting ONT Version: $ont_version."
-			uci set gpon.onu.ont_version="${ont_version}"
-			uci commit gpon.onu.ont_version
+		if [ -n "$hw_ver" ]; then
+			logger -t "[config_onu]" "Setting ONT Version: $hw_ver."
+			uci set 8311.config.hw_ver="${hw_ver}"
+			uci commit 8311.config.hw_ver
 		fi
 
 		if [ -z "$mib_customized_old" ]; then
-			uci set gpon.onu.mib_customized_old="${mib_customized}"
-			uci commit gpon.onu.mib_customized_old
+			uci set 8311.config.mib_customized_old="${mib_customized}"
+			uci commit 8311.config.mib_customized_old
 		fi
 	elif [ "$mib_customized_old" = "1" ]; then
 		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set gpon.onu.vendor_id=${vendid}
-		uci commit gpon.onu.vendor_id
+		uci set 8311.config.vendor_id=${vendid}
+		uci commit 8311.config.vendor_id
 		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id=${equipid}
-		uci commit gpon.onu.equipment_id
+		uci set 8311.config.equipment_id=${equipid}
+		uci commit 8311.config.equipment_id
 		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set gpon.onu.ont_version=${hwver}
-		uci commit gpon.onu.ont_version
-		uci delete gpon.onu.mib_customized_old
-		uci commit gpon.onu.mib_customized_old
+		uci set 8311.config.hw_ver=${hwver}
+		uci commit 8311.config.hw_ver
+		uci delete 8311.config.mib_customized_old
+		uci commit 8311.config.mib_customized_old
 	fi
 
 	if [ -n "$omci_loid" ] && [ "$omci_loid" != "$omci_loid_old" ]; then
@@ -159,7 +159,7 @@ set_config() {
 }
 
 init_config() {
-	local nSerial
+	local gpon_sn
 	local omci_loid
 	local omci_password
 	local ploam_password
@@ -167,72 +167,71 @@ init_config() {
 	local mib_customized
 	local mib_customized_old
 	local vendorid
-	local nSerial_len
+	local gpon_sn_len
 	local vendor_id
 	local equipment_id
-	local ont_version
+	local hw_ver
 
-	nSerial=$(uci -q get gpon.onu.nSerial)
-	omci_loid=$(uci -q get gpon.onu.omci_loid)
-	omci_password=$(uci -q get gpon.onu.omci_lpwd)
-	ploam_password=$(uci -q get gpon.onu.ploam_password)
-	vendorid=$(uci -q get gpon.onu.nSerial | cut -c -4)
-	mib_customized=$(uci -q get gpon.onu.mib_customized)
-	mib_customized_old=$(uci -q get gpon.onu.mib_customized_old)
-	vendorid=$(uci -q get gpon.onu.nSerial | cut -c -4)
-	nSerial_len=${#nSerial}
-	vendor_id=$(uci -q get gpon.onu.vendor_id)
-	equipment_id=$(uci -q get gpon.onu.equipment_id)
-	ont_version=$(uci -q get gpon.onu.ont_version)
+	gpon_sn=$(uci -q get 8311.config.gpon_sn)
+	omci_loid=$(uci -q get 8311.config.omci_loid)
+	omci_password=$(uci -q get 8311.config.omci_lpwd)
+	ploam_password=$(uci -q get 8311.config.ploam_password)
+	vendorid=$($gpon_sn | cut -c -4)
+	mib_customized=$(uci -q get 8311.config.mib_customized)
+	mib_customized_old=$(uci -q get 8311.config.mib_customized_old)
+	gpon_sn_len=${#gpon_sn}
+	vendor_id=$(uci -q get 8311.config.vendor_id)
+	equipment_id=$(uci -q get 8311.config.equipment_id)
+	hw_ver=$(uci -q get 8311.config.hw_ver)
 
-	if [ -n "$nSerial_len" ] && [ "$nSerial_len" = "16" ]; then
-		nSerial_a=$(echo "$nSerial" | cut -c 1-8 | /usr/bin/xxd -r -ps)
-		nSerial_b=$(echo "$nSerial" | cut -c 9-16)
-		nSerial=$nSerial_a$nSerial_b
+	if [ -n "$gpon_sn_len" ] && [ "$gpon_sn_len" = "16" ]; then
+		gpon_sn_a=$(echo "$gpon_sn" | cut -c 1-8 | /usr/bin/xxd -r -ps)
+		gpon_sn_b=$(echo "$gpon_sn" | cut -c 9-16)
+		gpon_sn=$gpon_sn_a$gpon_sn_b
 	fi
 
 	if [ "$mib_customized" = "1" ]; then
 		if [ -n "$vendor_id" ]; then
 			logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
 			/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
-			uci set gpon.onu.vendor_id="${vendor_id}"
-			uci commit gpon.onu.vendor_id
+			uci set 8311.config.vendor_id="${vendor_id}"
+			uci commit 8311.config.vendor_id
 		fi
 
 		if [ -n "$equipment_id" ]; then
 			logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
 			/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
-			uci set gpon.onu.equipment_id="${equipment_id}"
-			uci commit gpon.onu.equipment_id
+			uci set 8311.config.equipment_id="${equipment_id}"
+			uci commit 8311.config.equipment_id
 		fi
 
-		if [ -n "$ont_version" ]; then
-			logger -t "[config_onu]" "Setting ONT Version: $ont_version."
-			uci set gpon.onu.ont_version="${ont_version}"
-			uci commit gpon.onu.ont_version
+		if [ -n "$hw_ver" ]; then
+			logger -t "[config_onu]" "Setting ONT Version: $hw_ver."
+			uci set 8311.config.hw_ver="${hw_ver}"
+			uci commit 8311.config.hw_ver
 		fi
 
 		if [ -z "$mib_customized_old" ]; then
-			uci set gpon.onu.mib_customized_old="${mib_customized}"
-			uci commit gpon.onu.mib_customized_old
+			uci set 8311.config.mib_customized_old="${mib_customized}"
+			uci commit 8311.config.mib_customized_old
 		fi
 	elif [ "$mib_customized_old" = "1" ]; then
 		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set gpon.onu.vendor_id=${vendid}
-		uci commit gpon.onu.vendor_id
+		uci set 8311.config.vendor_id=${vendid}
+		uci commit 8311.config.vendor_id
 		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set gpon.onu.equipment_id=${equipid}
-		uci commit gpon.onu.equipment_id
+		uci set 8311.config.equipment_id=${equipid}
+		uci commit 8311.config.equipment_id
 		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set gpon.onu.ont_version=${hwver}
-		uci commit gpon.onu.ont_version
-		uci delete gpon.onu.mib_customized_old
-		uci commit gpon.onu.mib_customized_old
+		uci set 8311.config.hw_ver=${hwver}
+		uci commit 8311.config.hw_ver
+		uci delete 8311.config.mib_customized_old
+		uci commit 8311.config.mib_customized_old
 	fi
 
-	if [ -n "$nSerial" ]; then
-		logger -t "[config_onu]" "Setting GPON SN: $nSerial."
-		/opt/lantiq/bin/sfp_i2c -i8 -s "${nSerial}"
+	if [ -n "$gpon_sn" ]; then
+		logger -t "[config_onu]" "Setting GPON SN: $gpon_sn."
+		/opt/lantiq/bin/sfp_i2c -i8 -s "${gpon_sn}"
 	fi
 
 	if [ -n "$omci_loid" ]; then
@@ -250,8 +249,8 @@ init_config() {
 		/opt/lantiq/bin/sfp_i2c -i11 -s "${ploam_password}"
 	fi
 
-	uci -q delete gpon.onu.rebootdirect
-	uci -q commit gpon.onu
+	uci -q delete 8311.config.rebootdirect
+	uci -q commit 8311.config
 }
 
 set_ip() {
@@ -322,8 +321,8 @@ mod_omcid() {
 	local omcid_csum
 	local omcid_csum_current
 
-	mod_omcid=$(uci -q get gpon.onu.mod_omcid)
-	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
+	mod_omcid=$(uci -q get 8311.config.mod_omcid)
+	omcid_csum=$(uci -q get 8311.config.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
 	logger -t "[config_onu]" "Patching OMCID ..."
@@ -335,8 +334,8 @@ mod_omcid() {
 		local disable_8021x
 		local omcid_version
 
-		disable_8021x=$(uci -q get gpon.onu.omcid_8021x)
-		omcid_version=$(uci -q get gpon.onu.omcid_version)
+		disable_8021x=$(uci -q get 8311.config.omcid_8021x)
+		omcid_version=$(uci -q get 8311.config.omcid_version)
 
 		cp /opt/lantiq/bin/omcid /tmp/omcid
 
@@ -345,8 +344,8 @@ mod_omcid() {
 
 		cp /tmp/omcid /opt/lantiq/bin/omcid
 
-		uci set gpon.onu.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
-		uci commit gpon.onu
+		uci set 8311.config.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
+		uci commit 8311.config
 	else
 		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, patching aborted ..."
 	fi
@@ -389,8 +388,8 @@ restore_omcid_8021x() {
 
 	local omcid_8021x_offset=275849
 
-	omcid_version=$(uci -q get gpon.onu.omcid_version)
-	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
+	omcid_version=$(uci -q get 8311.config.omcid_version)
+	omcid_csum=$(uci -q get 8311.config.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
 	logger -t "[config_onu]" "Restoring OMCID 802.1x behaviour ..."
@@ -403,11 +402,11 @@ restore_omcid_8021x() {
 		cp /tmp/omcid /opt/lantiq/bin/omcid
 
 		if [ -z "$omcid_version" ]; then 
-			uci -q delete gpon.onu.omcid_csum
-			uci commit gpon.onu
+			uci -q delete 8311.config.omcid_csum
+			uci commit 8311.config
 		else
-			uci set gpon.onu.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
-			uci commit gpon.onu
+			uci set 8311.config.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
+			uci commit 8311.config
 		fi
 	else
 		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
@@ -419,8 +418,8 @@ restore_omcid_version() {
 	local omcid_csum
 	local omcid_csum_current
 
-	disable_8021x=$(uci -q get gpon.onu.omcid_8021x)
-	omcid_csum=$(uci -q get gpon.onu.omcid_csum)
+	disable_8021x=$(uci -q get 8311.config.omcid_8021x)
+	omcid_csum=$(uci -q get 8311.config.omcid_csum)
 	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
 
 	logger -t "[config_onu]" "Restoring OMCID version."
@@ -443,11 +442,11 @@ restore_omcid_version() {
 		cp /tmp/omcid /opt/lantiq/bin/omcid
 
 		if [ -z "$disable_8021x" ]; then 
-			uci -q delete gpon.onu.omcid_csum
-			uci commit gpon.onu
+			uci -q delete 8311.config.omcid_csum
+			uci commit 8311.config
 		else
-			uci set gpon.onu.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
-			uci commit gpon.onu
+			uci set 8311.config.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
+			uci commit 8311.config
 		fi
 	else
 		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
@@ -455,44 +454,60 @@ restore_omcid_version() {
 }
 
 disable_rx_los_status() {
-	local disable_rx_los_status
-	local rx_los_status_current
+	local los_pin
+	local ltq_bin
+	local rx_los
+	local rx_los_status_current1
+	local rx_los_status_current2
 
-	local mod_optic_offset=79607
+	ltq_bin=/opt/lantiq/bin
+	los_pin=$(uci -q get sfp_pins.@pin[2].pin)
+	rx_los=$(uci -q get 8311.config.rx_los)
+	rx_los_status_current1=$($ltq_bin/onu onu_los_pin_cfg_get | tee /dev/null | cut -f 3 -d '=')
+	rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 
-	disable_rx_los_status=$(uci -q get gpon.onu.disable_rx_los_status)
-	rx_los_status_current=$(dd if=/lib/modules/3.10.49/mod_optic.ko bs=1 count=1 skip=79687 conv=notrunc 2>>/dev/null | xxd -ps)
+	if [ "$rx_los" = "1" ] &&
+		[ "$rx_los_status_current1" -ne -1 ] ||
+		[ "$rx_los_status_current2" -ne 1 ]; then
 
-	if [ "$disable_rx_los_status" = "1" ] && [ "$rx_los_status_current" != "00" ]; then
 		logger -t "[config_onu]" "Disabling rx_los status ..."
-		printf '%b' '\x0' >/tmp/mod_optic
-		cp /lib/modules/3.10.49/mod_optic.ko /tmp/mod_optic.ko
-		dd if=/tmp/mod_optic of=/tmp/mod_optic.ko obs=1 seek=$mod_optic_offset conv=notrunc 2>>/dev/null
-		cp /tmp/mod_optic.ko /lib/modules/3.10.49/mod_optic.ko
 
-	elif [ -z "$disable_rx_los_status" ] && [ "$rx_los_status_current" = "00" ]; then
+		$ltq_bin/onu onu_los_pin_cfg_set -1 >/dev/null
+		$ltq_bin/gpio_setup.sh "$los_pin" low >/dev/null
+
+		rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
+
+		if [ "$rx_los_status_current2" -ne 1 ]; then
+			logger -t "[config_onu]" "Disable rx_los status failed, resync system config ..."
+			uci -q delete 8311.config.rx_los
+			uci commit 8311.config
+		fi
+	elif [ -z "$rx_los" ] &&
+		[ "$rx_los_status_current1" -eq -1 ] ||
+		[ "$rx_los_status_current2" -eq 1 ]; then
+
 		logger -t "[config_onu]" "Enabling rx_los status ..."
-		printf '%b' '\x1' >/tmp/mod_optic
-		cp /lib/modules/3.10.49/mod_optic.ko /tmp/mod_optic.ko
-		dd if=/tmp/mod_optic of=/tmp/mod_optic.ko obs=1 seek=$mod_optic_offset conv=notrunc 2>>/dev/null
-		cp /tmp/mod_optic.ko /lib/modules/3.10.49/mod_optic.ko
-		uci -q delete gpon.onu.disable_rx_los_status
-		uci commit gpon.onu
+
+		echo "$los_pin" >/sys/class/gpio/unexport
+		$ltq_bin/onu onu_los_pin_cfg_set "$los_pin" >/dev/null
+
+		uci -q delete 8311.config.rx_los
+		uci commit 8311.config
 	fi
 }
 
-ignore_rx_loss() {
-	local ignore_rx_loss
+ignore_rx_msg_lost() {
+	local ignore_rx_msg_lost
 
-	ignore_rx_loss=$(uci -q get gpon.onu.ignore_rx_loss)
+	ignore_rx_msg_lost=$(uci -q get 8311.config.ignore_rx_msg_lost)
 
-	if [ "$ignore_rx_loss" = "1" ]; then
+	if [ "$ignore_rx_msg_lost" = "1" ]; then
 		logger -t "[config_onu]" "Ignoring rx loss message ..."
 		/opt/lantiq/bin/onu onutms ignore_ploam_rx_loss_enable=1 >/dev/null
 	else
 		logger -t "[config_onu]" "Unignoring rx loss message ..."
-		uci -q delete gpon.onu.ignore_rx_loss
-		uci commit gpon.onu
+		uci -q delete 8311.config.ignore_rx_msg_lost
+		uci commit 8311.config
 		/opt/lantiq/bin/onu onutms ignore_ploam_rx_loss_enable=0 >/dev/null
 	fi
 }
@@ -546,8 +561,8 @@ rebootdelay() {
 	local rebootdirect
 	local rebootwait
 
-	rebootdirect=$(uci -q get gpon.onu.rebootdirect)
-	rebootwait=$(uci -q get gpon.onu.rebootwait)
+	rebootdirect=$(uci -q get 8311.config.rebootdirect)
+	rebootwait=$(uci -q get 8311.config.rebootwait)
 
 	if [ "$rebootdirect" = "1" ] && [ -n "$rebootwait" ]; then
 		logger -t "[config_onu]" "Reboot enabled, waiting ..."
@@ -565,40 +580,40 @@ switchimage() {
 }
 
 switchasc() {
-	local ascenv
-	local asc
+	local console_en_env
+	local console_en
 
-	ascenv=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
-	asc=$(uci -q get gpon.onu.asc)
+	console_en_env=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
+	console_en=$(uci -q get 8311.config.console_en)
 
-	if [ "$ascenv" != "0" ] && [ "$asc" = "1" ]; then
+	if [ "$console_en_env" != "0" ] && [ "$console_en" = "1" ]; then
 		logger -t "[config_onu]" "Enabling TTL console, reboot required ..."
 		fw_setenv asc0 0
 	fi
 
-	if [ "$ascenv" = "0" ] && [ "$asc" != "1" ]; then
+	if [ "$console_en_env" = "0" ] && [ "$console_en" != "1" ]; then
 		logger -t "[config_onu]" "Disabling TTL console, reboot required ..."
 		fw_setenv asc0 1
 	fi
 }
 
 initasc() {
-	local ascenv
-	local asc
+	local console_en_env
+	local console_en
 
-	ascenv=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
-	asc=$(uci -q get gpon.onu.asc)
+	console_en_env=$(fw_printenv asc0 2>&- | cut -f 2 -d '=')
+	console_en=$(uci -q get 8311.config.console_en)
 
-	if [ "$ascenv" = "0" ] && [ "$asc" != "1" ]; then
+	if [ "$console_en_env" = "0" ] && [ "$console_en" != "1" ]; then
 		logger -t "[config_onu]" "TTL console enabled, syncing system config ..."
-		uci -q set gpon.onu.asc=1
-		uci commit gpon.onu.asc
+		uci -q set 8311.config.console_en=1
+		uci commit 8311.config.console_en
 	fi
 
-	if [ "$ascenv" != "0" ] && [ "$asc" = "1" ]; then
+	if [ "$console_en_env" != "0" ] && [ "$console_en" = "1" ]; then
 		logger -t "[config_onu]" "TTL console disabled, syncing system config ..."
-		uci -q delete gpon.onu.asc
-		uci commit gpon.onu.asc
+		uci -q delete 8311.config.console_en
+		uci commit 8311.config.console_en
 	fi
 }
 
@@ -635,14 +650,14 @@ update)
 mod)
 	mod_omcid
 	;;
-restore_version)
+restore_sw_ver)
 	restore_omcid_version
 	;;
 restore_8021x)
 	restore_omcid_8021x
 	;;
 ignore)
-	ignore_rx_loss
+	ignore_rx_msg_lost
 	;;
 disable)
 	disable_rx_los_status

@@ -23,21 +23,21 @@ stateflag=0
 logflag=0
 rebootwaitnum=0
 reboottrynum=$(cat /tmp/reboottrynum 2>&-)
-tryreboot=$($uci -q get gpon.onu.tryreboot)
-totalrebootwait=$($uci -q get gpon.onu.totalrebootwait)
-totalreboottry=$($uci -q get gpon.onu.totalreboottry)
-rebootlog=$($uci -q get gpon.onu.rebootlog)
+tryreboot=$($uci -q get 8311.config.tryreboot)
+totalrebootwait=$($uci -q get 8311.config.totalrebootwait)
+totalreboottry=$($uci -q get 8311.config.totalreboottry)
+rebootlog=$($uci -q get 8311.config.rebootlog)
 
-uvlan=$($uci -q get gpon.onu.uvlan)
-mtvlan=$($uci -q get gpon.onu.mtvlan)
-tvlan=$($uci -q get gpon.onu.tvlan)
-mvlan=$($uci -q get gpon.onu.mvlan)
-mvlansource=$($uci -q get gpon.onu.mvlansource)
-igmpversion=$($uci -q get gpon.onu.igmp_version)
-forcemerule=$($uci -q get gpon.onu.forcemerule)
-forceme309=$($uci -q get gpon.onu.forceme309)
-forceuvlan=$($uci -q get gpon.onu.forceuvlan)
-vlandebug=$($uci -q get gpon.onu.vlandebug)
+us_vlan_id=$($uci -q get 8311.config.us_vlan_id)
+n_to_1_vlan=$($uci -q get 8311.config.n_to_1_vlan)
+vlan_tag_ops=$($uci -q get 8311.config.vlan_tag_ops)
+ds_mc_tci=$($uci -q get 8311.config.ds_mc_tci)
+us_mc_vlan_id=$($uci -q get 8311.config.us_mc_vlan_id)
+igmpversion=$($uci -q get 8311.config.igmp_version)
+force_me_create=$($uci -q get 8311.config.force_me_create)
+force_me309_create=$($uci -q get 8311.config.force_me309_create)
+force_us_vlan_id=$($uci -q get 8311.config.force_us_vlan_id)
+vlan_svc_log=$($uci -q get 8311.config.vlan_svc_log)
 
 status() {
 	ploamstate=$($onu ploamsg | cut -b 24)
@@ -131,7 +131,7 @@ resetparameter() {
 	[ -e /tmp/mvlansourcedata ] && rm -f /tmp/mvlansourcedata
 	[ -e /tmp/mibcounter ] && rm -f /tmp/mibcounter
 
-	tvlannum=$(echo "$tvlan" | grep -o ":" | grep -c ":")
+	tvlannum=$(echo "$vlan_tag_ops" | grep -o ":" | grep -c ":")
 	tvlanseq=0
 
 	for i in $(seq 1 "$tvlannum")
@@ -230,7 +230,7 @@ meruleset() {
 		sed -i '/.*olt\ type*/c\olt\ type:'"$olt_type"'' /tmp/collect
 	fi
 
-	if [ -n "$vlandebug" ]; then
+	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "olt type:$olt_type"
 	fi
 
@@ -252,18 +252,18 @@ meruleset() {
 
 uvlancheck() {
 	if [ ! -e /tmp/uvlandata ]; then
-		uvlan=$($uci get gpon.onu.uvlan 2>&-)
+		us_vlan_id=$($uci get 8311.config.us_vlan_id 2>&-)
 
-		if [ -n "$uvlan" ]; then
-			echo "$uvlan" >/tmp/uvlandata
+		if [ -n "$us_vlan_id" ]; then
+			echo "$us_vlan_id" >/tmp/uvlandata
 			let totalizerflag++
 		fi
 	else
-		uvlandata2=$($uci get gpon.onu.uvlan 2>&-)
+		uvlandata2=$($uci get 8311.config.us_vlan_id 2>&-)
 		ulastdata=$(cat /tmp/uvlandata)
 		
 		if [ "$uvlandata2" != "$ulastdata" ]; then
-			logger -t "[vlanexec]" "uvlan rule changed."
+			logger -t "[vlanexec]" "us_vlan_id rule changed."
 			echo "$uvlandata2" >/tmp/uvlandata
 			let totalizerflag++
 		fi
@@ -271,30 +271,30 @@ uvlancheck() {
 }
 
 uvlanset() {
-	if [ -z "$uvlan" ]; then
-			if [ -n "$vlandebug" ]; then
-				logger -t "[vlan]" "no uvlan configed."
+	if [ -z "$us_vlan_id" ]; then
+			if [ -n "$vlan_svc_log" ]; then
+				logger -t "[vlan]" "no us_vlan_id configed."
 			fi
 			$omci meads 171 "$me171" 6 f8 00 00 00 f8 00 00 00 c0 0f 00 00 00 0f 00 00
 			return
-	elif [ "$(echo "$uvlan" | grep -c 'u')" != "0" ] && [ "$(echo "$uvlan" | grep -c '^[u]$')" != "1" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "uvlan $uvlan configuration error."
+	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" != "0" ] && [ "$(echo "$us_vlan_id" | grep -c '^[u]$')" != "1" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "us_vlan_id $us_vlan_id configuration error."
 		fi
 		return
-	elif [ "$(echo "$uvlan" | grep -c 'u')" = "0" ] && [ "$uvlan" -gt 4094 ] || 
-		[ "$(echo "$uvlan" | grep -c 'u')" = "0" ] && [ "$(echo "$uvlan" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "uvlan $uvlan configuration error."
+	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] && [ "$us_vlan_id" -gt 4094 ] || 
+		[ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] && [ "$(echo "$us_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "us_vlan_id $us_vlan_id configuration error."
 		fi
 		return
 	fi
 	
-	if [ "$uvlan" = "u" ]; then
+	if [ "$us_vlan_id" = "u" ]; then
 		logger -t "[vlan]" "untagged configed."
 		match171="f8 00 00 00 f8 00 00 00 00 0f 00 00 00 0f 00 00"
 	else
-		tmp171=$((uvlan * 8 + 4))
+		tmp171=$((us_vlan_id * 8 + 4))
 		a171=$(printf "%04x" $tmp171)
 		b171=$(echo "$a171" | sed 's/../& /g')
 		match171="f8 00 00 00 f8 00 00 00 00 0f 80 00 00 00 $b171"
@@ -303,13 +303,13 @@ uvlanset() {
 	word_171=$(echo "$match171" | sed s/[[:space:]]//g | sed -r 's/(..)/0x\1/g' | sed -r 's/(....)/ \1/g')
 	flag171=$($omci meg 171 "$me171" | grep "$word_171")
 	
-	if [ -n "$flag171" ] && [ -z "$forceuvlan" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "uvlan rule match or force uvlan not enabled."
+	if [ -n "$flag171" ] && [ -z "$force_us_vlan_id" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "us_vlan_id rule match or force us_vlan_id not enabled."
 		fi
 	else
-		if [ -n "$vlandebug" ]; then
-				logger -t "[vlan]" "uvlan configuring ..."
+		if [ -n "$vlan_svc_log" ]; then
+				logger -t "[vlan]" "us_vlan_id configuring ..."
 		fi
 		$omci meads 171 "$me171" 6 "$match171"
 	fi
@@ -317,27 +317,27 @@ uvlanset() {
 
 mvlancheck() {
 	if [ ! -e /tmp/mvlandata ]; then
-		if [ -n "$mvlan" ]; then
-			echo "$mvlan" >/tmp/mvlandata
+		if [ -n "$ds_mc_tci" ]; then
+			echo "$ds_mc_tci" >/tmp/mvlandata
 			let totalizerflag++
 		fi
 	elif [ ! -e /tmp/mvlansourcedata ]; then
-		if [ -n "$mvlansource" ]; then
-			echo "$mvlansource" >/tmp/mvlansourcedata
+		if [ -n "$us_mc_vlan_id" ]; then
+			echo "$us_mc_vlan_id" >/tmp/mvlansourcedata
 			let totalizerflag++
 		fi
 	else
-		mvlandata2=$($uci -q get gpon.onu.mvlan)
+		mvlandata2=$($uci -q get 8311.config.ds_mc_tci)
 		mlastdata=$(cat /tmp/mvlandata)
-		mvlansourcedata2=$($uci -q get gpon.onu.mvlansource)
+		mvlansourcedata2=$($uci -q get 8311.config.us_mc_vlan_id)
 		mlastsourcedata=$(cat /tmp/mvlansourcedata)
 
 		if [ "$mvlandata2" != "$mlastdata" ]; then
-			logger -t "[vlanexec]" "mvlan rule changed."
+			logger -t "[vlanexec]" "ds_mc_tci rule changed."
 			echo "$mvlandata2" >/tmp/mvlandata
 			let totalizerflag++
 		elif [ "$mvlansourcedata2" != "$mlastsourcedata" ]; then
-			logger -t "[vlanexec]" "mvlansource rule changed."
+			logger -t "[vlanexec]" "us_mc_vlan_id rule changed."
 			echo "$mvlansourcedata2" >/tmp/mvlansourcedata
 			let totalizerflag++
 		fi
@@ -345,51 +345,51 @@ mvlancheck() {
 }
 
 mvlanset() {
-	if [ -z "$mvlan" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "no mvlan configed."
+	if [ -z "$ds_mc_tci" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "no ds_mc_tci configed."
 		fi
 		return
-	elif [ "$mvlan" -gt 4094 ] || [ "$(echo "$mvlan" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "mvlan $mvlan configuration error."
+	elif [ "$ds_mc_tci" -gt 4094 ] || [ "$(echo "$ds_mc_tci" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "ds_mc_tci $ds_mc_tci configuration error."
 		fi
 		return
 	else
 		me309create
 	fi
 	
-	a309=$(printf "%04x" "$mvlan")
+	a309=$(printf "%04x" "$ds_mc_tci")
 	b309=$(echo "$a309" | sed 's/../& /g')
 	match309="04 $b309"
 	flag309=$($omci meadg 309 "$me309" 16 2>&- | cut -f 3 -d '=')
 
 	if [ "$flag309" = "$match309" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "mvlan rule match."
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "ds_mc_tci rule match."
 		fi
 	else
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "mvlan configuring."
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "ds_mc_tci configuring."
 		fi
 		$omci meads "309 $me309 16 $match309"
 	fi
 
-	if [ -z "$mvlansource" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "no mvlansource configed."
+	if [ -z "$us_mc_vlan_id" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "no us_mc_vlan_id configured."
 		fi
 		return
 	else
-		if [ "$mvlansource" -gt 4094 ] || [ "$(echo "$mvlansource" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
-			if [ -n "$vlandebug" ]; then
-				logger -t "[vlan]" "mvlansource $mvlansource configuration error."
+		if [ "$us_mc_vlan_id" -gt 4094 ] || [ "$(echo "$us_mc_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+			if [ -n "$vlan_svc_log" ]; then
+				logger -t "[vlan]" "us_mc_vlan_id $us_mc_vlan_id configuration error."
 			fi
 			return
 		fi
 	fi
 
-	sa309=$(printf "%04x" "$mvlansource")
+	sa309=$(printf "%04x" "$us_mc_vlan_id")
 	sb309=$(echo "$sa309" | sed 's/../& /g')
 	muti_gem_tp_instance=$($omci md | grep "Multicast GEM TP" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
 	
@@ -397,7 +397,7 @@ mvlanset() {
 		gpnctp_ptr=$($omci meadg "281 $muti_gem_tp_instance 1" | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
 		muti_port=$($omci meadg "268 0x$gpnctp_ptr 1" | cut -f 3 -d '=')
 
-		if [ -n "$vlandebug" ]; then
+		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "got muticast gem tp, muticast port: $muti_port, configuring ..."
 		fi
 
@@ -417,13 +417,13 @@ deletetrans() {
 }
 
 vlantranscheck() {
-	tvlannum=$(echo "$tvlan" | grep -o ":" | grep -c ":")
+	tvlannum=$(echo "$vlan_tag_ops" | grep -o ":" | grep -c ":")
 	tvlanseq=0
 
 	for i in $(seq 1 "$tvlannum")
 	do
-		vlana=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
-		vlanb=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 2 -d ':' | cut -f 1 -d '@')
+		vlana=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
+		vlanb=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 2 -d ':' | cut -f 1 -d '@')
 		tvlanseqa=$((i + tvlanseq))
 		tvlanseq=$i
 		tvlanseqb=$((i + tvlanseq))
@@ -452,13 +452,13 @@ vlantranscheck() {
 mtvlanset() {
 	gem_port_idx=$($gtop -b -g "GPE DS GEM port" | awk 'BEGIN{FS=";"} NR>5  {print $1}' | sed s/[[:space:]]//g)
 
-	if [ "$mtvlan" = "1" ]; then
-		if [ -n "$vlandebug" ]; then
+	if [ "$n_to_1_vlan" = "1" ]; then
+		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "multi vlan trans enabled."
 		fi
 		gpe_vlanmode=1
 	else
-		if [ -n "$vlandebug" ]; then
+		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "multi vlan trans disabled."
 		fi
 		gpe_vlanmode=0
@@ -471,28 +471,28 @@ mtvlanset() {
 }
 
 vlantransset() {
-	tvlannum=$(echo "$tvlan" | grep -o ":" | grep -c ":")
+	tvlannum=$(echo "$vlan_tag_ops" | grep -o ":" | grep -c ":")
 
 	for i in $(seq 1 "$tvlannum")
 	do
-		vlana=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
-		vlanb=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 2 -d ':' | cut -f 1 -d '@')
-		prioritya=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 1 -d ':' | grep '@'  | cut -f 2 -d "@")
-		priorityb=$(echo "$tvlan" | cut -f "$i" -d ',' | cut -f 2 -d ':' | grep '@'  | cut -f 2 -d "@")
+		vlana=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
+		vlanb=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 2 -d ':' | cut -f 1 -d '@')
+		prioritya=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 1 -d ':' | grep '@'  | cut -f 2 -d "@")
+		priorityb=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 2 -d ':' | grep '@'  | cut -f 2 -d "@")
 		
 		if [ -z "$vlana" ] || [ "$vlana" -gt 4094 ] || [ "$(echo "$vlana" | grep -c '^[1-9][0-9]*$')" = "0" ] ||
 			[ -z "$vlanb" ] || [ "$(echo "$vlanb" | grep -c '^[u1-9][0-9]*$')" = "0" ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuration error."
 			fi
 			continue
 		elif [ "$(echo "$vlanb" | grep -c 'u')" != "0" ] && [ "$(echo "$vlanb" | grep -c '^[u]$')" != "1" ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuration error."
 			fi
 			continue
 		elif [ "$(echo "$vlanb" | grep -c 'u')" = "0" ] && [ "$vlanb" -gt 4094 ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuration error."
 			fi
 			continue
@@ -500,7 +500,7 @@ vlantransset() {
 		
 		if [ -n "$prioritya" ] && [ "$(echo "$prioritya" | grep -c '^[0-7]$')" = "0" ] || [ -n "$priorityb" ] && 
 			[ "$(echo "$priorityb" | grep -c '^[0-7]$')" = "0" ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana@$prioritya:$vlanb@$priorityb priority configuration error."
 			fi
 			continue
@@ -533,11 +533,11 @@ vlantransset() {
 		wordget=$($omci meg 171 "$me171" | grep "$word_c")
 		
 		if [ -n "$wordget" ];then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb rule match."
 			fi
 		else
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuring ..."
 			fi
 			$omci meads 171 "$me171 6 $wordset"
@@ -549,7 +549,7 @@ me47pptpunibridge() {
 	me47_instance_number=$($omci md | grep "Bridge port config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
 	spanning_tree=$($omci meadg 45 1 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 
-	if [ -n "$vlandebug" ]; then
+	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "me47_instance_number: $me47_instance_number"
 	fi
 
@@ -559,7 +559,7 @@ me47pptpunibridge() {
 		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 
 		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "pptp uni bridge port: $i existed."
 			fi
 
@@ -575,7 +575,7 @@ me47pptpunibridge() {
 		$omci med 47 1
 	fi
 	bridge_instance=$($omci md | grep "Bridge config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | tail -n 1 | sed s/[[:space:]]//g)
-	if [ -n "$vlandebug" ]; then
+	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "no pptp uni bridge port, creating it and instance is fixed 1."
 	fi
 	$omci mec 47 1 "$bridge_instance" 1 1 257 0 1 "${spanning_tree:1:2}" 1 1
@@ -590,7 +590,7 @@ mecounter() {
 	current_4=$(printf "%x" "$current_3")
 	$omci meads 2 0 1 "$current_4"
 
-	if [ -n "$vlandebug" ]; then
+	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "meconunter: $current_4 ."
 	fi
 }
@@ -607,7 +607,7 @@ me171create() {
 
 			if [ "$Associated_ME_ptr" = "0101" ]; then
 				me171=$i
-				if [ -n "$vlandebug" ]; then
+				if [ -n "$vlan_svc_log" ]; then
 					logger -t "[vlan]" "me171 value: $me171"
 				fi
 				break
@@ -618,7 +618,7 @@ me171create() {
 	me47_instance=$pptp_uni_bridge
 
 	case $createflag in
-		0)  if [ -z "$me171" ] && [ -n "$vlandebug" ]; then
+		0)  if [ -z "$me171" ] && [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "me171 value should not be null."
 			fi
 		;;
@@ -635,14 +635,14 @@ me171create() {
 				sleep 5
 				mecounter
 
-				if [ -n "$vlandebug" ]; then
+				if [ -n "$vlan_svc_log" ]; then
 					logger -t "[vlan]" "me171 value: $me47_instance, creating ..."
 				fi
 
 				me171=$me47_instance
 			fi
 		;;
-		*)  if [ -n "$vlandebug" ]; then
+		*)  if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "create me171 value error."
 			fi
 		;;
@@ -653,8 +653,8 @@ me309create() {
 	me309=$($omci md | grep 309 | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | head -n 1 | sed s/[[:space:]]//g)
 	me309line=$($omci md | grep -c 309)
 
-	if [ -z "$me309" ] || [ -n "$forceme309" ] && [ "$me309line" != "2" ]; then
-		if [ -n "$vlandebug" ]; then
+	if [ -z "$me309" ] || [ -n "$force_me309_create" ] && [ "$me309line" != "2" ]; then
+		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "creating me309 ..."
 		fi
 
@@ -673,7 +673,7 @@ me309create() {
 		$omci mec 311 "$me309" 0
 		sleep 5
 	else
-		if [ -n "$vlandebug" ]; then
+		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "me309 rule existed."
 		fi
 		$omci meads 309 "$me309" 1 "0$igmpversion"
@@ -690,11 +690,11 @@ tptypealcl() {
 		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
 
 		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then
-			if [ -n "$vlandebug" ]; then
+			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "pptp uni bridge port: $i existed."
 			fi
 
-			if [ -n "$forcemerule" ]; then
+			if [ -n "$force_me_create" ]; then
 				$omci meads 47 "$i" 3 1
 				$omci meads 47 "$i" 4 01 01
 			fi
@@ -724,16 +724,16 @@ me171rulecheck() {
 	$omci meg 171 "$me171" | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -v "0xe8 0x00 0x00 0x00 0xe8" | sed 's/^   //g' | sed 's/0x//g' >/tmp/me171_rule
 	me171_rule_line=$($omci meg 171 1 | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -vc "0xf8 0x00 0x00 0x00 0xe8")
 	
-	if [ "$me171_rule_line" -ge 1 ] && [ -n "$vlandebug" ]; then
+	if [ "$me171_rule_line" -ge 1 ] && [ -n "$vlan_svc_log" ]; then
 		for i in $(seq 1 "$me171_rule_line")
 		do
 			logger -t "[vlan]" "me171 rule: $(tail -n "$i" /tmp/me171_rule | head -n 1)"
 		done
 	fi
 
-	if [ "$me171_singtagget" != "$me171_singtag" ] || [ "$me171_doubletagget" != "$me171_doubletag" ] ||  [ -n "$forcemerule" ]; then
-		if [ -n "$vlandebug" ]; then
-			logger -t "[vlan]" "defualt rule not match or forcemerule enabled, creating ..."
+	if [ "$me171_singtagget" != "$me171_singtag" ] || [ "$me171_doubletagget" != "$me171_doubletag" ] ||  [ -n "$force_me_create" ]; then
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "defualt rule not match or force_me_create enabled, creating ..."
 		fi
 
 		$omci meads 171 "$me171" 6 f8 00 00 00 e8 00 00 00 00 0f 00 00 00 0f 00 00

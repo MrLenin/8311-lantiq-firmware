@@ -3,7 +3,7 @@
 # Copyright (C) 2010 lantiq.com
 START=61
 
-. $IPKG_INSTROOT/lib/falcon.sh
+. "$IPKG_INSTROOT/lib/falcon.sh"
 
 log() {
 	logger -s -p daemon.err -t "[onu]" "$*" 2> /dev/console
@@ -11,7 +11,7 @@ log() {
 
 onu() {
 	#echo "onu $*"
-	result=`/opt/lantiq/bin/onu $*`
+	result=$(/opt/lantiq/bin/onu "$*")
 	#echo "result $result"
 	status=${result%% *}
 	if [ "$status" != "errorcode=0" ]; then
@@ -20,26 +20,34 @@ onu() {
 }
 
 ploam_config() {
-	local nSerial
-	nSerial=""
-	for i in `seq 5`; 
+	local gpon_sn
+
+	gpon_sn=""
+
+	for _ in $(seq 5); 
 	do
-		nSerial=`/opt/lantiq/bin/sfp_i2c -g 2>&- | cut -f 2 -d '='`
-		if [ -n "$nSerial" ]; then
-		break
+		gpon_sn=$(/opt/lantiq/bin/sfp_i2c -g 2>&- | cut -f 2 -d '=')
+
+		if [ -n "$gpon_sn" ]; then
+			break
 		fi
 	done
-	if [ -z "$nSerial" ]; then
-		nSerial=`fw_printenv nSerial 2>&- | cut -f 2 -d '='`
-		if [ -z "$nSerial" ]; then
+
+	if [ -z "$gpon_sn" ]; then
+		gpon_sn=$(fw_printenv nSerial 2>&- | cut -f 2 -d '=')
+
+		if [ -z "$gpon_sn" ]; then
 			# create out of lantiq OID and ether mac the serial number
 			ethaddr=$(awk 'BEGIN{RS=" ";FS="="} $1 == "ethaddr" {print $2}' /proc/cmdline)
-			nSerial=$(echo $ethaddr | awk 'BEGIN{FS=":"} {print "SPTC"$3""$4""$5""$6""}')
+			gpon_sn=$(echo "$ethaddr" | awk 'BEGIN{FS=":"} {print "SPTC"$3""$4""$5""$6""}')
 		fi
 	fi
+
 	onu ploam_init
-	logger -t "[onu]" "Using ploam serial number: $nSerial"
-	onu gtcsns $nSerial
+
+	logger -t "[onu]" "Using ploam serial number: $gpon_sn"
+
+	onu gtcsns "$gpon_sn"
 }
 
 # bool bDlosEnable
@@ -79,32 +87,46 @@ gtc_config() {
 	config_get bDlosInversion "gtc" bDlosInversion
 	config_get nDlosWindowSize "gtc" nDlosWindowSize
 	config_get nDlosTriggerThreshold "gtc" nDlosTriggerThreshold
+
 	config_get ePower "gtc" ePower
+
 	config_get nLaserGap "gtc" nLaserGap
 	config_get nLaserOffset "gtc" nLaserOffset
 	config_get nLaserEnEndExt "gtc" nLaserEnEndExt
 	config_get nLaserEnStartExt "gtc" nLaserEnStartExt
+
 	nPassword=""
-	nPassword=`fw_printenv nPassword 2>&- | cut -f 2 -d '='`
+	nPassword=$(fw_printenv nPassword 2>&- | cut -f 2 -d '=')
+
 	if [ -z "$nPassword" ]; then
 		config_get nPassword "ploam" nPassword
 	fi
+
 	config_get nRogueMsgIdUpstreamReset "ploam" nRogueMsgIdUpstreamReset
 	config_get nRogueMsgRepeatUpstreamReset "ploam" nRogueMsgRepeatUpstreamReset
 	config_get nRogueMsgIdDeviceReset "ploam" nRogueMsgIdDeviceReset
 	config_get nRogueMsgRepeatDeviceReset "ploam" nRogueMsgRepeatDeviceReset
 	config_get nRogueEnable "ploam" nRogueEnable
+
 	config_get nT01 "ploam" nT01
 	config_get nT02 "ploam" nT02
+	
+	nDyingGaspEnable=""
+	nDyingGaspEnable=$(fw_printenv nDyingGaspEnable 2>&- | cut -f2 -d=)
+	
+	if [ "$nDyingGaspEnable" -ne "1" ] && [ "$nDyingGaspEnable" -ne "0" ]; then
+	     config_get nDyingGaspEnable "gtc" nDyingGaspEnable
+	fi
+	
 	config_get nDyingGaspHyst "gtc" nDyingGaspHyst
 	config_get nDyingGaspMsg "gtc" nDyingGaspMsg
 
-	onu gtccs 3600000 5 9 10 $nRogueMsgIdUpstreamReset $nRogueMsgRepeatUpstreamReset $nRogueMsgIdDeviceReset $nRogueMsgRepeatDeviceReset $nRogueEnable $nT01 $nT02 $(falcon_ploam_emergency_stop_state_get) $nPassword
-	onu gtci $bDlosEnable $bDlosInversion $nDlosWindowSize $nDlosTriggerThreshold $nLaserGap $nLaserOffset $nLaserEnEndExt $nLaserEnStartExt
+	onu gtccs 3600000 5 9 10 "$nRogueMsgIdUpstreamReset" "$nRogueMsgRepeatUpstreamReset" "$nRogueMsgIdDeviceReset" "$nRogueMsgRepeatDeviceReset" "$nRogueEnable" "$nT01" "$nT02" "$(falcon_ploam_emergency_stop_state_get)" "$nPassword"
+	onu gtci "$bDlosEnable" "$bDlosInversion" "$nDlosWindowSize" "$nDlosTriggerThreshold" "$nLaserGap" "$nLaserOffset" "$nLaserEnEndExt" "$nLaserEnStartExt"
 
-	fw_setenv nDyingGaspEnable 0
+	onu gtc_dying_gasp_cfg_set "$nDyingGaspEnable" "$nDyingGaspHyst" "$nDyingGaspMsg"
 
-	onu psmcs $ePower 0 0 0 0 0 0 0 0 0
+	onu psmcs "$ePower" 0 0 0 0 0 0 0 0 0
 }
 
 nmea_config() {
@@ -114,7 +136,7 @@ nmea_config() {
 	config_load nmea
 	config_get nmea_format "message" nmea_format
 	config_get time_offset "message" time_offset
-	onu gpe_tod_nmea_cfg_set $nmea_format $time_offset
+	onu gpe_tod_nmea_cfg_set "$nmea_format" "$time_offset"
 }
 
 start() {
@@ -141,14 +163,14 @@ start() {
 	gtc_config
 
 	# download GPHY firmware, if file is available
-	[ -f /lib/firmware/phy11g.bin -o -f /lib/firmware/a1x/phy11g.bin -o -f /lib/firmware/a2x/phy11g.bin ] && onu langfd "phy11g.bin"
+	[ -f /lib/firmware/phy11g.bin ] || [ -f /lib/firmware/a1x/phy11g.bin ] || [ -f /lib/firmware/a2x/phy11g.bin ] && onu langfd "phy11g.bin"
 
 	# log the enabled hw modules before gpe_init, for debugging purpose
 	cat /proc/driver/onu/sys
 
 	# init GPE
 	[ -f /lib/firmware/hgu/falcon_gpe_fw1.bin ] && fw="falcon_gpe_fw1.bin"
-	onu gpei $fw 1 1 1 $bUNI_PortEnable0 $bUNI_PortEnable1 $bUNI_PortEnable2 $bUNI_PortEnable3 $bUNI_PortEnable0 $bUNI_PortEnable1 $bUNI_PortEnable2 $bUNI_PortEnable3 1 1 0 $nPeNumber 0 0 $(falcon_olt_type_get)
+	onu gpei $fw 1 1 1 "$bUNI_PortEnable0" "$bUNI_PortEnable1" "$bUNI_PortEnable2" "$bUNI_PortEnable3" "$bUNI_PortEnable0" "$bUNI_PortEnable1" "$bUNI_PortEnable2" "$bUNI_PortEnable3" 1 1 0 "$nPeNumber" 0 0 "$(falcon_olt_type_get)"
 
 	nmea_config
 
@@ -174,7 +196,7 @@ start() {
 		onu gpe_shared_buffer_cfg_set 1024 12288 12288 12288 12288
 	fi
 
-	if [ $(falcon_goi_calibrated_get) -ge 1 ]; then
+	if [ "$(falcon_goi_calibrated_get)" -ge 1 ]; then
 		onu gtc_watchdog_set 1
 	fi
 

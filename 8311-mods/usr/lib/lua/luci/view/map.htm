@@ -9,5 +9,6 @@
 	<% if self.description and #self.description > 0 then %><div class="cbi-map-descr"><%=self.description%></div><% end %>
 	<%- if firstmap and applymap then cbi_apply_xhr(self.config, parsechain, redirect) end -%>
 	<%- self:render_children() %>
+	<script type="text/javascript">document.body.scrollTop = 0;document.documentElement.scrollTop = 0;</script>
 	<br />
 </div>

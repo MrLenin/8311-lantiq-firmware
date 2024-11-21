@@ -37,16 +37,16 @@ is_flash_boot() {
 }
 
 generate_custom_mib() {
-	vendor_id=$(uci -q get gpon.onu.vendor_id) || return 1
-	ont_version=$(uci -q get gpon.onu.ont_version) || return 1
-	equipment_id=$(uci -q get gpon.onu.equipment_id) || return 1
-	uni_type=$(uci -q get gpon.onu.uni_type | tr 'A-Z' 'a-z') || return 1
+	vendor_id=$(uci -q get 8311.config.vendor_id) || return 1
+	hw_ver=$(uci -q get 8311.config.hw_ver) || return 1
+	equipment_id=$(uci -q get 8311.config.equipment_id) || return 1
+	uni_type=$(uci -q get 8311.config.uni_type | tr 'A-Z' 'a-z') || return 1
 
 	vendor_id=$(printf '%.4s' "${vendor_id}")
-	ont_version=$(printf '%.14s' "${ont_version//\\0}")
+	hw_ver=$(printf '%.14s' "${hw_ver//\\0}")
 	equipment_id=$(printf '%.20s' "${equipment_id//\\0}")
 
-	ont_version=$(printf %s "$ont_version" "$(printf '%*s' $((14-${#ont_version})) '' | sed 's/[[:space:]]/\\0/g')")
+	hw_ver=$(printf %s "$hw_ver" "$(printf '%*s' $((14-${#hw_ver})) '' | sed 's/[[:space:]]/\\0/g')")
 	equipment_id=$(printf %s "$equipment_id" "$(printf '%*s' $((20-${#equipment_id})) '' | sed 's/[[:space:]]/\\0/g')")
 
 	mibsrc='/etc/mibs/nameless.ini'
@@ -66,7 +66,7 @@ generate_custom_mib() {
 	cp ${mibsrc} ${mibtgt}
 	
 	{
-		printf '\n# ONT-G\n256 0 %s %s 00000000 2 0 0 0 0 #0\n' "${vendor_id}" "${ont_version}"
+		printf '\n# ONT-G\n256 0 %s %s 00000000 2 0 0 0 0 #0\n' "${vendor_id}" "${hw_ver}"
 		printf '\n# ONT2-G\n257 0 %s 0xa0 0xcc 1 1 64 64 1 64 0 0x007f 0 24 48\n' "${equipment_id}"
 
 		if [ -n "$uni_type" ] && [ "$uni_type" = "veip" ]; then
@@ -93,9 +93,9 @@ start_service() {
 	#is_flash_boot && wait_for_jffs
 
 	mibtmp1=$(fw_printenv mib_file 2>&- | cut -f 2 -d '=')
-	mibtmp2=$(uci -q get gpon.onu.mib_file)
-	mc=$(uci -q get gpon.onu.mib_customized)
-	uni=$(uci -q get gpon.onu.uni_type)
+	mibtmp2=$(uci -q get 8311.config.mib_file)
+	mc=$(uci -q get 8311.config.mib_customized)
+	uni=$(uci -q get 8311.config.uni_type)
 
 	if [ -f "/etc/mibs/$mibtmp1" ]; then
 		mib_file="/etc/mibs/$mibtmp1"
@@ -113,23 +113,23 @@ start_service() {
 			fi
 		fi
 		mib_file="/etc/mibs/auto.ini"
-		uci set gpon.onu.mib_file=$mib_file
+		uci set 8311.config.mib_file=$mib_file
 		uci commit gpon
 	fi
 
-	statustmp=$(uci -q get gpon.onu.omci_status)
+	statustmp=$(uci -q get 8311.config.omci_status)
 
 	if [ -n "$statustmp" ]; then
 		omci_status=$statustmp
 	else
 		omci_status="/tmp/omci_status"
-		uci set gpon.onu.omci_status=$omci_status
-		uci commit gpon.onu.omci_status
+		uci set 8311.config.omci_status=$omci_status
+		uci commit 8311.config.omci_status
 	fi
 
 	status_entry_create "$omci_status"
 
-	omcctmp=$(uci -q get gpon.onu.omcc_version)
+	omcctmp=$(uci -q get 8311.config.omcc_version)
 
 	if [ -n "$omcctmp" ]; then
 		omcc_version=$omcctmp
@@ -156,7 +156,7 @@ start_service() {
 	esac
 
 	ioptmp1=$(fw_printenv omci_iop_mask 2>&- | cut -f2 -d=)
-	ioptmp2=$(uci -q get gpon.onu.omci_iop_mask)
+	ioptmp2=$(uci -q get 8311.config.iop_mask)
 	
 	if [ -n "$ioptmp1" ]; then
 		omci_iop_mask=$ioptmp1
@@ -171,7 +171,7 @@ start_service() {
 	omcidtest=$(${OMCID_BIN} -h | grep -c OMCI)
 	omcid_version_default="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
 	omcid_version_current=$(${OMCID_BIN} -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75)
-	mod_omcid=$(uci -q get gpon.onu.mod_omcid)
+	mod_omcid=$(uci -q get 8311.config.mod_omcid)
 	
 	if [ "$omcidtest" = "0" ] || [ -z "$mod_omcid" ] && [ "$omcid_version_default" != "$omcid_version_current" ]; then
 		/opt/lantiq/bin/config_onu.sh restore
@@ -179,13 +179,13 @@ start_service() {
 		/opt/lantiq/bin/config_onu.sh mod
 	fi
 
-	omci_log_level=$(uci -q get gpon.onu.omci_log_level)
+	omci_log_level=$(uci -q get 8311.config.omci_log_level)
 
 	if [ -z "$omci_log_level" ] || [ "$(echo "$omci_log_level" | grep -c '^[1-7]*$')" = "0" ]; then
 		omci_log_level=3
 	fi
 
-	omci_log_to_console=$(uci -q get gpon.onu.omci_log_to_console)
+	omci_log_to_console=$(uci -q get 8311.config.omci_log_to_console)
 
 	if [ -n "$omci_log_to_console" ]; then
 		omci_log_path="/dev/console"

@@ -1,14 +1,17 @@
-/etc/8311_version F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/8311_version
+etc/8311_version F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/8311_version
 etc/config/gpon F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/gpon
 etc/config/luci F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/luci
 etc/config/system F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/config/system
 etc/init.d/omcid.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/omcid.sh
+etc/init.d/onu.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/onu.sh
 etc/init.d/pin_cfg.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/pin_cfg.sh
+etc/init.d/vlan-svc.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/vlan-svc.sh
 etc/mibs/nameless.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/nameless.ini
 etc/mibs/data_1g_8q_us1280_ds512.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1g_8q_us1280_ds512.ini
 etc/mibs/data_1v_8q.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q.ini
 etc/mibs/pptp.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/pptp.ini
 etc/mibs/veip.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/veip.ini
+etc/rc.d/S94vlan-svc.sh S @TIMESTAMP 777 0 0 ../init.d/vlan-svc.sh
 etc/uci-defaults/30_luci-theme-bootstrap F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig F @TIMESTAMP 664 0 0 cat ./8311-mods/etc/uci-defaults/sfp-pins-preconfig
 lib/modules/3.10.49/mod_optic.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_optic.ko
@@ -25,9 +28,9 @@ usr/lib/lua/luci/controller/admin/status.lua F @TIMESTAMP 644 0 0 cat ./8311-mod
 usr/lib/lua/luci/controller/admin/system.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/controller/admin/system.lua
 usr/lib/lua/luci/controller/8311.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/controller/8311.lua
 usr/lib/lua/luci/dispatcher.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/dispatcher.lua
-usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua
-usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua
-usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua
+usr/lib/lua/luci/model/cbi/8311-config.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-config.lua
+usr/lib/lua/luci/model/cbi/8311-network.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-network.lua
+usr/lib/lua/luci/model/cbi/8311-optic-cal.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-optic-cal.lua
 usr/lib/lua/luci/util.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/util.lua
 usr/lib/lua/luci/view/8311 D @TIMESTAMP 775 0 0
 usr/lib/lua/luci/view/8311/config.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/config.htm
@@ -39,8 +42,10 @@ usr/lib/lua/luci/view/8311/vlans.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/li
 usr/lib/lua/luci/view/admin_status/index.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/admin_status/index.htm
 usr/lib/lua/luci/view/cbi/full_valuefooter.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/cbi/full_valuefooter.htm
 usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
+usr/lib/lua/luci/view/map.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/map.htm
 usr/lib/lua/luci/view/themes/bootstrap/footer.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/footer.htm
 usr/lib/lua/luci/view/themes/bootstrap/header.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/header.htm
+www/index.html F @TIMESTAMP 644 0 0 cat ./8311-mods/www/index.html
 www/luci-static/bootstrap D @TIMESTAMP 755 0 0
 www/luci-static/bootstrap/cascade.css F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/cascade.css
 www/luci-static/bootstrap/favicon.png F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/bootstrap/favicon.png
