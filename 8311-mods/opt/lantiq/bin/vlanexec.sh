@@ -33,7 +33,7 @@ n_to_1_vlan=$($uci -q get 8311.config.n_to_1_vlan)
 vlan_tag_ops=$($uci -q get 8311.config.vlan_tag_ops)
 ds_mc_tci=$($uci -q get 8311.config.ds_mc_tci)
 us_mc_vlan_id=$($uci -q get 8311.config.us_mc_vlan_id)
-igmpversion=$($uci -q get 8311.config.igmp_version)
+igmp_version=$($uci -q get 8311.config.igmp_version)
 force_me_create=$($uci -q get 8311.config.force_me_create)
 force_me309_create=$($uci -q get 8311.config.force_me309_create)
 force_us_vlan_id=$($uci -q get 8311.config.force_us_vlan_id)
@@ -658,13 +658,13 @@ me309create() {
 			logger -t "[vlan]" "creating me309 ..."
 		fi
 
-		if [ -z "$igmpversion" ]; then
-			igmpversion=3
+		if [ -z "$igmp_version" ]; then
+			igmp_version=3
 		fi
 
 		me309=$pptp_uni_bridge
 
-		$omci mec 309 "$me309" "$igmpversion" 0 1 0 0 32
+		$omci mec 309 "$me309" "$igmp_version" 0 1 0 0 32
 		$omci meads 309 "$me309" 10 02
 		$omci meads 309 "$me309" 12 00 00 00 7d
 		$omci meads 309 "$me309" 13 00 00 00 64
@@ -676,7 +676,7 @@ me309create() {
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "me309 rule existed."
 		fi
-		$omci meads 309 "$me309" 1 "0$igmpversion"
+		$omci meads 309 "$me309" 1 "0$igmp_version"
 	fi
 }
 
