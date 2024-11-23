@@ -21,11 +21,11 @@ totalizerflag=0
 collectflag=0
 stateflag=0
 logflag=0
-rebootwaitnum=0
-reboottrynum=$(cat /tmp/reboottrynum 2>&-)
+reboot_wait_interval=0
+reboots_count=$(cat /tmp/reboots_count 2>&-)
 tryreboot=$($uci -q get 8311.config.tryreboot)
-totalrebootwait=$($uci -q get 8311.config.totalrebootwait)
-totalreboottry=$($uci -q get 8311.config.totalreboottry)
+max_reboot_wait_intervals=$($uci -q get 8311.config.totalrebootwait)
+max_reboots=$($uci -q get 8311.config.max_reboots)
 rebootlog=$($uci -q get 8311.config.rebootlog)
 
 us_vlan_id=$($uci -q get 8311.config.us_vlan_id)
@@ -39,21 +39,23 @@ force_me309_create=$($uci -q get 8311.config.force_me309_create)
 force_us_vlan_id=$($uci -q get 8311.config.force_us_vlan_id)
 vlan_svc_log=$($uci -q get 8311.config.vlan_svc_log)
 
-status() {
-	ploamstate=$($onu ploamsg | cut -b 24)
-	echo "$ploamstate"
+ploam_state_get() {
+	$onu ploam_state_get |
+	cut -b 24
 }
 
 reboottry() {
-	if [ "$reboottrynum" -lt "$totalreboottry" ]; then
+	if [ "$reboots_count" -lt "$max_reboots" ]; then
 		if [ "$rebootlog" = "1" ]; then
 			/opt/lantiq/bin/debug
 			cp /tmp/log/one_click /root
 		fi
 
-		let reboottrynum++
-		fw_setenv reboottry "$reboottrynum"
+		let reboots_count++
+
+		fw_setenv reboottry "$reboots_count"
 		fw_setenv rebootcause 1
+		
 		reboot -f
 		exit 0
 	fi
@@ -63,15 +65,16 @@ resetreboottry() {
 	fw_setenv reboottry 0
 }
 
-rebootwait() {
-	if [ "$rebootwaitnum" -lt "$totalrebootwait" ] && [ "$reboottrynum" -lt "$totalreboottry" ]; then
-		let rebootwaitnum++
+reboot_wait() {
+	if [ "$reboot_wait_interval" -lt "$max_reboot_wait_intervals" ] &&
+			[ "$reboots_count" -lt "$max_reboots" ]; then
+		let reboot_wait_interval++
 		rest
 	fi
 }
 
-resetrebootwarit() {
-	rebootwaitnum=0
+reset_reboot_wait() {
+	reboot_wait_interval=0
 }
 
 resetlogflag() {
@@ -79,38 +82,46 @@ resetlogflag() {
 }
 
 oltstatus1() {
+	local prev_status
+	local curr_status
+
 	if [ ! -f /tmp/oltstatus1 ]; then
 		touch /tmp/oltstatus1
 	fi
 
-	oltlast1=$(cat /tmp/oltstatus1)
-	oltstatus1=$(dmesg | grep -c "FSM O5")
+	prev_status=$(cat /tmp/oltstatus1)
+	curr_status=$(dmesg | grep -c "FSM O5")
 
-	if [ "$oltlast1" != "$oltstatus1" ]; then
+	if [ "$prev_status" != "$curr_status" ]; then
 		logger -t "[vlanexec]" "FSM O5 detected ..."
 		let totalizerflag++
 	fi
 
-	echo "$oltstatus1" >/tmp/oltstatus1
+	echo "$curr_status" >/tmp/oltstatus1
 }
 
 oltstatus2() {
+	local prev_status
+	local curr_status
+	
 	if [ ! -f /tmp/oltstatus2 ]; then
 		touch /tmp/oltstatus2
 	fi
 
-	oltlast2=$(cat /tmp/oltstatus2)
-	oltstatus2=$(dmesg | grep -c "PLOAM Rx - message lost")
+	prev_status=$(cat /tmp/oltstatus2)
+	curr_status=$(dmesg | grep -c "PLOAM Rx - message lost")
 
-	if [ "$oltlast2" != "$oltstatus2" ]; then
+	if [ "$prev_status" != "$curr_status" ]; then
 		logger -t "[vlanexec]" "PLOAM Rx - message lost detected ..."
 		let totalizerflag++
 	fi
 	
-	echo "$oltstatus2" >/tmp/oltstatus2
+	echo "$curr_status" >/tmp/oltstatus2
 }
 
 rest() {
+	local time
+
 	if [ $stateflag -lt 20 ]; then
 		time=5
 	else
@@ -131,9 +142,12 @@ resetparameter() {
 	[ -e /tmp/mvlansourcedata ] && rm -f /tmp/mvlansourcedata
 	[ -e /tmp/mibcounter ] && rm -f /tmp/mibcounter
 
-	tvlannum=$(echo "$vlan_tag_ops" | grep -o ":" | grep -c ":")
 	tvlanseq=0
-
+	tvlannum=$(\
+		echo "$vlan_tag_ops" |
+		grep -o ":" |
+		grep -c ":")
+	
 	for i in $(seq 1 "$tvlannum")
 	do
 		tvlanseqa=$((i + tvlanseq))
@@ -147,11 +161,21 @@ resetparameter() {
 	done
 }
 
-olttype() {
+olt_type() {
 	for i in $(seq 1 30)
 	do
-		olt_type=$($omci meadg 131 0 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-		spanning_tree=$($omci meadg 45 1 1 | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g)
+		olt_type=$(
+			$omci managed_entity_attr_data_get 131 0 1 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
+
+		spanning_tree=$(
+			$omci managed_entity_attr_data_get 45 1 1 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			sed s/[[:space:]]//g
+		)
 
 		if [ "$olt_type" != "20202020" ] && [ -n "$spanning_tree" ]; then
 			break
@@ -165,7 +189,15 @@ olttype() {
 }
 
 extendvlan() {
-	me171=$($omci md | grep "Extended VLAN conf data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | head -n 1 | sed s/[[:space:]]//g)
+	me171=$(
+		$omci mib_dump |
+		grep "Extended VLAN conf data" |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		head -n 1 |
+		sed s/[[:space:]]//g
+	)
 	
 	if [ -z "$me171" ]; then
 		echo "extendvlan null" >>/tmp/collect  
@@ -175,21 +207,39 @@ extendvlan() {
 }
 
 bridgeget() {
-	number=$($omci md | grep -c "Bridge config data")
+	local number
+	local me47_tp_type
+	local me47_tp_ptr
 
-	echo "bridge number is:$number" >>/tmp/collect
+	number=$(
+		$omci mib_dump |
+		grep -c "Bridge config data"
+	)
+
+	echo "bridge number is: $number" >>/tmp/collect
 
 	for i in $me47_instance_number
 	do
-		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+		me47_tp_type=$(
+			$omci managed_entity_attr_data_get 47 "$i" 3 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
 
-		echo "Bridge port config data:$me47_tptype,$me47_tpptr" >>/tmp/collect
+		me47_tp_ptr=$(
+			$omci managed_entity_attr_data_get 47 "$i" 4 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
 
-		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then 
+		echo "Bridge port config data: $me47_tp_type, $me47_tp_ptr" >>/tmp/collect
+
+		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then 
 			echo "pptp uni brige port already created" >>/tmp/collect
 			return
-		elif [ "$me47_tptype" = "0b" ]; then
+		elif [ "$me47_tp_type" = "0b" ]; then
 			echo "veip bridge port created" >>/tmp/collect
 			return
 		fi
@@ -199,34 +249,49 @@ bridgeget() {
 }
 
 collect() {
-	olttype
+	olt_type
 	extendvlan
 	bridgeget
 } 
 
-mibdata() {
+mib_data() {
 	if [ ! -e /tmp/mibcounter ]; then
-		data1=$($omci meadg 2 0 1 | cut -f 3 -d '=' | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g >/tmp/mibcounter)
+		$omci managed_entity_attr_data_get 2 0 1 |
+			cut -f 3 -d '=' |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			sed s/[[:space:]]//g >/tmp/mibcounter
 	else
-		data2=$($omci meadg 2 0 1 | cut -f 3 -d '=' | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g)
+		data=$(
+			$omci managed_entity_attr_data_get 2 0 1 |
+			cut -f 3 -d '=' |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			sed s/[[:space:]]//g
+		)
+
 		last=$(cat /tmp/mibcounter)
 
-		if [ "$data2" != "$last" ]; then
+		if [ "$data" != "$last" ]; then
 			logger -t "[vlanexec]" "mib data unsync"
-			echo "$data2" >/tmp/mibcounter
+			echo "$data" >/tmp/mibcounter
 			let totalizerflag++
 		fi
 	 fi
 }
 
-meruleset() {
+me_rule_set() {
 	hw="48575443"
 	alcl="414c434c"
 	zte="5a544547"
 	other="20202020"
 
 	if [ "$olt_type" = "20202020"  ]; then
-		olt_type=$($omci meadg 131 0 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+		olt_type=$(
+			$omci managed_entity_attr_data_get 131 0 1 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
+
 		sed -i '/.*olt\ type*/c\olt\ type:'"$olt_type"'' /tmp/collect
 	fi
 
@@ -235,22 +300,22 @@ meruleset() {
 	fi
 
 	if [ "$olt_type" = "$hw" ]; then
-		me47pptpunibridge
-		me171create 0
+		me47_pptp_uni_bridge
+		me171_create 0
 		me171rulecheck
 	elif [ "$olt_type" = "$alcl" ]; then
-		tptypealcl
-		me171create 1
+		tp_type_alcl
+		me171_create 1
 	elif [ "$olt_type" = "$zte" ]; then
-		me47pptpunibridge
-		me171create 1
+		me47_pptp_uni_bridge
+		me171_create 1
 	else
-		me47pptpunibridge
-		me171create 1
+		me47_pptp_uni_bridge
+		me171_create 1
 	fi
 }
 
-uvlancheck() {
+us_vlan_check() {
 	if [ ! -e /tmp/uvlandata ]; then
 		us_vlan_id=$($uci get 8311.config.us_vlan_id 2>&-)
 
@@ -270,23 +335,32 @@ uvlancheck() {
 	fi
 }
 
-uvlanset() {
+us_vlan_set() {
 	if [ -z "$us_vlan_id" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "no us_vlan_id configed."
 			fi
-			$omci meads 171 "$me171" 6 f8 00 00 00 f8 00 00 00 c0 0f 00 00 00 0f 00 00
+		
+			$omci managed_entity_attr_data_set 171 "$me171" 6 f8 00 00 00 f8 00 00 00 c0 0f 00 00 00 0f 00 00
+		
 			return
-	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" != "0" ] && [ "$(echo "$us_vlan_id" | grep -c '^[u]$')" != "1" ]; then
+	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" != "0" ] && 
+		[ "$(echo "$us_vlan_id" | grep -c '^[u]$')" != "1" ]; then
+		
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "us_vlan_id $us_vlan_id configuration error."
 		fi
+		
 		return
-	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] && [ "$us_vlan_id" -gt 4094 ] || 
-		[ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] && [ "$(echo "$us_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+	elif [ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] &&
+		[ "$us_vlan_id" -gt 4094 ] || 
+		[ "$(echo "$us_vlan_id" | grep -c 'u')" = "0" ] &&
+		[ "$(echo "$us_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+		
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "us_vlan_id $us_vlan_id configuration error."
 		fi
+		
 		return
 	fi
 	
@@ -300,8 +374,17 @@ uvlanset() {
 		match171="f8 00 00 00 f8 00 00 00 00 0f 80 00 00 00 $b171"
 	fi
 
-	word_171=$(echo "$match171" | sed s/[[:space:]]//g | sed -r 's/(..)/0x\1/g' | sed -r 's/(....)/ \1/g')
-	flag171=$($omci meg 171 "$me171" | grep "$word_171")
+	word_171=$(
+		echo "$match171" |
+		sed s/[[:space:]]//g |
+		sed -r 's/(..)/0x\1/g' |
+		sed -r 's/(....)/ \1/g'
+	)
+
+	flag171=$(
+		$omci managed_entity_get 171 "$me171" |
+		grep "$word_171"
+	)
 	
 	if [ -n "$flag171" ] && [ -z "$force_us_vlan_id" ]; then
 		if [ -n "$vlan_svc_log" ]; then
@@ -311,11 +394,11 @@ uvlanset() {
 		if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "us_vlan_id configuring ..."
 		fi
-		$omci meads 171 "$me171" 6 "$match171"
+		$omci managed_entity_attr_data_set 171 "$me171" 6 "$match171"
 	fi
 }
 
-mvlancheck() {
+mc_vlans_check() {
 	if [ ! -e /tmp/mvlandata ]; then
 		if [ -n "$ds_mc_tci" ]; then
 			echo "$ds_mc_tci" >/tmp/mvlandata
@@ -344,25 +427,36 @@ mvlancheck() {
 	fi
 }
 
-mvlanset() {
+mc_vlans_set() {
 	if [ -z "$ds_mc_tci" ]; then
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "no ds_mc_tci configed."
 		fi
 		return
-	elif [ "$ds_mc_tci" -gt 4094 ] || [ "$(echo "$ds_mc_tci" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+	elif [ "$ds_mc_tci" -gt 4094 ] ||
+		[ "$(echo "$ds_mc_tci" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "ds_mc_tci $ds_mc_tci configuration error."
 		fi
+
 		return
 	else
-		me309create
+		me309_create
 	fi
 	
 	a309=$(printf "%04x" "$ds_mc_tci")
-	b309=$(echo "$a309" | sed 's/../& /g')
+
+	b309=$(
+		echo "$a309" |
+		sed 's/../& /g'
+	)
+
 	match309="04 $b309"
-	flag309=$($omci meadg 309 "$me309" 16 2>&- | cut -f 3 -d '=')
+
+	flag309=$(
+		$omci managed_entity_attr_data_get 309 "$me309" 16 2>&- |
+		cut -f 3 -d '='
+	)
 
 	if [ "$flag309" = "$match309" ]; then
 		if [ -n "$vlan_svc_log" ]; then
@@ -372,36 +466,57 @@ mvlanset() {
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "ds_mc_tci configuring."
 		fi
-		$omci meads "309 $me309 16 $match309"
+
+		$omci managed_entity_attr_data_set "309 $me309 16 $match309"
 	fi
 
 	if [ -z "$us_mc_vlan_id" ]; then
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "no us_mc_vlan_id configured."
 		fi
+
 		return
 	else
-		if [ "$us_mc_vlan_id" -gt 4094 ] || [ "$(echo "$us_mc_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
+		if [ "$us_mc_vlan_id" -gt 4094 ] ||
+			[ "$(echo "$us_mc_vlan_id" | grep -c '^[1-9][0-9]*$')" = "0" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "us_mc_vlan_id $us_mc_vlan_id configuration error."
 			fi
+
 			return
 		fi
 	fi
 
 	sa309=$(printf "%04x" "$us_mc_vlan_id")
 	sb309=$(echo "$sa309" | sed 's/../& /g')
-	muti_gem_tp_instance=$($omci md | grep "Multicast GEM TP" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
+
+	muti_gem_tp_instance=$(
+		$omci mib_dump |
+		grep "Multicast GEM TP" |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		sed s/[[:space:]]//g
+	)
 	
 	if [ -n "$muti_gem_tp_instance" ]; then
-		gpnctp_ptr=$($omci meadg "281 $muti_gem_tp_instance 1" | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
-		muti_port=$($omci meadg "268 0x$gpnctp_ptr 1" | cut -f 3 -d '=')
+		gpnctp_ptr=$(
+			$omci managed_entity_attr_data_get "281 $muti_gem_tp_instance 1" |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' | cut -f 1 -d '(' |
+			sed s/[[:space:]]//g
+		)
+		
+		muti_port=$(
+			$omci managed_entity_attr_data_get "268 0x$gpnctp_ptr 1" |
+			cut -f 3 -d '='
+		)
 
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "got muticast gem tp, muticast port: $muti_port, configuring ..."
 		fi
 
-		$omci meads "309 $me309 7 40 00 $muti_port $sb309 00 00 00 00 e0 00 01 00 ef ff ff ff 00 00 00 00 00 00"
+		$omci managed_entity_attr_data_set "309 $me309 7 40 00 $muti_port $sb309 00 00 00 00 e0 00 01 00 ef ff ff ff 00 00 00 00 00 00"
 	fi
 }
 
@@ -413,7 +528,7 @@ deletetrans() {
 	word2=$(echo "$filter_inner_3" | sed 's/../& /g')
 	wordset="f8 00 00 00 $word2 00 ff ff ff ff ff ff ff ff"
 	logger -t "[vlanexec]" "Deleting vlantrans rule $1"
-	$omci meads "171 $me171 6 $wordset"
+	$omci managed_entity_attr_data_set "171 $me171 6 $wordset"
 }
 
 vlantranscheck() {
@@ -449,8 +564,12 @@ vlantranscheck() {
 	done
 }
 
-mtvlanset() {
-	gem_port_idx=$($gtop -b -g "GPE DS GEM port" | awk 'BEGIN{FS=";"} NR>5  {print $1}' | sed s/[[:space:]]//g)
+n_to_1_vlan_set() {
+	gem_port_idx=$(
+		$gtop -b -g "GPE DS GEM port" |
+		awk 'BEGIN{FS=";"} NR>5  {print $1}' |
+		sed s/[[:space:]]//g
+	)
 
 	if [ "$n_to_1_vlan" = "1" ]; then
 		if [ -n "$vlan_svc_log" ]; then
@@ -471,22 +590,53 @@ mtvlanset() {
 }
 
 vlantransset() {
-	tvlannum=$(echo "$vlan_tag_ops" | grep -o ":" | grep -c ":")
+	tvlannum=$(
+		echo "$vlan_tag_ops" |
+		grep -o ":" | grep -c ":"
+	)
 
 	for i in $(seq 1 "$tvlannum")
 	do
-		vlana=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 1 -d ':' | cut -f 1 -d '@')
-		vlanb=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 2 -d ':' | cut -f 1 -d '@')
-		prioritya=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 1 -d ':' | grep '@'  | cut -f 2 -d "@")
-		priorityb=$(echo "$vlan_tag_ops" | cut -f "$i" -d ',' | cut -f 2 -d ':' | grep '@'  | cut -f 2 -d "@")
+		vlana=$(
+			echo "$vlan_tag_ops" |
+			cut -f "$i" -d ',' |
+			cut -f 1 -d ':' |
+			cut -f 1 -d '@'
+		)
+
+		vlanb=$(
+			echo "$vlan_tag_ops" |
+			cut -f "$i" -d ',' |
+			cut -f 2 -d ':' |
+			cut -f 1 -d '@'
+		)
+
+		prioritya=$(
+			echo "$vlan_tag_ops" |
+			cut -f "$i" -d ',' |
+			cut -f 1 -d ':' |
+			grep '@' |
+			cut -f 2 -d "@"
+		)
 		
-		if [ -z "$vlana" ] || [ "$vlana" -gt 4094 ] || [ "$(echo "$vlana" | grep -c '^[1-9][0-9]*$')" = "0" ] ||
-			[ -z "$vlanb" ] || [ "$(echo "$vlanb" | grep -c '^[u1-9][0-9]*$')" = "0" ]; then
+		priorityb=$(
+			echo "$vlan_tag_ops" |
+			cut -f "$i" -d ',' |
+			cut -f 2 -d ':' |
+			grep '@' |
+			cut -f 2 -d "@"
+		)
+		
+		if [ -z "$vlana" ] || [ "$vlana" -gt 4094 ] ||
+			[ "$(echo "$vlana" | grep -c '^[1-9][0-9]*$')" = "0" ] ||
+			[ -z "$vlanb" ] ||
+			[ "$(echo "$vlanb" | grep -c '^[u1-9][0-9]*$')" = "0" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuration error."
 			fi
 			continue
-		elif [ "$(echo "$vlanb" | grep -c 'u')" != "0" ] && [ "$(echo "$vlanb" | grep -c '^[u]$')" != "1" ]; then
+		elif [ "$(echo "$vlanb" | grep -c 'u')" != "0" ] &&
+			[ "$(echo "$vlanb" | grep -c '^[u]$')" != "1" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuration error."
 			fi
@@ -498,7 +648,9 @@ vlantransset() {
 			continue
 		fi
 		
-		if [ -n "$prioritya" ] && [ "$(echo "$prioritya" | grep -c '^[0-7]$')" = "0" ] || [ -n "$priorityb" ] && 
+		if [ -n "$prioritya" ] &&
+			[ "$(echo "$prioritya" | grep -c '^[0-7]$')" = "0" ] ||
+			[ -n "$priorityb" ] && 
 			[ "$(echo "$priorityb" | grep -c '^[0-7]$')" = "0" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana@$prioritya:$vlanb@$priorityb priority configuration error."
@@ -529,8 +681,18 @@ vlantransset() {
 		fi
 
 		wordset="f8 00 00 00 $word2 00 40 0f 00 00 $word4"
-		word_c=$(echo "$wordset" | sed s/[[:space:]]//g | sed -r 's/(..)/0x\1/g' | sed -r 's/(....)/ \1/g')
-		wordget=$($omci meg 171 "$me171" | grep "$word_c")
+		
+		word_c=$(
+			echo "$wordset" |
+			sed s/[[:space:]]//g |
+			sed -r 's/(..)/0x\1/g' |
+			sed -r 's/(....)/ \1/g'
+		)
+		
+		wordget=$(
+			$omci managed_entity_get 171 "$me171" |
+			grep "$word_c"
+		)
 		
 		if [ -n "$wordget" ];then
 			if [ -n "$vlan_svc_log" ]; then
@@ -540,14 +702,32 @@ vlantransset() {
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "vlantrans$i $vlana:$vlanb configuring ..."
 			fi
-			$omci meads 171 "$me171 6 $wordset"
+			$omci managed_entity_attr_data_set 171 "$me171 6 $wordset"
 		fi
 	done
 }
 
-me47pptpunibridge() {
-	me47_instance_number=$($omci md | grep "Bridge port config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
-	spanning_tree=$($omci meadg 45 1 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+me47_pptp_uni_bridge() {
+	local me47_instance_number
+	local spanning_tree
+	local me47_tp_type
+	local me47_tp_ptr
+	local bridge_instance
+	
+	me47_instance_number=$(
+		$omci mib_dump | grep "Bridge port config data" |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		sed s/[[:space:]]//g
+	)
+	
+	spanning_tree=$(
+		$omci managed_entity_attr_data_get 45 1 1 |
+		sed -n 's/\(attr\_data\=\)/\1/p' |
+		cut -f 3 -d '=' |
+		sed s/[[:space:]]//g
+	)
 
 	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "me47_instance_number: $me47_instance_number"
@@ -555,55 +735,111 @@ me47pptpunibridge() {
 
 	for i in $me47_instance_number
 	do
-		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+		me47_tp_type=$(
+			$omci managed_entity_attr_data_get 47 "$i" 3 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
+		
+		me47_tp_ptr=$(
+			$omci managed_entity_attr_data_get 47 "$i" 4 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
+		)
 
-		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then
+		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "pptp uni bridge port: $i existed."
 			fi
 
 			pptp_uni_bridge=$i
-			$omci meads 47 "$i" 3 1
-			$omci meads 47 "$i" 4 01 01
-			$omci meads 47 "$i" 7 "$spanning_tree"
+
+			$omci managed_entity_attr_data_set 47 "$i" 3 1
+			$omci managed_entity_attr_data_set 47 "$i" 4 01 01
+			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
+			
 			return
 		fi
 	done
-	me47_tptype=$($omci meadg 47 1 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-	if [ -n "$me47_tptype" ];then
-		$omci med 47 1
+
+	me47_tp_type=$(
+		$omci managed_entity_attr_data_get 47 1 3 |
+		sed -n 's/\(attr\_data\=\)/\1/p' |
+		cut -f 3 -d '=' |
+		sed s/[[:space:]]//g
+	)
+
+	if [ -n "$me47_tp_type" ];then
+		$omci managed_entity_delete 47 1
 	fi
-	bridge_instance=$($omci md | grep "Bridge config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | tail -n 1 | sed s/[[:space:]]//g)
+
+	bridge_instance=$(
+		$omci mib_dump |
+		grep "Bridge config data" |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		tail -n 1 |
+		sed s/[[:space:]]//g
+	)
+
 	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "no pptp uni bridge port, creating it and instance is fixed 1."
 	fi
-	$omci mec 47 1 "$bridge_instance" 1 1 257 0 1 "${spanning_tree:1:2}" 1 1
+
+	$omci managed_entity_create 47 1 "$bridge_instance" 1 1 257 0 1 "${spanning_tree:1:2}" 1 1
+
 	pptp_uni_bridge=1
 }
 
-mecounter() {
-	current=$($omci meadg 2 0 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+me_counter() {
+	current=$(
+		$omci managed_entity_attr_data_get 2 0 1 |
+		sed -n 's/\(attr\_data\=\)/\1/p' |
+		cut -f 3 -d '=' |
+		sed s/[[:space:]]//g
+	)
+	
 	current_1=0x$current
 	current_2=$(printf "0x%x" "$current_1")
 	current_3=$(awk 'BEGIN{printf("%#x",'"$current_2"'-3)}')
 	current_4=$(printf "%x" "$current_3")
-	$omci meads 2 0 1 "$current_4"
+	
+	$omci managed_entity_attr_data_set 2 0 1 "$current_4"
 
 	if [ -n "$vlan_svc_log" ]; then
 		logger -t "[vlan]" "meconunter: $current_4 ."
 	fi
 }
 
-me171create() {
+me171_create() {
 	createflag=$1
-	me171=$($omci md | grep "Extended VLAN conf data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | head -n 1 | sed s/[[:space:]]//g)
-	me171_line=$($omci md | grep -c "Extended VLAN conf data")
+	
+	me171=$(
+		$omci mib_dump |
+		grep "Extended VLAN conf data" |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		head -n 1 |
+		sed s/[[:space:]]//g
+	)
+
+	me171_line=$(
+		$omci mib_dump |
+		grep -c "Extended VLAN conf data"
+	)
 
 	if [ "$me171_line" -gt 1 ]; then
 		for i in $me171
 		do
-			Associated_ME_ptr=$($omci meadg 171 "$i" 7 | sed -n 's/\(attr\_data\=\)/\1/p' | sed s/[[:space:]]//g)
+			Associated_ME_ptr=$(
+				$omci managed_entity_attr_data_get 171 "$i" 7 |
+				sed -n 's/\(attr\_data\=\)/\1/p' |
+				sed s/[[:space:]]//g
+			)
 
 			if [ "$Associated_ME_ptr" = "0101" ]; then
 				me171=$i
@@ -626,14 +862,24 @@ me171create() {
 				# new create me171,untag discard,tag transparnet
 				me171_instance_1=$me47_instance
 				me171_instance_2=$(printf "%04x" "$me171_instance_1")
-				me171_instance_3=$(echo "$me171_instance_2" | sed 's/../& /g' | sed 's/[ ]*$//g')
-				source=$(sed -n '2p' /etc/me171 | cut -c 43-50)
+
+				me171_instance_3=$(
+					echo "$me171_instance_2" |
+					sed 's/../& /g' |
+					sed 's/[ ]*$//g'
+				)
+
+				source=$(
+					sed -n '2p' /etc/me171 |
+					cut -c 43-50
+				)
+				
 				dst="ab $me171_instance_3"
 				
 				sed -i "s/$source/$dst/" /etc/me171
 				$omci_simulate /etc/me171
 				sleep 5
-				mecounter
+				me_counter
 
 				if [ -n "$vlan_svc_log" ]; then
 					logger -t "[vlan]" "me171 value: $me47_instance, creating ..."
@@ -649,11 +895,26 @@ me171create() {
 	esac
 }
 
-me309create() {
-	me309=$($omci md | grep 309 | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | head -n 1 | sed s/[[:space:]]//g)
-	me309line=$($omci md | grep -c 309)
+me309_create() {
+	me309=$(
+		$omci mib_dump |
+		grep 309 |
+		sed -n 's/\(0x\)/\1/p' |
+		cut -f 3 -d '|' |
+		cut -f 1 -d '(' |
+		head -n 1 |
+		sed s/[[:space:]]//g
+	)
+	
+	me309line=$(
+		$omci mib_dump |
+		grep -c 309
+	)
 
-	if [ -z "$me309" ] || [ -n "$force_me309_create" ] && [ "$me309line" != "2" ]; then
+	if [ -z "$me309" ] ||
+		[ -n "$force_me309_create" ] &&
+			[ "$me309line" != "2" ]; then
+		
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "creating me309 ..."
 		fi
@@ -664,50 +925,79 @@ me309create() {
 
 		me309=$pptp_uni_bridge
 
-		$omci mec 309 "$me309" "$igmp_version" 0 1 0 0 32
-		$omci meads 309 "$me309" 10 02
-		$omci meads 309 "$me309" 12 00 00 00 7d
-		$omci meads 309 "$me309" 13 00 00 00 64
-		$omci meads 309 "$me309" 15 01
-		$omci mec 310 "$me309" 0 "$me309" 64 0 1
-		$omci mec 311 "$me309" 0
+		$omci managed_entity_create 309 "$me309" "$igmp_version" 0 1 0 0 32
+		$omci managed_entity_attr_data_set 309 "$me309" 10 02
+		$omci managed_entity_attr_data_set 309 "$me309" 12 00 00 00 7d
+		$omci managed_entity_attr_data_set 309 "$me309" 13 00 00 00 64
+		$omci managed_entity_attr_data_set 309 "$me309" 15 01
+		$omci managed_entity_create 310 "$me309" 0 "$me309" 64 0 1
+		$omci managed_entity_create 311 "$me309" 0
 		sleep 5
 	else
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "me309 rule existed."
 		fi
-		$omci meads 309 "$me309" 1 "0$igmp_version"
+		$omci managed_entity_attr_data_set 309 "$me309" 1 "0$igmp_version"
 	fi
 }
 
-tptypealcl() {
-	me47_instance_number=$($omci md | grep "Bridge port config data" | sed -n 's/\(0x\)/\1/p' | cut -f 3 -d '|' | cut -f 1 -d '(' | sed s/[[:space:]]//g)
-	spanning_tree=$($omci meadg 45 1 1 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+tp_type_alcl() {
+	local me47_instance_number
+	local spanning_tree
+	local me47_tp_type
+	local me47_tp_ptr
+
+	me47_instance_number=$(
+		$omci mib_dump | 
+		grep "Bridge port config data" | 
+		sed -n 's/\(0x\)/\1/p' | 
+		cut -f 3 -d '|' | 
+		cut -f 1 -d '(' | 
+		sed s/[[:space:]]//g
+	)
+	
+	spanning_tree=$(
+		$omci managed_entity_attr_data_get 45 1 1 | 
+		sed -n 's/\(attr\_data\=\)/\1/p' | 
+		cut -f 3 -d '=' | 
+		sed s/[[:space:]]//g
+	)
 
 	for i in $me47_instance_number
 	do
-		me47_tptype=$($omci meadg 47 "$i" 3 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
-		me47_tpptr=$($omci meadg 47 "$i" 4 | sed -n 's/\(attr\_data\=\)/\1/p' | cut -f 3 -d '=' | sed s/[[:space:]]//g)
+		me47_tp_type=$(
+			$omci managed_entity_attr_data_get 47 "$i" 3 | 
+			sed -n 's/\(attr\_data\=\)/\1/p' | 
+			cut -f 3 -d '=' | 
+			sed s/[[:space:]]//g
+		)
 
-		if [ "$me47_tptype" = "01" ] && [ "$me47_tpptr" = "0101" ]; then
+		me47_tp_ptr=$(
+			$omci managed_entity_attr_data_get 47 "$i" 4 | 
+			sed -n 's/\(attr\_data\=\)/\1/p' | 
+			cut -f 3 -d '=' | 
+			sed s/[[:space:]]//g
+		)
+
+		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then
 			if [ -n "$vlan_svc_log" ]; then
 				logger -t "[vlan]" "pptp uni bridge port: $i existed."
 			fi
 
 			if [ -n "$force_me_create" ]; then
-				$omci meads 47 "$i" 3 1
-				$omci meads 47 "$i" 4 01 01
+				$omci managed_entity_attr_data_set 47 "$i" 3 1
+				$omci managed_entity_attr_data_set 47 "$i" 4 01 01
 			fi
 
-			$omci meads 47 "$i" 7 "$spanning_tree"
+			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
 
 			pptp_uni_bridge=$i
 
 			return
-		elif [ "$me47_tptype" = "0b" ]; then
-			$omci meads 47 "$i" 3 1
-			$omci meads 47 "$i" 4 01 01
-			$omci meads 47 "$i" 7 "$spanning_tree"
+		elif [ "$me47_tp_type" = "0b" ]; then
+			$omci managed_entity_attr_data_set 47 "$i" 3 1
+			$omci managed_entity_attr_data_set 47 "$i" 4 01 01
+			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
 
 			pptp_uni_bridge=$i
 
@@ -717,69 +1007,118 @@ tptypealcl() {
 }
 
 me171rulecheck() {
-	me171_singtag="0xf80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
-	me171_doubletag="0xe80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
-	me171_singtagget=$($omci meg 171 "$me171" | grep "0xf8 0x00 0x00 0x00 0xe8" | tail -n 1 | sed s/[[:space:]]//g)
-	me171_doubletagget=$($omci meg 171 "$me171" | grep "0xe8 0x00 0x00 0x00 0xe8" | tail -n 1 | sed s/[[:space:]]//g)
-	$omci meg 171 "$me171" | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -v "0xe8 0x00 0x00 0x00 0xe8" | sed 's/^   //g' | sed 's/0x//g' >/tmp/me171_rule
-	me171_rule_line=$($omci meg 171 1 | sed -n '/^ 5 RX frame VLAN table/,$p' | sed '/^ 6 Associated ME ptr/,$d' | grep '^   0x' | grep -v "0xf8 0x00 0x00 0x00 0xe8" | grep -vc "0xf8 0x00 0x00 0x00 0xe8")
+	local single_tag_value
+	local double_tag_value
+	local current_single_tag_value
+	local current_double_tag_value
+	local rule_line
+	local rule
+
+	single_tag_value="0xf80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
+	double_tag_value="0xe80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
+
+	current_single_tag_value=$(
+		$omci managed_entity_get 171 "$me171" | 
+		grep "0xf8 0x00 0x00 0x00 0xe8" |
+		tail -n 1 | 
+		sed s/[[:space:]]//g
+	)
+
+	current_double_tag_value=$(
+		$omci managed_entity_get 171 "$me171" | 
+		grep "0xe8 0x00 0x00 0x00 0xe8" |	
+		tail -n 1 |
+		sed s/[[:space:]]//g
+	)
+
+	$omci managed_entity_get 171 "$me171" |
+		sed -n '/^ 5 RX frame VLAN table/,$p' |
+		sed '/^ 6 Associated ME ptr/,$d' |
+		grep '^   0x' |
+		grep -v "0xf8 0x00 0x00 0x00 0xe8" |
+		grep -v "0xe8 0x00 0x00 0x00 0xe8" |
+		sed 's/^   //g' |
+		sed 's/0x//g' >/tmp/me171_rule
 	
-	if [ "$me171_rule_line" -ge 1 ] && [ -n "$vlan_svc_log" ]; then
-		for i in $(seq 1 "$me171_rule_line")
+	rule_line=$(
+		$omci managed_entity_get 171 1 |
+		sed -n '/^ 5 RX frame VLAN table/,$p' |
+		sed '/^ 6 Associated ME ptr/,$d' |
+		grep '^   0x' |
+		grep -v "0xf8 0x00 0x00 0x00 0xe8" |
+		grep -vc "0xf8 0x00 0x00 0x00 0xe8"
+	)
+
+	rule=$(tail -n "$i" /tmp/me171_rule | head -n 1)
+	
+	if [ "$rule_line" -ge 1 ] && [ -n "$vlan_svc_log" ]; then
+		for i in $(seq 1 "$rule_line")
 		do
-			logger -t "[vlan]" "me171 rule: $(tail -n "$i" /tmp/me171_rule | head -n 1)"
+			logger -t "[vlan]" "me171 rule: $rule"
 		done
 	fi
 
-	if [ "$me171_singtagget" != "$me171_singtag" ] || [ "$me171_doubletagget" != "$me171_doubletag" ] ||  [ -n "$force_me_create" ]; then
+	if [ "$current_single_tag_value" != "$single_tag_value" ] ||
+		[ "$current_double_tag_value" != "$double_tag_value" ] ||
+		[ -n "$force_me_create" ]; then
+
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "defualt rule not match or force_me_create enabled, creating ..."
 		fi
 
-		$omci meads 171 "$me171" 6 f8 00 00 00 e8 00 00 00 00 0f 00 00 00 0f 00 00
-		$omci meads 171 "$me171" 6 e8 00 00 00 e8 00 00 00 00 0f 00 00 00 0f 00 00
+		$omci managed_entity_attr_data_set 171 "$me171" 6 f8 00 00 00 e8 00 00 00 00 0f 00 00 00 0f 00 00
+		$omci managed_entity_attr_data_set 171 "$me171" 6 e8 00 00 00 e8 00 00 00 00 0f 00 00 00 0f 00 00
 		
-		if [ "$me171_rule_line" -ge 1 ]; then
-			for i in $(seq 1 "$me171_rule_line")
+		if [ "$rule_line" -ge 1 ]; then
+			for i in $(seq 1 "$rule_line")
 			do
-				$omci meads 171 "$me171" 6 "$(tail -n "$i" /tmp/me171_rule | head -n 1)"
+				$omci managed_entity_attr_data_set 171 "$me171" 6 "$rule"
 			done
 		fi
 	fi
 }
 
 main() {
-	state=$(status)
-	sigstate=$($optic bosa_rx_status_get | cut -f 8 -d ' ' | cut -f 2 -d '=' | sed s/[[:space:]]//g)
+	ploam_state=$(ploam_state_get)
 
-	if [ "$state" != "5" ]; then
+	signal_state=$(
+		$optic bosa_rx_status_get |
+		cut -f 8 -d ' ' |
+		cut -f 2 -d '=' |
+		sed s/[[:space:]]//g
+	)
+
+	if [ "$ploam_state" != "5" ]; then
 		resetparameter
 
-		if [ "$tryreboot" = "1" ] && [ -n "$totalrebootwait" ] && [ -n "$totalreboottry" ] && [ "$sigstate" != "1" ] && [ "$reboottrynum" -lt "$totalreboottry" ]; then
-			if [ "$rebootwaitnum" -eq "$totalrebootwait" ]; then
-				logger -t "[vlanexec]" "reboot try enabled, total rebootwait times reached, current reboot try times: $reboottrynum, rebooting ..."
+		if [ "$tryreboot" = "1" ] && [ -n "$max_reboot_wait_intervals" ] &&
+			[ -n "$max_reboots" ] && [ "$signal_state" != "1" ] &&
+				[ "$reboots_count" -lt "$max_reboots" ]; then
+
+			if [ "$reboot_wait_interval" -eq "$max_reboot_wait_intervals" ]; then
+				logger -t "[vlanexec]" "reboot try enabled, total reboot wait times reached, current reboot try times: $reboots_count, rebooting ..."
 				reboottry
 			else
-				if [ -z "$totalrebootwait" ] || [ -z "$totalreboottry" ]; then
+				if [ -z "$max_reboot_wait_intervals" ] || [ -z "$max_reboots" ]; then
 					if [ $logflag -lt 1 ]; then
-						logger -t "[vlanexec]" "rebootwait($totalrebootwait) or reboottry($totalreboottry) not set, waiting ..."
+						logger -t "[vlanexec]" "rebootwait($max_reboot_wait_intervals) or reboottry($max_reboots) not set, waiting ..."
 						let logflag++
 					fi
 					rest
 				else
-					logger -t "[vlanexec]" "reboot try enabled, current reboot wait times: $rebootwaitnum, waiting for reboot ..."
-					rebootwait
+					logger -t "[vlanexec]" "reboot try enabled, current reboot wait times: $reboot_wait_interval, waiting for reboot ..."
+					reboot_wait
 				fi
 			fi
-		elif [ "$sigstate" = "1" ]; then
+		elif [ "$signal_state" = "1" ]; then
 			if [ $logflag -lt 1 ]; then
-				logger -t "[vlanexec]" "current loss_of_signal state: $sigstate, waiting ..."
+				logger -t "[vlanexec]" "current loss_of_signal state: $signal_state, waiting ..."
 				let logflag++
 			fi
 			rest
 		else
 			if [ $logflag -lt 1 ]; then
-				logger -t "[vlanexec]" "reboot try not enabled or total reboot trys reached, current reboot try times: $reboottrynum, giving up ..."
+				logger -t "[vlanexec]" "reboot try not enabled or total reboot trys reached, current reboot try times: $reboots_count, giving up ..."
 				let logflag++
 			fi
 			rest
@@ -789,37 +1128,37 @@ main() {
 			let stateflag++
 		fi
 
-		state=$(status)
+		ploam_state=$(ploam_state_get)
 
-		if [ "$state" = "5" ]; then
+		if [ "$ploam_state" = "5" ]; then
 			if [ $collectflag -lt 2 ]; then
 				collect
 				let collectflag++
 			fi
 
 			resetlogflag
-			resetrebootwarit
+			reset_reboot_wait
 			resetreboottry
-			mibdata
+			mib_data
 			oltstatus1
 			oltstatus2
 
-			uvlancheck
-			mvlancheck
+			us_vlan_check
+			mc_vlans_check
 			vlantranscheck
 
 			if [ $initflag -lt 5 ]; then
-				meruleset
-				uvlanset
-				mvlanset
-				mtvlanset
+				me_rule_set
+				us_vlan_set
+				mc_vlans_set
+				n_to_1_vlan_set
 				vlantransset
 				let initflag++
 			elif [ $totalizerflag -ge 1 ]; then
-				meruleset
-				uvlanset
-				mvlanset
-				mtvlanset
+				me_rule_set
+				us_vlan_set
+				mc_vlans_set
+				n_to_1_vlan_set
 				vlantransset
 				totalizerflag=0
 			fi

@@ -585,13 +585,13 @@ local totalrebootwait =
 totalrebootwait.rmempty = true
 totalrebootwait:depends("tryreboot", "1")
 
-local totalreboottry =
-	config:taboption("reboot", Value, "totalreboottry", translate("Maximum Number of " ..
+local max_reboots =
+	config:taboption("reboot", Value, "max_reboots", translate("Maximum Number of " ..
 	"Reboots"), translate("Maximum number of reboots to attempt, recommend around " ..
 	"5-10 reboots."))
 
-totalreboottry.rmempty = true
-totalreboottry:depends("tryreboot", "1")
+max_reboots.rmempty = true
+max_reboots:depends("tryreboot", "1")
 
 local lct_restart_try =
 	config:taboption("reboot", Flag, "lct_restart_try", translate("Restart LCT " ..

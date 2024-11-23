@@ -539,21 +539,21 @@ rebootcause() {
 }
 
 rebootnum() {
-	local reboottrynum
+	local reboots_count
 	local omcidrebootnum
 
-	reboottrynum=$(fw_printenv reboottry 2>&- | cut -c 11)
+	reboots_count=$(fw_printenv reboottry 2>&- | cut -c 11)
 	omcidrebootnum=$(fw_printenv omcidreboot 2>&- | cut -c 13)
 
-	if [ -z "$reboottrynum" ]; then
-		reboottrynum=0
+	if [ -z "$reboots_count" ]; then
+		reboots_count=0
 	fi
 
 	if [ -z "$omcidrebootnum" ]; then
 		omcidrebootnum=0
 	fi
 
-	echo "$reboottrynum" >/tmp/reboottrynum
+	echo "$reboots_count" >/tmp/reboots_count
 	echo "$omcidrebootnum" >/tmp/omcidrebootnum
 }
 
