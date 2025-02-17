@@ -114,7 +114,7 @@ gtc_config() {
 	nDyingGaspEnable=""
 	nDyingGaspEnable=$(fw_printenv nDyingGaspEnable 2>&- | cut -f2 -d=)
 	
-	if [ "$nDyingGaspEnable" -ne "1" ] && [ "$nDyingGaspEnable" -ne "0" ]; then
+	if [ -z "$nDyingGaspEnable" ] || { [ "$nDyingGaspEnable" -ne 1 ] && [ "$nDyingGaspEnable" -ne 0 ]; }; then
 	     config_get nDyingGaspEnable "gtc" nDyingGaspEnable
 	fi
 	
