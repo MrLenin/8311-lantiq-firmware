@@ -64,8 +64,8 @@ apply_pins() {
 	rx_los_status2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 
 	if [ -z "$rx_los" ] &&
-		[ "$rx_los_status1" -ne -1 ] ||
-		[ "$rx_los_status2" -ne 1 ]; then
+		{ [ "$rx_los_status1" -ne -1 ] ||
+		  [ "$rx_los_status2" -ne 1 ]; }; then
 		
 		logger -t "[pin_cfg]" "Disabling rx_los status ..."
 
@@ -80,8 +80,8 @@ apply_pins() {
 			uci commit 8311.config
 		fi
 	elif [ "$rx_los" = "1" ] &&
-		[ "$rx_los_status1" -eq -1 ] ||
-		[ "$rx_los_status2" -eq 1 ]; then
+		{ [ "$rx_los_status1" -eq -1 ] ||
+		  [ "$rx_los_status2" -eq 1 ]; }; then
 		
 		logger -t "[pin_cfg]" "Enabling rx_los status ..."
 		

@@ -29,13 +29,13 @@ function config_map.on_after_commit(configMap)
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh reboot")
 	--luci.sys.call("/opt/lantiq/bin/config_onu.sh switch")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh switchasc")
-	luci.sys.call("/etc/init.d/iop.sh restart")
+	luci.sys.call("/etc/init.d/vlan-svc.sh restart")
 	luci.sys.call("/etc/init.d/monitomcid restart")
 	luci.sys.call("/etc/init.d/monitoptic restart")
 end
 
 local function validate_bank(value)
-	local pattern = "^[A-B]-$"
+	local pattern = "^[AB]?$"
 	if not string.match(value, pattern) then return nil end
 	return value
 end
@@ -164,7 +164,7 @@ end
 local omcc_version =
 	config:taboption("pon", Value, "omcc_version", translate("OMCC Version"),
 	translate("The OMCC version to use in hexadecimal format between 0x80 and 0xBF. " ..
-	"Default is 0xA3"))
+	"Default is 0xA0 (160)."))
 
 omcc_version.datatype = "and(uinteger,range(0x80,0xBF))"
 omcc_version.default = "0xA0"
@@ -188,7 +188,7 @@ local iop_mask =
 	"message length in omci_msg_send."))
 
 iop_mask.datatype = "and(uinteger,range(0,127))"
-iop_mask.default = ""
+iop_mask.default = "18"
 iop_mask.rmempty = true
 
 local ploam_password =
@@ -279,8 +279,7 @@ iphost_domain.rmempty = true
 ---------------------------------------
 -- I'm actually pretty proud of how understandable this section now is, but I am sure 
 -- there are as yet improvements to be made, particularly in making some bits clearer
--- and more consice. I am changing the 'untagged' token from 'u' to '0' as that allows
--- for keeping the validation to numbers outside of the possible vlan range. 
+-- and more consice.
 local vlan_svc =
 	config:taboption("vlan", Flag, "vlan_svc", translate("Enable VLAN Tagging Service"),
 	translate("Allows for customization of the VLAN Tagging Operations between the " ..
@@ -293,10 +292,17 @@ vlan_svc.rmempty = true
 local us_vlan_id =
 	config:taboption("vlan", Value, "us_vlan_id", translate("Upstream VLAN ID"),
 	translate("Specifies the default upstream VLAN ID for the tagging operation, " ..
-	"enter '0' to use untagged mode (VLAN range: 1-4094, or '0')."))
+	"enter 'u' to use untagged mode (VLAN range: 0-4094, or 'u')."))
 
-us_vlan_id.datatype = "and(uinteger,range(0,4094))"
+us_vlan_id.datatype = "string"
 us_vlan_id.rmempty = true
+
+function us_vlan_id.validate(self, value)
+	if value == "u" then return value end
+	local n = tonumber(value)
+	if n and n >= 0 and n <= 4094 and tostring(n) == value then return value end
+	return nil
+end
 
 local force_us_vlan_id =
 	config:taboption("vlan", Flag, "force_us_vlan_id", translate("Force Upstream VLAN ID"),
@@ -314,13 +320,13 @@ local force_me_create =
 force_me_create.datatype = "bool"
 force_me_create.rmempty = true
 
-local us_mc_vlan_id =
-	config:taboption("vlan", Value, "us_mc_vlan_id", translate("Upstream Multicast " ..
+local us_mc_vid =
+	config:taboption("vlan", Value, "us_mc_vid", translate("Upstream Multicast " ..
 	"VLAN ID"), translate("Specifies the VLAN carrying the multicast group " ..
 	"downstream (range: 1-4094)."))
 
-us_mc_vlan_id.datatype = "and(uinteger,range(1,4094))"
-us_mc_vlan_id.rmempty = true
+us_mc_vid.datatype = "and(uinteger,range(1,4094))"
+us_mc_vid.rmempty = true
 
 local ds_mc_tci =
 	config:taboption("vlan", Value, "ds_mc_tci", translate("Downstream Multicast TCI"),
@@ -340,10 +346,10 @@ local vlan_tag_ops =
 	config:taboption("vlan", Value, "vlan_tag_ops", translate("VLAN Tagging Operations"),
 	translate("Specify VLAN tagging operations in the form 'A[@B]:C[@D]' where 'A' " ..
 	"and 'C' is a VLAN and 'B' and 'D' is a priority. Multiple comma-separated pairs " ..
-	"can be entered. For example, '2:41,3:43,4:0,5:44@5' would bridge downstream " ..
+	"can be entered. For example, '2:41,3:43,4:u,5:44@5' would bridge downstream " ..
 	"VLANs: 2,3,4,5 to upstream VLANs: 41,43,untagged,44 respectively, where '@5' " ..
 	"specifies VLAN priority. (Priority range: 0-7, VLAN range: 1-4094 and on the " ..
-	"right side, '0' )"))
+	"right side, 'u' )"))
 
 vlan_tag_ops.datatype = "string"
 vlan_tag_ops.rmempty = true
@@ -361,6 +367,27 @@ local n_to_1_vlan =
 
 n_to_1_vlan.datatype = "bool"
 n_to_1_vlan.rmempty = true
+
+local vlan_mapper_map =
+	config:taboption("vlan", Value, "vlan_mapper_map", translate("VLAN Mapper Map"),
+	translate("Override automatic VID-to-mapper assignment for dual-VLAN ISPs. " ..
+	"Format: comma-separated VID:MAPPER_HEX pairs (e.g. '34:1102,35:1103'). " ..
+	"Only needed when automatic conflict detection assigns VIDs to the wrong " ..
+	"mapper ports."))
+
+vlan_mapper_map.datatype = "string"
+vlan_mapper_map.rmempty = true
+
+function vlan_mapper_map.validate(self, value)
+	if value == "" then return value end
+	for pair in string.gmatch(value, "([^,]+)") do
+		local vid, mapper = string.match(pair, "^(%d+):(%x+)$")
+		if not vid or not mapper then return nil end
+		local n = tonumber(vid)
+		if not n or n < 1 or n > 4094 then return nil end
+	end
+	return value
+end
 
 local vlan_svc_log =
 	config:taboption("vlan", Flag, "vlan_svc_log", translate("VLAN Service Logging"),
@@ -520,7 +547,7 @@ disable_sigstatus.rmempty = true
 
 local enable_txstatus =
 	config:taboption("advanced", Flag, "enable_txstatus", translate("Force Enable " ..
-	"Optic TX"), translate("Re-enable optic TX on detction that TX status is disabled."))
+	"Optic TX"), translate("Re-enable optic TX on detection that TX status is disabled."))
 
 enable_txstatus.datatype = "bool"
 enable_txstatus.default = false
@@ -572,18 +599,18 @@ omci_log_level:value("7")
 -- This whole section needs better naming and language
 local tryreboot =
 	config:taboption("reboot", Flag, "tryreboot", translate("Reboot OpenWrt on No-O5"),
-	translate("Reboot OpenWrt if no O5 state is reached with the fibre connected for " ..
+	translate("Reboot OpenWrt if no O5 state is obtained while there is no Loss of Signal for" ..
 	"a number of intervals of time."))
 
 tryreboot.rmempty = true
 
-local totalrebootwait =
-	config:taboption("reboot", Value, "totalrebootwait", translate("Number of Wait " ..
-	"Intervals"), translate("Number of 5 or 15 second intervals to wait before " ..
+local max_reboot_delay_intervals =
+	config:taboption("reboot", Value, "max_reboot_delay_intervals", translate("Maximum " ..
+	"number of delay intervals"), translate("Number of 5 or 15 second intervals to delay before " ..
 	"rebooting, recommend around 5-10 intervals."))
 
-totalrebootwait.rmempty = true
-totalrebootwait:depends("tryreboot", "1")
+max_reboot_delay_intervals.rmempty = true
+max_reboot_delay_intervals:depends("tryreboot", "1")
 
 local max_reboots =
 	config:taboption("reboot", Value, "max_reboots", translate("Maximum Number of " ..
@@ -636,11 +663,11 @@ trackip2.rmempty = true
 trackip2.datatype = "ip4addr"
 trackip2:depends("lct_restart_try", "1")
 
-local rebootlog =
-	config:taboption("reboot", Flag, "rebootlog", translate("Save Debug Log"),
+local persist_log_on_reboot =
+	config:taboption("reboot", Flag, "persist_log_on_reboot", translate("Save Debug Log"),
 	translate("Save the Debug Log to /root/ before rebooting OpenWrt."))
 
-rebootlog.rmempty = true
+persist_log_on_reboot.rmempty = true
 
 local rebootdirect =
 	config:taboption("reboot", Flag, "rebootdirect", translate("Reboot OpenWrt"),

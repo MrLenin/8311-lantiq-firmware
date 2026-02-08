@@ -12,7 +12,11 @@ etc/rc.d/S94iop.sh
 etc/uci-defaults/luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig
 lib/modules/3.10.49/mod_optic.ko
+lib/modules/3.10.49/mod_onu.ko
+sbin/mtd
 opt/lantiq/bin/config_onu.sh
+opt/lantiq/bin/monitomcid.sh
+opt/lantiq/bin/monitoptic.sh
 opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh
 opt/lantiq/bin/vlanexec.sh
@@ -46,6 +50,7 @@ usr/lib/lua/luci/model/cbi/lantiq/gpon-config-cal.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua
 usr/lib/lua/luci/util.lua
+usr/sbin/fw_setenv
 usr/lib/lua/luci/view/admin_network
 usr/lib/lua/luci/view/admin_network/diagnostics.htm
 usr/lib/lua/luci/view/admin_network/iface_overview.htm

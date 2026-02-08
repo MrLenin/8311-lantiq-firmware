@@ -1,0 +1,21 @@
+#!/bin/sh
+# 8311 firmware update guard - fw_setenv wrapper
+#
+# Blocks committed_image changes from OMCI firmware updates to prevent
+# boot order corruption when the mtd write has been blocked.
+# Allows imageX_version and imageX_is_valid through for OLT compliance.
+#
+# Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
+# Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
+# Bypass:  /usr/sbin/fw_setenv.real [args]
+
+case "$1" in
+	committed_image)
+		if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
+			logger -t 8311-fw-guard "Blocked fw_setenv $*"
+			exit 0
+		fi
+		;;
+esac
+
+exec /usr/sbin/fw_setenv.real "$@"

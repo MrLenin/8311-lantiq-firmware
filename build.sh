@@ -13,7 +13,7 @@ sha256() {
 [ -d build ] || mkdir build
 [ -d out ] || mkdir out
 
-rm -f ./build/*
+rm -rf ./build/*
 rm -f ./out/*
 
 GIT_HASH=$(git rev-parse --short HEAD)
@@ -51,6 +51,9 @@ variant = "${FW_VARIANT}"
 version = "${FW_VERSION}"
 revision = "${FW_REVISION}"
 8311VER
+
+# Extract stock binaries needed for firmware update guard wrappers
+unsquashfs -f -d ./build/stock ./source/rootfs_g-010s-p.sqsh sbin/mtd
 
 mkimage -A mips -O linux -T kernel -C lzma -a 0X80002000 -e 0X80002000 -n SFP_7.5.3 -d ./source/kernel_g-010s-p.lzma ./build/uImage_g-010s-p
 touch -d "@$GIT_EPOCH" ./source/kernel_g-010s-p.lzma ./build/uImage_g-010s-p

@@ -246,7 +246,7 @@ function fwenvs_8311()
 		name="auto",
 		value="auto"
 	}}
-	local langs = util.trim(util.exec("uci show luci.languages | pcre2grep -o1 '^luci\.languages\.([^=]+)='"))
+	local langs = util.trim(util.exec("uci show luci.languages | awk -F '[.=]' '/^luci\.languages\./ { print $3 }'"))
 	for lang in langs:gmatch("[^\r\n]+") do
 		table.insert(languages, {
 			name=util.trim(util.exec("uci get luci.languages." .. util.shellquote(lang))),
@@ -700,7 +700,6 @@ function action_vlans()
 end
 
 function action_vlan_extvlans()
-	local vlans_tables = util.exec("/usr/sbin/8311-extvlan-decode.sh")
 	luci.http.prepare_content("text/plain; charset=utf-8")
 
 	if luci.sys.process.exec({"/usr/sbin/8311-extvlan-decode.sh", "-t"}, luci.http.write, luci.http.write).code == 0 then
@@ -738,8 +737,19 @@ function populate_8311_fwenvs()
 	local fwenvs = fwenvs_8311()
 	local fwenvs_values = tools.fw_getenvs_8311()
 
-	for catid, cat in pairs(fwenvs) do
-		fwenvs[catid]["model"] = cat.model
+	for _, cat in ipairs(fwenvs) do
+		for _, item in ipairs(cat.items) do
+			local value
+			if item.base then
+				value = tools.fw_getenv{item.id}
+			else
+				value = fwenvs_values[item.id] or ''
+			end
+			if item.base64 and value ~= '' then
+				value = base64.dec(value)
+			end
+			item.value = value
+		end
 	end
 
 	return fwenvs
@@ -803,6 +813,12 @@ function action_pon_explorer()
 end
 
 function action_pon_dump(me_id, instance_id)
+	if not me_id or not me_id:match("^%d+$") or
+	   not instance_id or not instance_id:match("^%d+$") then
+		luci.http.status(400, "Bad Request")
+		return
+	end
+
 	local cmd = "/opt/lantiq/bin/omci_pipe.sh meg " .. me_id .. " " .. instance_id
 	local output = util.exec(cmd)
 
@@ -935,12 +951,12 @@ end
 
 function firmwareUpgradeOutput(data)
 	data = data or ''
-	firmwareOutput = firmwareOutput .. data
+	firmwareOutput = (firmwareOutput or '') .. data
 end
 
 function supportOut(data)
 	data = data or ''
-	supportOutput = supportOutput .. data
+	supportOutput = (supportOutput or '') .. data
 end
 
 --location: (string) The full path to where the file should be saved.

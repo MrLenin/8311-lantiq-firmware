@@ -43,8 +43,8 @@ generate_custom_mib() {
 	uni_type=$(uci -q get 8311.config.uni_type | tr 'A-Z' 'a-z') || return 1
 
 	vendor_id=$(printf '%.4s' "${vendor_id}")
-	hw_ver=$(printf '%.14s' "${hw_ver//\\0}")
-	equipment_id=$(printf '%.20s' "${equipment_id//\\0}")
+	hw_ver=$(printf '%.14s' "$(echo "$hw_ver" | sed 's/\\0//g')")
+	equipment_id=$(printf '%.20s' "$(echo "$equipment_id" | sed 's/\\0//g')")
 
 	hw_ver=$(printf %s "$hw_ver" "$(printf '%*s' $((14-${#hw_ver})) '' | sed 's/[[:space:]]/\\0/g')")
 	equipment_id=$(printf %s "$equipment_id" "$(printf '%*s' $((20-${#equipment_id})) '' | sed 's/[[:space:]]/\\0/g')")
@@ -55,8 +55,8 @@ generate_custom_mib() {
 	pptpsrc='/etc/mibs/pptp.ini'
 	veipsrc='/etc/mibs/veip.ini'
 
-	if [ ! -f ${mibsrc} ]; then
-		exit 1
+	if [ ! -f "${mibsrc}" ]; then
+		return 1
 	fi
 
 	if [ -f ${mibtgt} ]; then
@@ -81,46 +81,49 @@ start_service() {
 	local mib_file
 	local omcc_version
 	local omci_status
-	local mibtmp1
-	local mibtmp2
-	local statustmp
-	local omcctmp
-	local ioptmp1
-	local ioptmp2
+	local mib_file_env
+	local mib_file_uci
+	local omci_status_uci
+	local omcc_version_uci
+	local iop_mask_env
+	local iop_mask_uci
 	local omci_iop_mask
 	local lct=""
+	local mib_customized
+	local uni_type
+	local omcid_valid
 
 	#is_flash_boot && wait_for_jffs
 
-	mibtmp1=$(fw_printenv mib_file 2>&- | cut -f 2 -d '=')
-	mibtmp2=$(uci -q get 8311.config.mib_file)
-	mc=$(uci -q get 8311.config.mib_customized)
-	uni=$(uci -q get 8311.config.uni_type)
+	mib_file_env=$(fw_printenv mib_file 2>&- | cut -f 2 -d '=')
+	mib_file_uci=$(uci -q get 8311.config.mib_file)
+	mib_customized=$(uci -q get 8311.config.mib_customized)
+	uni_type=$(uci -q get 8311.config.uni_type)
 
-	if [ -f "/etc/mibs/$mibtmp1" ]; then
-		mib_file="/etc/mibs/$mibtmp1"
-	elif [ -n "$mibtmp2" ] && [ "$(echo "$mibtmp2" | grep -c "auto.ini")" != "1" ]; then
-		mib_file="$mibtmp2"
+	if [ -f "/etc/mibs/$mib_file_env" ]; then
+		mib_file="/etc/mibs/$mib_file_env"
+	elif [ -n "$mib_file_uci" ] && [ "$(echo "$mib_file_uci" | grep -c "auto.ini")" != "1" ]; then
+		mib_file="$mib_file_uci"
 	else
-		if [ "$mc" = "1" ]; then
+		if [ "$mib_customized" = "1" ]; then
 			generate_custom_mib
 			ln -sf /etc/mibs/custom.ini /etc/mibs/auto.ini
 		else
-			if [ -n "$uni" ] && [ "$uni" = "veip" ]; then
+			if [ -n "$uni_type" ] && [ "$uni_type" = "veip" ]; then
 				ln -sf /etc/mibs/data_1v_8q.ini /etc/mibs/auto.ini
-			else #if [ -n "$uni" ] && [ "$uni" == "pptp" ]; then
+			else #if [ -n "$uni_type" ] && [ "$uni_type" == "pptp" ]; then
 				ln -sf /etc/mibs/data_1g_8q_us1280_ds512.ini /etc/mibs/auto.ini
 			fi
 		fi
 		mib_file="/etc/mibs/auto.ini"
-		uci set 8311.config.mib_file=$mib_file
-		uci commit gpon
+		uci set "8311.config.mib_file=$mib_file"
+		uci commit 8311
 	fi
 
-	statustmp=$(uci -q get 8311.config.omci_status)
+	omci_status_uci=$(uci -q get 8311.config.omci_status)
 
-	if [ -n "$statustmp" ]; then
-		omci_status=$statustmp
+	if [ -n "$omci_status_uci" ]; then
+		omci_status=$omci_status_uci
 	else
 		omci_status="/tmp/omci_status"
 		uci set 8311.config.omci_status=$omci_status
@@ -129,10 +132,10 @@ start_service() {
 
 	status_entry_create "$omci_status"
 
-	omcctmp=$(uci -q get 8311.config.omcc_version)
+	omcc_version_uci=$(uci -q get 8311.config.omcc_version)
 
-	if [ -n "$omcctmp" ]; then
-		omcc_version=$omcctmp
+	if [ -n "$omcc_version_uci" ]; then
+		omcc_version=$omcc_version_uci
 	else
 		omcc_version=160
 	fi
@@ -155,25 +158,25 @@ start_service() {
 		;;
 	esac
 
-	ioptmp1=$(fw_printenv omci_iop_mask 2>&- | cut -f2 -d=)
-	ioptmp2=$(uci -q get 8311.config.iop_mask)
-	
-	if [ -n "$ioptmp1" ]; then
-		omci_iop_mask=$ioptmp1
-	elif [ -n "$ioptmp2" ]; then
-		omci_iop_mask=$ioptmp2
+	iop_mask_env=$(fw_printenv omci_iop_mask 2>&- | cut -f2 -d=)
+	iop_mask_uci=$(uci -q get 8311.config.iop_mask)
+
+	if [ -n "$iop_mask_env" ]; then
+		omci_iop_mask=$iop_mask_env
+	elif [ -n "$iop_mask_uci" ]; then
+		omci_iop_mask=$iop_mask_uci
 	else
 		omci_iop_mask=0
 	fi
 
 	logger -t "[omcid]" "Use OMCI mib file: $mib_file"
 
-	omcidtest=$(${OMCID_BIN} -h | grep -c OMCI)
+	omcid_valid=$(${OMCID_BIN} -h | grep -c OMCI)
 	omcid_version_default="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
 	omcid_version_current=$(${OMCID_BIN} -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75)
 	mod_omcid=$(uci -q get 8311.config.mod_omcid)
 	
-	if [ "$omcidtest" = "0" ] || [ -z "$mod_omcid" ] && [ "$omcid_version_default" != "$omcid_version_current" ]; then
+	if [ "$omcid_valid" = "0" ] || { [ -z "$mod_omcid" ] && [ "$omcid_version_default" != "$omcid_version_current" ]; }; then
 		/opt/lantiq/bin/config_onu.sh restore
 	elif [ "$mod_omcid" = "1" ]; then
 		/opt/lantiq/bin/config_onu.sh mod

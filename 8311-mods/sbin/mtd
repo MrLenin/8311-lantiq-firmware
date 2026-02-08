@@ -1,0 +1,22 @@
+#!/bin/sh
+# 8311 firmware update guard - mtd wrapper
+#
+# Intercepts OMCI-triggered firmware writes (omcid writing /tmp/image[01].img
+# to MTD) while passing through all other mtd operations transparently.
+#
+# Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
+# Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
+# Bypass:  /sbin/mtd.real [args]
+
+for arg in "$@"; do
+	case "$arg" in
+		/tmp/image0.img|/tmp/image1.img)
+			if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
+				logger -t 8311-fw-guard "Blocked OMCI firmware write: mtd $*"
+				exit 0
+			fi
+			;;
+	esac
+done
+
+exec /sbin/mtd.real "$@"

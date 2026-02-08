@@ -30,18 +30,13 @@ local warning_msg =
 -- UCI config file /etc/config/gpon
 local gpon_map = Map("gpon", translate("Optic Calibration"))
 
-function gpon_map.on_after_commit(map)
-	if ( overwrite ~= "" ) then
-		luci.sys.call("/opt/lantiq/bin/config_onu.sh update 2>&-")
-	end
-end
-
 -- 'goi' - section
 local goi_section = gpon_map:section(NamedSection, "goi", "GOI")
 
 -- 'goi' - option
+local overwrite
 if ( goi_len ~= 0 ) then
-		local overwrite =
+		overwrite =
 			goi_section:option(Flag, "overwrite", translate("Confirm Overwrite"),
 			translate("ENV calibration information already exists and it is highly " ..
 			"recommended not to overwrite it!!!!"))
@@ -53,9 +48,7 @@ if ( goi_len ~= 0 ) then
 		-- don't let the user to remove entry from config file if it is empty
 		overwrite.rmempty = false
 else
-		--sys.fork_exec("uci set gpon.goi.overwrite=1 2>&-;" ..
-		--"uci commit gpon.goi.overwrite=1 2>&-")
-		local overwrite =
+		overwrite =
 			goi_section:option(Flag, "overwrite", translate("Enter Calibration " ..
 			"Information"), translate("No ENV calibration information found, enter " ..
 			"the calibration information in the text box below."))
@@ -66,6 +59,13 @@ else
 
 		-- don't let the user to remove entry from config file if it is empty
 		overwrite.rmempty = false
+end
+
+function gpon_map.on_after_commit(map)
+	local ow = overwrite:formvalue("goi") or "0"
+	if ow == "1" then
+		luci.sys.call("/opt/lantiq/bin/config_onu.sh update 2>&-")
+	end
 end
 
 local goi_value =
@@ -92,7 +92,7 @@ local save_button =
 save_button.inputtitle = translate("save")
 save_button.inputstyle = "apply"
 
-save_button:depends("overwrite","")
+save_button:depends("overwrite","1")
 
 function save_button.write(self, section, value)
 	if ( goi_len == 0 ) then

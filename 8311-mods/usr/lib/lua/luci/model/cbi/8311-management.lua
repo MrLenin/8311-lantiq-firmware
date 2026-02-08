@@ -53,8 +53,8 @@ local dns_server =
     lct_config:option(Value, "dns", translate("DNS Server"),
     translate("Management DNS server."))
 
-lct_gateway.datatype = "ip4addr"
-lct_gateway.rmempty = false
+dns_server.datatype = "ip4addr"
+dns_server.rmempty = false
 
 local lct_macaddr =
     lct_config:option(Value, "macaddr", translate("LCT MAC Address"),

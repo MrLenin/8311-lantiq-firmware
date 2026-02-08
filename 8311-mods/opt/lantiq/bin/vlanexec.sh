@@ -12,20 +12,29 @@
 onu="/opt/lantiq/bin/onu"
 uci="/sbin/uci"
 omci="/opt/lantiq/bin/omci_pipe.sh"
-omci_simulate="/opt/lantiq/bin/omci_simulate"
 gtop="/opt/lantiq/bin/gtop"
 optic="/opt/lantiq/bin/optic"
 
-init_flag=0
-totalizer_flag=0
-collect_flag=0
-state_flag=0
-log_flag=0
+_lib_8311_omci 2>/dev/null || . /lib/8311-omci-lib.sh
+
+init_check_count=0
+change_count=0
+collect_check_count=0
+ploam_check_count=0
+log_check_count=0
 reboot_delay_interval=0
+_txn_id=0xff01
+_saved_mib_data_sync=""
+spanning_tree_data=""
+mapper_ports=""
+mapper_ptrs=""
+conflict_vids=""
+conflict_tvid=""
+vid_conflict_fixed=0
 
 reboots_count=$(cat /tmp/reboots_count 2>&-)
 
-reboot_on_association_fail=$($uci -q get 8311.config.reboot_on_association_fail)
+reboot_on_association_fail=$($uci -q get 8311.config.tryreboot)
 max_reboot_delay_intervals=$($uci -q get 8311.config.max_reboot_delay_intervals)
 max_reboots=$($uci -q get 8311.config.max_reboots)
 persist_log_on_reboot=$($uci -q get 8311.config.persist_log_on_reboot)
@@ -73,7 +82,7 @@ delay_reboot() {
 	if [ "$reboot_delay_interval" -lt "$max_reboot_delay_intervals" ] &&
 		[ "$reboots_count" -lt "$max_reboots" ]; then
 		reboot_delay_interval=$((reboot_delay_interval + 1))
-		rest
+		sleep_interval
 	fi
 }
 
@@ -81,8 +90,8 @@ reset_reboot_delay() {
 	reboot_delay_interval=0
 }
 
-reset_log_flag() {
-	log_flag=0
+reset_log_check_count() {
+	log_check_count=0
 }
 
 check_onu_fsm_o5() {
@@ -98,7 +107,7 @@ check_onu_fsm_o5() {
 
 	if [ "$prev_status" != "$curr_status" ]; then
 		logger -t "[vlanexec]" "FSM O5 detected..."
-		totalizer_flag=$((totalizer_flag + 1))
+		change_count=$((change_count + 1))
 	fi
 
 	echo "$curr_status" >/tmp/oltstatus1
@@ -117,16 +126,16 @@ check_onu_rx_msg_lost() {
 
 	if [ "$prev_status" != "$curr_status" ]; then
 		logger -t "[vlanexec]" "PLOAM Rx - message lost detected..."
-		totalizer_flag=$((totalizer_flag + 1))
+		change_count=$((change_count + 1))
 	fi
 
 	echo "$curr_status" >/tmp/oltstatus2
 }
 
-rest() {
+sleep_interval() {
 	local time
 
-	if [ $state_flag -lt 20 ]; then
+	if [ $ploam_check_count -lt 20 ]; then
 		time=5
 	else
 		time=15
@@ -140,9 +149,17 @@ reset_tracked_parameters() {
 	local vlan_b_seq
 	local vlan_tagging_ops_num
 
-	init_flag=0
-	totalizer_flag=0
-	state_flag=0
+	init_check_count=0
+	change_count=0
+	ploam_check_count=0
+	_saved_mib_data_sync=""
+	spanning_tree_data=""
+	mapper_ports=""
+	mapper_ptrs=""
+	conflict_vids=""
+	conflict_tvid=""
+	vid_conflict_fixed=0
+	rm -f /tmp/me47_bridge_ports
 
 	[ -e /tmp/us_vlan_data ] && rm -f /tmp/us_vlan_data
 	[ -e /tmp/ds_mc_tci_data ] && rm -f /tmp/ds_mc_tci_data
@@ -163,9 +180,9 @@ reset_tracked_parameters() {
 
 		vlan_b_seq=$((i + vlans_seq))
 
-		if [ -e "/tmp/vlan$vlan_a_seq" ] || [ -e "/tmp/vlan$vlan_a_seq" ]; then
-			rm -f /tmp/vlan$vlan_a_seq
-			rm -f /tmp/vlan$vlan_a_seq
+		if [ -e "/tmp/vlan$vlan_a_seq" ] || [ -e "/tmp/vlan$vlan_b_seq" ]; then
+			rm -f "/tmp/vlan$vlan_a_seq"
+			rm -f "/tmp/vlan$vlan_b_seq"
 		fi
 	done
 }
@@ -198,65 +215,68 @@ collect_olt_type() {
 	echo "OLT type: $olt_type" >/tmp/collect
 }
 
-collect_extended_vlan() {
-	local me171_associated_me_ptr
-	local me171_instances
-	local me171_instance_count
+find_me171_uni_instance() {
+	local instances instance_count me_ptr
 
-	me171_instances=$(
+	instances=$(
 		$omci mib_dump |
 			grep "Extended VLAN conf data" |
 			sed -n 's/\(0x\)/\1/p' |
 			cut -f 3 -d '|' |
 			cut -f 1 -d '(' |
-			head -n 1 |
 			sed s/[[:space:]]//g
 	)
 
-	me171_instance_count=$(
+	instance_count=$(
 		$omci mib_dump |
 			grep -c "Extended VLAN conf data"
 	)
 
-	if [ "$me171_instance_count" -gt 1 ]; then
-		for i in $me171_instances; do
-			me171_associated_me_ptr=$(
+	if [ "$instance_count" -gt 1 ]; then
+		for i in $instances; do
+			me_ptr=$(
 				$omci managed_entity_attr_data_get 171 "$i" 7 |
 					sed -n 's/\(attr\_data\=\)/\1/p' |
 					sed s/[[:space:]]//g
 			)
 
-			if [ "$me171_associated_me_ptr" = "0101" ]; then
+			if [ "$me_ptr" = "0101" ]; then
 				me171_instance_id=$i
-				if [ -n "$vlan_svc_log" ]; then
-					logger -t "[vlan]" "ME 171 exists with instance id: $me171_instance_id"
-				fi
-				break
+				return 0
 			fi
 		done
+		me171_instance_id=""
+		return 1
 	else
-		me171_instance_id=$me171_instances
+		me171_instance_id=$instances
+		[ -n "$me171_instance_id" ]
 	fi
+}
+
+collect_extended_vlan() {
+	find_me171_uni_instance
 
 	if [ -z "$me171_instance_id" ]; then
 		echo "ME 171 instance id is null." >>/tmp/collect
 	else
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "ME 171 exists with instance id: $me171_instance_id"
+		fi
 		echo "ME 171 instance id: $me171_instance_id" >>/tmp/collect
 	fi
 }
 
-collect_bridge() {
-	local me47_instances
-	local me47_tp_type
-	local me47_tp_ptr
-	local bridge_count
+query_bridge_ports() {
+	local me47_instances i tp_type tp_ptr
 
-	bridge_count=$(
-		$omci mib_dump |
-			grep -c "Bridge config data"
+	bridge_count=$($omci mib_dump | grep -c "Bridge config data")
+
+	spanning_tree_data=$(
+		$omci managed_entity_attr_data_get 45 1 1 |
+			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
+			sed s/[[:space:]]//g
 	)
-
-	echo "Bridge count is: $bridge_count" >>/tmp/collect
 
 	me47_instances=$(
 		$omci mib_dump | grep "Bridge port config data" |
@@ -266,37 +286,61 @@ collect_bridge() {
 			sed s/[[:space:]]//g
 	)
 
+	: >/tmp/me47_bridge_ports
+
 	for i in $me47_instances; do
-		me47_tp_type=$(
+		tp_type=$(
 			$omci managed_entity_attr_data_get 47 "$i" 3 |
 				sed -n 's/\(attr\_data\=\)/\1/p' |
 				cut -f 3 -d '=' |
 				sed s/[[:space:]]//g
 		)
-
-		me47_tp_ptr=$(
+		tp_ptr=$(
 			$omci managed_entity_attr_data_get 47 "$i" 4 |
 				sed -n 's/\(attr\_data\=\)/\1/p' |
 				cut -f 3 -d '=' |
 				sed s/[[:space:]]//g
 		)
+		echo "$i $tp_type $tp_ptr" >>/tmp/me47_bridge_ports
+	done
 
-		echo "Bridge port config data: $me47_tp_type, $me47_tp_ptr" >>/tmp/collect
+	# Extract mapper bridge ports (tp_type=03 -> IEEE 802.1p mapper, ME 130)
+	mapper_ports=""
+	mapper_ptrs=""
+	while read -r inst tp_type tp_ptr; do
+		if [ "$tp_type" = "03" ]; then
+			mapper_ports="${mapper_ports}${inst} "
+			mapper_ptrs="${mapper_ptrs}${tp_ptr} "
+		fi
+	done </tmp/me47_bridge_ports
 
-		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then
-			echo "PPTP UNI brige port exists." >>/tmp/collect
+	if [ -n "$vlan_svc_log" ]; then
+		logger -t "[vlan]" "Bridge ports: $(tr '\n' '; ' </tmp/me47_bridge_ports)"
+		[ -n "$mapper_ports" ] && logger -t "[vlan]" "Mapper ports: $mapper_ports"
+	fi
+}
+
+collect_bridge() {
+	echo "Bridge count is: $bridge_count" >>/tmp/collect
+
+	while read -r inst tp_type tp_ptr; do
+		echo "Bridge port config data: $tp_type, $tp_ptr" >>/tmp/collect
+
+		if [ "$tp_type" = "01" ] && [ "$tp_ptr" = "0101" ]; then
+			echo "PPTP UNI bridge port exists." >>/tmp/collect
 			return
-		elif [ "$me47_tp_type" = "0b" ]; then
+		elif [ "$tp_type" = "0b" ]; then
 			echo "VEIP bridge port exists." >>/tmp/collect
 			return
 		fi
-	done
+	done </tmp/me47_bridge_ports
 
-	echo "WARNING: No VEIP/PPTP UNI brige port exists." >>/tmp/collect
+	echo "WARNING: No VEIP/PPTP UNI bridge port exists." >>/tmp/collect
 }
 
 collect() {
 	collect_olt_type
+	query_bridge_ports
 	collect_extended_vlan
 	collect_bridge
 }
@@ -307,14 +351,14 @@ get_mib_data_sync() {
 
 	if [ ! -e /tmp/mibcounter ]; then
 		$omci managed_entity_attr_data_get 2 0 1 |
-			cut -f 3 -d '=' |
 			sed -n 's/\(attr\_data\=\)/\1/p' |
+			cut -f 3 -d '=' |
 			sed s/[[:space:]]//g >/tmp/mibcounter
 	else
 		curr_mib_data_sync=$(
 			$omci managed_entity_attr_data_get 2 0 1 |
-				cut -f 3 -d '=' |
 				sed -n 's/\(attr\_data\=\)/\1/p' |
+				cut -f 3 -d '=' |
 				sed s/[[:space:]]//g
 		)
 
@@ -323,18 +367,18 @@ get_mib_data_sync() {
 		if [ "$curr_mib_data_sync" != "$prev_mib_data_sync" ]; then
 			logger -t "[vlanexec]" "MIB data sync: $curr_mib_data_sync ($prev_mib_data_sync)"
 			echo "$curr_mib_data_sync" >/tmp/mibcounter
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	fi
 }
 
 set_me_171() {
-	local hw="48575443"
-	local alcl="414c434c"
-	local zte="5a544547"
-	local unset="20202020"
+	local OLT_TYPE_HWTC="48575443"
+	local OLT_TYPE_ALCL="414c434c"
+	local OLT_TYPE_ZTE="5a544547"
+	local OLT_TYPE_UNSET="20202020"
 
-	if [ "$olt_type" = "$unset" ]; then
+	if [ "$olt_type" = "$OLT_TYPE_UNSET" ]; then
 		olt_type=$(
 			$omci managed_entity_attr_data_get 131 0 1 |
 				sed -n 's/\(attr\_data\=\)/\1/p' |
@@ -350,16 +394,16 @@ set_me_171() {
 	fi
 
 	case $olt_type in
-	"$hw")
+	"$OLT_TYPE_HWTC")
 		set_pptp_uni_bridge
 		create_me_171 0
 		check_me_171
 		;;
-	"$alcl")
+	"$OLT_TYPE_ALCL")
 		set_alcl_uni_bridge
 		create_me_171 1
 		;;
-	"$zte")
+	"$OLT_TYPE_ZTE")
 		set_pptp_uni_bridge
 		create_me_171 1
 		;;
@@ -379,7 +423,7 @@ check_us_vlan() {
 
 		if [ -n "$us_vlan_id" ]; then
 			echo "$us_vlan_id" >/tmp/us_vlan_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	else
 		curr_us_vlan_id=$($uci get 8311.config.us_vlan_id 2>&-)
@@ -388,7 +432,7 @@ check_us_vlan() {
 		if [ "$curr_us_vlan_id" != "$prev_us_vlan_id" ]; then
 			logger -t "[vlanexec]" "Detected change to us_vlan_id."
 			echo "$curr_us_vlan_id" >/tmp/us_vlan_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	fi
 }
@@ -433,8 +477,8 @@ set_us_vlan() {
 	vlan_tagging_op_hex=$(
 		echo "$vlan_tagging_op" |
 			sed s/[[:space:]]//g |
-			sed -r 's/(..)/0x\1/g' |
-			sed -r 's/(....)/ \1/g'
+			sed 's/\(..\)/0x\1/g' |
+			sed 's/\(....\)/ \1/g'
 	)
 
 	vlan_tagging_op_match=$(
@@ -463,12 +507,12 @@ check_mc_vlans() {
 	if [ ! -e /tmp/ds_mc_tci_data ]; then
 		if [ -n "$ds_mc_tci" ]; then
 			echo "$ds_mc_tci" >/tmp/ds_mc_tci_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	elif [ ! -e /tmp/us_mc_vid_data ]; then
 		if [ -n "$us_mc_vid" ]; then
 			echo "$us_mc_vid" >/tmp/us_mc_vid_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	else
 
@@ -480,13 +524,13 @@ check_mc_vlans() {
 		if [ "$curr_ds_mc_tci" != "$prev_ds_mc_tci" ]; then
 			logger -t "[vlanexec]" "Detected change to ds_mc_tci."
 			echo "$curr_ds_mc_tci" >/tmp/ds_mc_tci_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 
 		if [ "$curr_us_mc_vid" != "$prev_us_mc_vid" ]; then
 			logger -t "[vlanexec]" "Detected change to us_mc_vid."
 			echo "$curr_us_mc_vid" >/tmp/us_mc_vid_data
-			totalizer_flag=$((totalizer_flag + 1))
+			change_count=$((change_count + 1))
 		fi
 	fi
 }
@@ -592,9 +636,7 @@ set_mc_vlans() {
 		)
 
 		if [ -n "$vlan_svc_log" ]; then
-			message=$(cat "Detected multicast GEM interworking TP, multicast GEM port id: " \
-				"$gem_port_id, configuring...")
-			logger -t "[vlan]" "$message"
+			logger -t "[vlan]" "Detected multicast GEM interworking TP, multicast GEM port id: $gem_port_id, configuring..."
 		fi
 
 		$omci managed_entity_attr_data_set 309 "$me309_instance_id" 7 40 00 "$gem_port_id" \
@@ -669,12 +711,6 @@ check_vlan_translations() {
 		vlan_b_seq=$((i + vlans_seq))
 
 		if [ -e "/tmp/vlan$vlan_a_seq" ] && [ -e "/tmp/vlan$vlan_b_seq" ]; then
-			if [ -n "$vlan_a" ] && [ -n "$vlan_b" ]; then
-				echo "$vlan_a" >"/tmp/vlan$vlan_a_seq"
-				echo "$vlan_b" >"/tmp/vlan$vlan_b_seq"
-				totalizer_flag=$((totalizer_flag + 1))
-			fi
-		else
 			prev_vlan_a=$(cat "/tmp/vlan$vlan_a_seq")
 			prev_vlan_b=$(cat "/tmp/vlan$vlan_b_seq")
 
@@ -683,7 +719,13 @@ check_vlan_translations() {
 				delete_vlan_translation "$prev_vlan_a"
 				echo "$vlan_a" >"/tmp/vlan$vlan_a_seq"
 				echo "$vlan_b" >"/tmp/vlan$vlan_b_seq"
-				totalizer_flag=$((totalizer_flag + 1))
+				change_count=$((change_count + 1))
+			fi
+		else
+			if [ -n "$vlan_a" ] && [ -n "$vlan_b" ]; then
+				echo "$vlan_a" >"/tmp/vlan$vlan_a_seq"
+				echo "$vlan_b" >"/tmp/vlan$vlan_b_seq"
+				change_count=$((change_count + 1))
 			fi
 		fi
 	done
@@ -796,7 +838,7 @@ set_vlan_translations() {
 		treatment_inner_word="00 0${priority_b:=8} $treatment_inner"
 
 		if [ "$vlan_b" = "u" ]; then
-			treatment_inner_word="0x00 0x0f 0x00 0x00"
+			treatment_inner_word="00 0f 00 00"
 		fi
 
 		vlan_tagging_op="f8 00 00 00 $filter_inner_word 00 40 0f 00 00 $treatment_inner_word"
@@ -804,8 +846,8 @@ set_vlan_translations() {
 		vlan_tagging_op_hex=$(
 			echo "$vlan_tagging_op" |
 				sed s/[[:space:]]//g |
-				sed -r 's/(..)/0x\1/g' |
-				sed -r 's/(....)/ \1/g'
+				sed 's/\(..\)/0x\1/g' |
+				sed 's/\(....\)/ \1/g'
 		)
 
 		vlan_tagging_op_match=$(
@@ -828,157 +870,248 @@ set_vlan_translations() {
 
 set_pptp_uni_bridge() {
 	local bridge_instance
-	local me47_instances
 	local me47_tp_type
-	local me47_tp_ptr
-	local message
-	local spanning_tree
+	local found=false
 
-	me47_instances=$(
-		$omci mib_dump | grep "Bridge port config data" |
-			sed -n 's/\(0x\)/\1/p' |
-			cut -f 3 -d '|' |
-			cut -f 1 -d '(' |
-			sed s/[[:space:]]//g
-	)
-
-	spanning_tree=$(
-		$omci managed_entity_attr_data_get 45 1 1 |
-			sed -n 's/\(attr\_data\=\)/\1/p' |
-			cut -f 3 -d '=' |
-			sed s/[[:space:]]//g
-	)
-
-	if [ -n "$vlan_svc_log" ]; then
-		logger -t "[vlan]" "ME 47 instances: $me47_instances"
-	fi
-
-	for i in $me47_instances; do
-		me47_tp_type=$(
-			$omci managed_entity_attr_data_get 47 "$i" 3 |
-				sed -n 's/\(attr\_data\=\)/\1/p' |
-				cut -f 3 -d '=' |
-				sed s/[[:space:]]//g
-		)
-
-		me47_tp_ptr=$(
-			$omci managed_entity_attr_data_get 47 "$i" 4 |
-				sed -n 's/\(attr\_data\=\)/\1/p' |
-				cut -f 3 -d '=' |
-				sed s/[[:space:]]//g
-		)
-
-		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then
+	while read -r inst tp_type tp_ptr; do
+		if [ "$tp_type" = "01" ] && [ "$tp_ptr" = "0101" ]; then
 			if [ -n "$vlan_svc_log" ]; then
-				logger -t "[vlan]" "PPTP UNI bridge port exists with instance id: $i"
+				logger -t "[vlan]" "PPTP UNI bridge port exists with instance id: $inst"
 			fi
 
-			pptp_uni_bridge=$i
+			pptp_uni_bridge=$inst
 
-			$omci managed_entity_attr_data_set 47 "$i" 3 1
-			$omci managed_entity_attr_data_set 47 "$i" 4 01 01
-			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
+			$omci managed_entity_attr_data_set 47 "$inst" 3 1
+			$omci managed_entity_attr_data_set 47 "$inst" 4 01 01
+			$omci managed_entity_attr_data_set 47 "$inst" 7 "$spanning_tree_data"
 
-			return
+			found=true
+			break
 		fi
-	done
+	done </tmp/me47_bridge_ports
 
-	me47_tp_type=$(
-		$omci managed_entity_attr_data_get 47 1 3 |
-			sed -n 's/\(attr\_data\=\)/\1/p' |
-			cut -f 3 -d '=' |
-			sed s/[[:space:]]//g
-	)
+	if ! $found; then
+		me47_tp_type=$(
+			$omci managed_entity_attr_data_get 47 1 3 |
+				sed -n 's/\(attr\_data\=\)/\1/p' |
+				cut -f 3 -d '=' |
+				sed s/[[:space:]]//g
+		)
 
-	if [ -n "$me47_tp_type" ]; then
-		$omci managed_entity_delete 47 1
+		if [ -n "$me47_tp_type" ]; then
+			$omci managed_entity_delete 47 1
+		fi
+
+		bridge_instance=$(
+			$omci mib_dump |
+				grep "Bridge config data" |
+				sed -n 's/\(0x\)/\1/p' |
+				cut -f 3 -d '|' |
+				cut -f 1 -d '(' |
+				tail -n 1 |
+				sed s/[[:space:]]//g
+		)
+
+		if [ -n "$vlan_svc_log" ]; then
+			logger -t "[vlan]" "No PPTP UNI bridge port detected, creating with instance id 1."
+		fi
+
+		$omci managed_entity_create 47 1 "$bridge_instance" 1 1 257 0 1 \
+			"$(echo "$spanning_tree_data" | cut -c 2-3)" 1 1
+
+		pptp_uni_bridge=1
 	fi
-
-	bridge_instance=$(
-		$omci mib_dump |
-			grep "Bridge config data" |
-			sed -n 's/\(0x\)/\1/p' |
-			cut -f 3 -d '|' |
-			cut -f 1 -d '(' |
-			tail -n 1 |
-			sed s/[[:space:]]//g
-	)
-
-	if [ -n "$vlan_svc_log" ]; then
-		message="No PPTP UNI bridge port detected, creating with instance id 1."
-		logger -t "[vlan]" "$message"
-	fi
-
-	$omci managed_entity_create 47 1 "$bridge_instance" 1 1 257 0 1 \
-		"$(echo "$spanning_tree" | cut -c 2-3)" 1 1
-
-	pptp_uni_bridge=1
 }
 
-rollback_mib_data_sync() {
-	local mib_data_sync
+next_txn_id() {
+	printf "%04x" $_txn_id
+	_txn_id=$((_txn_id + 1))
+	[ $_txn_id -gt 65535 ] && _txn_id=0xff01
+}
 
-	mib_data_sync=$(
+save_mib_data_sync() {
+	_saved_mib_data_sync=$(
 		$omci managed_entity_attr_data_get 2 0 1 |
 			sed -n 's/\(attr\_data\=\)/\1/p' |
 			cut -f 3 -d '=' |
 			sed s/[[:space:]]//g
 	)
+}
 
-	mib_data_sync=$(printf "%x" "$((0x$mib_data_sync - 0x3))")
+restore_mib_data_sync() {
+	[ -z "$_saved_mib_data_sync" ] && return
+	$omci managed_entity_attr_data_set 2 0 1 "$_saved_mib_data_sync"
+	if [ -n "$vlan_svc_log" ]; then
+		logger -t "[vlan]" "MIB data sync restored: $_saved_mib_data_sync."
+	fi
+}
 
-	$omci managed_entity_attr_data_set 2 0 1 "$mib_data_sync"
+# Detect many-to-one downstream VID mappings in ME 171 table.
+# Sets globals: conflict_vids (space-sep "fvid:tvid" pairs), conflict_tvid
+# Returns 0 if conflict found, 1 if no conflict.
+detect_vid_conflict() {
+	local data entry w2 w3 w4
+	local filter_vid treatment_vid treatment_remove_tags
+	local pairs="" pair tvid fvid prev_tvid="" prev_fvid=""
+	local found_treatment="" found_vids=""
+
+	[ -z "$me171_instance_id" ] && return 1
+
+	data=$(mibattrdata 171 "$me171_instance_id" 6) || return 1
+
+	# Pass 1: Collect treatment_vid:filter_vid pairs
+	for entry in $data; do
+		w2=0x${entry:8:8}
+		w3=0x${entry:16:8}
+		w4=0x${entry:24:8}
+
+		filter_vid=$((($w2 & 0x0fff8000) >> 15))
+		treatment_remove_tags=$((($w3 & 0xc0000000) >> 30))
+		treatment_vid=$((($w4 & 0x0000fff8) >> 3))
+
+		# Skip non-VID rules (default/discard/no-tag)
+		[ "$filter_vid" -ge 4095 ] && continue
+		[ "$treatment_remove_tags" -eq 3 ] && continue
+
+		pairs="${pairs}${treatment_vid}:${filter_vid} "
+	done
+
+	# Pass 2: Sort by treatment VID, find many-to-one mappings
+	for pair in $(printf '%s\n' $pairs | sort -t: -k1,1n); do
+		tvid=${pair%%:*}
+		fvid=${pair#*:}
+		if [ "$tvid" = "$prev_tvid" ]; then
+			if [ "$tvid" != "$found_treatment" ]; then
+				found_vids="${found_vids}${prev_fvid}:${tvid} "
+				found_treatment="$tvid"
+			fi
+			found_vids="${found_vids}${fvid}:${tvid} "
+		fi
+		prev_tvid="$tvid"
+		prev_fvid="$fvid"
+	done
+
+	if [ -n "$found_vids" ]; then
+		conflict_vids="$found_vids"
+		conflict_tvid="$found_treatment"
+		return 0
+	fi
+	return 1
+}
+
+# Create ME 171 with assoc_type=1 (mapper association).
+# $1 = mapper instance (ME 130, 4-char hex e.g. "1102")
+# $2 = new ME 171 instance ID (4-char hex)
+create_mapper_me_171() {
+	local mapper="$1" me171_id="$2"
+	local txn
+
+	txn=$(next_txn_id)
+
+	$omci rmr \
+		${txn:0:2} ${txn:2:2} 44 0a 00 ab \
+		${me171_id:0:2} ${me171_id:2:2} \
+		01 ${mapper:0:2} ${mapper:2:2} \
+		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+		00 00 00 00 00 00 00 00 00 00 00 00 00
+	sleep 1
+}
+
+# Add VID translation rule to a per-mapper ME 171.
+# $1 = ME 171 instance (4-char hex), $2 = filter VID, $3 = treatment VID
+add_mapper_vid_rule() {
+	local me171="$1" fvid="$2" tvid="$3"
+	local filter_inner treatment_inner
+
+	filter_inner=$(printf "%08x" $(( (8 << 28) | (fvid << 15) )))
+	treatment_inner=$(printf "%08x" $(( (8 << 16) | (tvid << 3) | 4 )))
+
+	$omci managed_entity_attr_data_set 171 "0x$me171" 6 \
+		f8 00 00 00 \
+		${filter_inner:0:2} ${filter_inner:2:2} ${filter_inner:4:2} ${filter_inner:6:2} \
+		40 0f 00 00 \
+		${treatment_inner:0:2} ${treatment_inner:2:2} ${treatment_inner:4:2} ${treatment_inner:6:2}
+}
+
+# Resolve many-to-one VID conflicts by creating per-mapper ME 171 instances.
+# No-op when no conflict detected (single-VLAN ISPs).
+fix_vid_conflict() {
+	local pair vid mapper me171_id
+	local conflict_filter_vids="" vid_mapper_map
+	local user_map
+
+	detect_vid_conflict || return 0
+
+	logger -t "[vlan]" "VID conflict detected: $conflict_vids"
+
+	if [ -z "$mapper_ports" ]; then
+		logger -t "[vlan]" "No mapper bridge ports found, cannot resolve conflict."
+		return 1
+	fi
+
+	# Parse conflict filter VIDs
+	for pair in $conflict_vids; do
+		conflict_filter_vids="${conflict_filter_vids}${pair%%:*} "
+	done
+
+	# VID->mapper assignment:
+	# 1. User config (guaranteed correct)
+	# 2. Fallback: instance order heuristic
+	user_map=$($uci -q get 8311.config.vlan_mapper_map)
+	if [ -n "$user_map" ]; then
+		vid_mapper_map=$(echo "$user_map" | tr ',' ' ')
+	else
+		local sorted_vids sorted_mappers vi
+		sorted_vids=$(printf '%s\n' $conflict_filter_vids | sort -n | tr '\n' ' ')
+		sorted_mappers=$(printf '%s\n' $mapper_ptrs | sort | tr '\n' ' ')
+		vid_mapper_map=""
+		vi=1; for vid in $sorted_vids; do
+			mapper=$(echo "$sorted_mappers" | cut -d' ' -f"$vi")
+			[ -z "$mapper" ] && break
+			vid_mapper_map="${vid_mapper_map}${vid}:${mapper} "
+			vi=$((vi + 1))
+		done
+	fi
+
+	logger -t "[vlan]" "VID->mapper assignment: $vid_mapper_map"
+
+	save_mib_data_sync
+
+	for entry in $vid_mapper_map; do
+		vid=${entry%%:*}
+		mapper=${entry#*:}
+		me171_id=$(printf "%04x" "$((0x$mapper))")
+
+		# Create ME 171 for mapper if not already present
+		if ! mibs 171 | grep -q "^$((0x$me171_id))$"; then
+			logger -t "[vlan]" "Creating ME 171 on mapper 0x${mapper} for VID ${vid}"
+			create_mapper_me_171 "$mapper" "$me171_id"
+		fi
+
+		# Add VID rule to mapper's ME 171
+		add_mapper_vid_rule "$me171_id" "$vid" "$conflict_tvid"
+
+		# Delete conflicting rule from UNI ME 171
+		delete_vlan_translation "$vid"
+	done
+
+	restore_mib_data_sync
+
+	logger -t "[vlan]" "VID conflict fix applied."
 
 	if [ -n "$vlan_svc_log" ]; then
-		logger -t "[vlan]" "MIB data sync: $mib_data_sync."
+		logger -t "[vlan]" "GPE ExtVLAN tables after fix:"
+		$onu xml_table gpe_table_extvlan -1 2>&- | logger -t "[vlan]"
 	fi
 }
 
 create_me_171() {
-	local me171_associated_me_ptr
 	local create_flag
-	local instance_id
-	local me171_instances
-	local me171_instance_count
 	local me47_instance_id
-	local original
-	local replacment
 
 	create_flag=$1
 
-	me171_instances=$(
-		$omci mib_dump |
-			grep "Extended VLAN conf data" |
-			sed -n 's/\(0x\)/\1/p' |
-			cut -f 3 -d '|' |
-			cut -f 1 -d '(' |
-			sed s/[[:space:]]//g
-	)
-
-	me171_instance_count=$(
-		$omci mib_dump |
-			grep -c "Extended VLAN conf data"
-	)
-
-	if [ "$me171_instance_count" -gt 1 ]; then
-		for i in $me171_instances; do
-			me171_associated_me_ptr=$(
-				$omci managed_entity_attr_data_get 171 "$i" 7 |
-					sed -n 's/\(attr\_data\=\)/\1/p' |
-					sed s/[[:space:]]//g
-			)
-
-			if [ "$me171_associated_me_ptr" = "0101" ]; then
-				me171_instance_id=$i
-				if [ -n "$vlan_svc_log" ]; then
-					logger -t "[vlan]" "ME 171 exists with instance id: $me171_instance_id"
-				fi
-				break
-			fi
-		done
-	else
-		me171_instance_id=$me171_instances
-	fi
+	find_me171_uni_instance
 
 	me47_instance_id=$pptp_uni_bridge
 
@@ -990,30 +1123,32 @@ create_me_171() {
 		;;
 	1)
 		if [ -z "$me171_instance_id" ]; then
-			# new create me171,untag discard,tag transparent
-			instance_id=$(
-				printf "%04x" "$((me47_instance_id))" |
-					sed 's/../& /g' |
-					sed 's/[ ]*$//g'
-			)
-
-			original=$(
-				sed -n '2p' /etc/me171 |
-					cut -c 43-50
-			)
-
-			replacment="ab $instance_id"
-
-			sed -i "s/$original/$replacment/" /etc/me171
-			$omci_simulate /etc/me171
-			sleep 5
-			rollback_mib_data_sync
+			local id txn
+			id=$(printf "%04x" "$((me47_instance_id))")
 
 			if [ -n "$vlan_svc_log" ]; then
-				logger -t "[vlan]" "Creating ME 171 with instance id: $me47_instance_id"
+				logger -t "[vlan]" "Creating ME 171 with instance id: 0x$id"
 			fi
 
-			me171_instance_id=$me47_instance_id
+			save_mib_data_sync
+
+			# Create ME 171 with assoc_type=2 (PPTP UNI), ptr=0x0101
+			txn=$(next_txn_id)
+			$omci rmr \
+				${txn:0:2} ${txn:2:2} 44 0a 00 ab \
+				${id:0:2} ${id:2:2} \
+				02 01 01 \
+				00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+				00 00 00 00 00 00 00 00 00 00 00 00 00
+			sleep 1
+
+			# Add discard-untagged rule
+			$omci managed_entity_attr_data_set 171 "0x$id" 6 \
+				f8 00 00 00 f8 00 00 00 c0 0f 00 00 00 0f 00 00
+
+			restore_mib_data_sync
+
+			me171_instance_id=$((0x$id))
 		fi
 		;;
 	*)
@@ -1069,90 +1204,55 @@ create_me_309() {
 }
 
 set_alcl_uni_bridge() {
-	local me47_instances
-	local me47_tp_type
-	local me47_tp_ptr
-	local spanning_tree
-
-	me47_instances=$(
-		$omci mib_dump |
-			grep "Bridge port config data" |
-			sed -n 's/\(0x\)/\1/p' |
-			cut -f 3 -d '|' |
-			cut -f 1 -d '(' |
-			sed s/[[:space:]]//g
-	)
-
-	spanning_tree=$(
-		$omci managed_entity_attr_data_get 45 1 1 |
-			sed -n 's/\(attr\_data\=\)/\1/p' |
-			cut -f 3 -d '=' |
-			sed s/[[:space:]]//g
-	)
-
-	for i in $me47_instances; do
-		me47_tp_type=$(
-			$omci managed_entity_attr_data_get 47 "$i" 3 |
-				sed -n 's/\(attr\_data\=\)/\1/p' |
-				cut -f 3 -d '=' |
-				sed s/[[:space:]]//g
-		)
-
-		me47_tp_ptr=$(
-			$omci managed_entity_attr_data_get 47 "$i" 4 |
-				sed -n 's/\(attr\_data\=\)/\1/p' |
-				cut -f 3 -d '=' |
-				sed s/[[:space:]]//g
-		)
-
-		if [ "$me47_tp_type" = "01" ] && [ "$me47_tp_ptr" = "0101" ]; then
+	while read -r inst tp_type tp_ptr; do
+		if [ "$tp_type" = "01" ] && [ "$tp_ptr" = "0101" ]; then
 			if [ -n "$vlan_svc_log" ]; then
-				logger -t "[vlan]" "PPTP UNI bridge port exists with instance id: $i"
+				logger -t "[vlan]" "PPTP UNI bridge port exists with instance id: $inst"
 			fi
 
 			if [ -n "$force_me_create" ]; then
-				$omci managed_entity_attr_data_set 47 "$i" 3 1
-				$omci managed_entity_attr_data_set 47 "$i" 4 01 01
+				$omci managed_entity_attr_data_set 47 "$inst" 3 1
+				$omci managed_entity_attr_data_set 47 "$inst" 4 01 01
 			fi
 
-			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
+			$omci managed_entity_attr_data_set 47 "$inst" 7 "$spanning_tree_data"
 
-			pptp_uni_bridge=$i
+			pptp_uni_bridge=$inst
 
 			return
-		elif [ "$me47_tp_type" = "0b" ]; then
+		elif [ "$tp_type" = "0b" ]; then
 			if [ -n "$vlan_svc_log" ]; then
-				logger -t "[vlan]" "VEIP bridge port exists with instance id: $i"
+				logger -t "[vlan]" "VEIP bridge port exists with instance id: $inst"
 			fi
 
-			$omci managed_entity_attr_data_set 47 "$i" 3 1
-			$omci managed_entity_attr_data_set 47 "$i" 4 01 01
-			$omci managed_entity_attr_data_set 47 "$i" 7 "$spanning_tree"
+			$omci managed_entity_attr_data_set 47 "$inst" 3 1
+			$omci managed_entity_attr_data_set 47 "$inst" 4 01 01
+			$omci managed_entity_attr_data_set 47 "$inst" 7 "$spanning_tree_data"
 
-			pptp_uni_bridge=$i
+			pptp_uni_bridge=$inst
 
 			return
 		fi
-	done
+	done </tmp/me47_bridge_ports
 }
 
 check_me_171() {
-	local current_single_tag_value
-	local current_double_tag_value
+	local current_single_tag_op
+	local current_double_tag_op
 	local vlan_tagging_op
 	local vlan_tagging_ops_num
 
-	local single_tag_value="0xf80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
-	local double_tag_value="0xe80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
+	local default_single_tag_op="0xf80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
+	local default_double_tag_op="0xe80x000x000x000xe80x000x000x000x000x0f0x000x000x000x0f0x000x00"
 
-	current_single_tag_value=$(
+	current_single_tag_op=$(
 		$omci managed_entity_get 171 "$me171_instance_id" |
 			grep "0xf8 0x00 0x00 0x00 0xe8" |
 			tail -n 1 |
 			sed s/[[:space:]]//g
 	)
 
-	current_double_tag_value=$(
+	current_double_tag_op=$(
 		$omci managed_entity_get 171 "$me171_instance_id" |
 			grep "0xe8 0x00 0x00 0x00 0xe8" |
 			tail -n 1 |
@@ -1180,13 +1280,13 @@ check_me_171() {
 	if [ "$vlan_tagging_ops_num" -ge 1 ] && [ -n "$vlan_svc_log" ]; then
 		for i in $(seq 1 "$vlan_tagging_ops_num"); do
 			vlan_tagging_op=$(tail -n "$i" /tmp/me171_rule | head -n 1)
-			logger -t "[vlan]" "ME 171 VLAN tagging operation: $vlan_tagging_op"
+			logger -t "[vlan]" "ME 171 VLAN tagging operation $i: $vlan_tagging_op"
 		done
 	fi
 
 	if [ -n "$force_me_create" ] ||
-		{ [ "$current_single_tag_value" != "$single_tag_value" ] ||
-			[ "$current_double_tag_value" != "$double_tag_value" ]; }; then
+		{ [ "$current_single_tag_op" != "$default_single_tag_op" ] ||
+			[ "$current_double_tag_op" != "$default_double_tag_op" ]; }; then
 		if [ -n "$vlan_svc_log" ]; then
 			logger -t "[vlan]" "Default VLAN tagging operation does not match or force_me_create enabled, creating..."
 		fi
@@ -1228,70 +1328,77 @@ main() {
 				do_reboot
 			else
 				if [ -z "$max_reboot_delay_intervals" ] || [ -z "$max_reboots" ]; then
-					if [ $log_flag -lt 1 ]; then
+					if [ $log_check_count -lt 1 ]; then
 						logger -t "[vlanexec]" "WARNING: max_reboot_delay_intervals and/or max_reboots is not set, waiting..."
-						log_flag=$((log_flag + 1))
+						log_check_count=$((log_check_count + 1))
 					fi
-					rest
+					sleep_interval
 				else
 					logger -t "[vlanexec]" "reboot_on_association_fail enabled, current reboot delay interval: $reboot_delay_interval, waiting for reboot..."
 					delay_reboot
 				fi
 			fi
 		elif [ "$los_state" = "1" ]; then
-			if [ $log_flag -lt 1 ]; then
+			if [ $log_check_count -lt 1 ]; then
 				logger -t "[vlanexec]" "WARNING: Loss of Signal detected, waiting..."
-				log_flag=$((log_flag + 1))
+				log_check_count=$((log_check_count + 1))
 			fi
-			rest
+			sleep_interval
 		else
-			if [ $log_flag -lt 1 ]; then
+			if [ $log_check_count -lt 1 ]; then
 				logger -t "[vlanexec]" "reboot_delay_interval not enabled or max_reboots reached, current reboots count: $reboots_count, giving up..."
-				log_flag=$((log_flag + 1))
+				log_check_count=$((log_check_count + 1))
 			fi
-			rest
+			sleep_interval
 		fi
 	else
-		if [ $state_flag -le 20 ]; then
-			state_flag=$((state_flag + 1))
+		if [ $ploam_check_count -le 20 ]; then
+			ploam_check_count=$((ploam_check_count + 1))
 		fi
 
 		ploam_state=$(get_ploam_state)
 
 		if [ "$ploam_state" = "5" ]; then
-			if [ $collect_flag -lt 2 ]; then
+			if [ $collect_check_count -lt 2 ]; then
 				collect
-				collect_flag=$((collect_flag + 1))
+				collect_check_count=$((collect_check_count + 1))
 			fi
 
-			reset_log_flag
+			reset_log_check_count
 			reset_reboot_delay
 			reset_reboot_attempt
+
 			get_mib_data_sync
+
 			check_onu_fsm_o5
 			check_onu_rx_msg_lost
-
 			check_us_vlan
 			check_mc_vlans
 			check_vlan_translations
 
-			if [ $init_flag -lt 5 ]; then
+			if [ $init_check_count -lt 5 ]; then
 				set_me_171
+				if [ "$vid_conflict_fixed" -lt 1 ]; then
+					fix_vid_conflict && vid_conflict_fixed=1
+				fi
 				set_us_vlan
 				set_mc_vlans
 				set_n_to_1_vlan
 				set_vlan_translations
-				init_flag=$((init_flag + 1)) # this is only incremented here
-			elif [ $totalizer_flag -ge 1 ]; then
+				init_check_count=$((init_check_count + 1)) # this is only incremented here
+			elif [ $change_count -ge 1 ]; then
 				set_me_171
+				if [ "$vid_conflict_fixed" -lt 1 ]; then
+					fix_vid_conflict && vid_conflict_fixed=1
+				fi
 				set_us_vlan
 				set_mc_vlans
 				set_n_to_1_vlan
 				set_vlan_translations
-				totalizer_flag=0
+				change_count=0
 			fi
 
-			rest
+			sleep_interval
 		fi
 	fi
 }
