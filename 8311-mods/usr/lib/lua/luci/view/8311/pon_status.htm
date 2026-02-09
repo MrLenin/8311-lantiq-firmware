@@ -1,3 +1,18 @@
+<%--
+  pon_status.htm -- PON Status display page
+
+  Tabbed view showing live GPON/OMCI status information.  Tab content
+  is fetched asynchronously by switchTabPonStatus() in 8311.js and
+  rendered into the shared <textarea> element.
+
+  Context variables (set by controller/8311.lua):
+    pages : ordered table of { id, label, display } -- tab definitions
+            display=false hides tabs that aren't relevant to the current
+            ONU state (e.g. OMCI tabs hidden when not in O5)
+
+  Tabs typically include: gtop_status, omci_info, vlan_data, etc.
+  Default active tab: gtop_status (GPON GTC/ONU PLOAM state).
+--%>
 <%
 
 local tools = require "8311.tools"

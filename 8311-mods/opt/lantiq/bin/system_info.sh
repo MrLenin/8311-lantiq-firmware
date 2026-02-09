@@ -1,4 +1,15 @@
 #!/bin/sh
+# system_info.sh — System status query dispatcher for the LuCI web UI
+#
+# Called by the LuCI controller (8311.lua) to retrieve system status data.
+# Each sub-command returns a single line of formatted text for display.
+# The LuCI controller invokes this as: system_info.sh <command>
+#
+# Dependencies:
+#   onu, omci_pipe.sh, omcid      — ONU/OMCI hardware interfaces
+#   gtop, otop                    — GPE/optic table query tools
+#   sfp_i2c                       — SFP I2C EEPROM interface
+#   fw_printenv/fw_setenv         — U-Boot environment access
 command=$1
 
 onu="/opt/lantiq/bin/onu"
@@ -12,6 +23,8 @@ sfp_i2c="/opt/lantiq/bin/sfp_i2c"
 fw_printenv="/usr/sbin/fw_printenv"
 fw_setenv="/usr/sbin/fw_setenv"
 
+# OLT type from cached collect data. Hex values are ASCII-encoded vendor IDs:
+#   48575443 = "HWTC" (Huawei), 414c434c = "ALCL" (Nokia), 5a544547 = "ZTEG" (ZTE)
 olttype() {
 	local olt_type
 	olt_type=$(grep "olt type" /tmp/collect | cut -f 2 -d ':')
@@ -26,6 +39,8 @@ olttype() {
 	fi
 }
 
+# List active VLAN IDs by merging the GPE VLAN table and FID assignment table,
+# deduplicating and sorting numerically. Output: comma-separated VID list.
 vlaninfo() {
 	local vlan_info
 	local fid_info
@@ -37,6 +52,8 @@ vlaninfo() {
 	echo "$vlan_output"
 }
 
+# PLOAM registration state and signal detect status.
+# PLOAM state is a single digit (5 = O5 = operational).
 status() {
 	local ploam_state
 	local signal_state
@@ -46,6 +63,7 @@ status() {
 	echo "$ploam_state / $signal_state"
 }
 
+# Optical power levels: RX (RSSI) and TX in dBm.
 optic() {
 	local rx
 	local tx
@@ -55,6 +73,8 @@ optic() {
 	echo "$rx / $tx"
 }
 
+# CPU die and laser temperatures from otop, converted from Kelvin to Celsius
+# (otop reports in Kelvin; subtract 273 for approximate Celsius).
 temperature(){
 	local cpu
 	local laser
@@ -64,6 +84,10 @@ temperature(){
 	echo "$cpu℃ / $laser℃"
 }
 
+# Decode last reboot cause from hardware register 0x1f20000c and the
+# software cause code saved by monitoring daemons in /tmp/rebootcause.
+# Register values: 1=power-on, 2=RST pin, 3=watchdog, 4=software, 5=PLOAM, 6=unknown
+# Software sub-causes: 0=generic, 1=non-O5, 2=FIFO overflow, 3=omcid restart, 4=COP error
 rebootcause() {
 	local cause
 	local onu_cause
@@ -105,6 +129,7 @@ rebootcause() {
 	echo "$reboot_cause"
 }
 
+# Running reboot counters from monitoring daemons' temp files.
 rebootnum() {
 	local reboot_try_count
 	local omcid_reboot_count
@@ -114,6 +139,7 @@ rebootnum() {
 	echo "Non-O5: $reboot_try_count , OMCID: $omcid_reboot_count"
 }
 
+# OMCID binary version string; strip extra text if it matches the stock version.
 omcid_version() {
 	local omcid_ver
 	local is_default_ver
@@ -128,10 +154,13 @@ omcid_version() {
 	echo "$omcid_ver"
 }
 
+# Static firmware version / build date string.
 version() {
 	echo "Final_v2021_12_28_c2 / 2023.10.20 / 8311 Remix v1"
 }
 
+# LAN port link speed and duplex from onu lanpsg (LAN port status get).
+# link_status: 4=1000M, 5=2500M. link_duplex: 1=full, 0=half.
 linkstatus() {
 	local link_status
 	local link_duplex
@@ -168,6 +197,7 @@ linkstatus() {
 	esac
 }
 
+# Active firmware bank: MTD image partition (0 or 1), inverted for display.
 committed() {
 	local image
 	local committed_image
@@ -177,12 +207,13 @@ committed() {
 	echo "image$committed_image"
 }
 
+# Detect ONU hardware vendor by checking fw_printenv for known signatures.
+# HWTC in gSerial = Huawei MA5671A, 2015.04 in ver = Nokia G-010S-A.
 vendor() {
 	local is_huawei
 	local is_nokia
 	local vendor_name
 
-	#i2cvar=`$sfp_i2c -r | grep 00000010 | grep -c "48 55 41 57 45 49"`
 	is_huawei=$($fw_printenv gSerial | grep -c HWTC)
 	is_nokia=$($fw_printenv ver | grep -c 2015.04)
 
@@ -197,6 +228,7 @@ vendor() {
 	echo "$vendor_name" >/tmp/vendorname
 }
 
+# Map vendor to model name.
 model() {
 	local vendor_name
 	local model_name
@@ -215,6 +247,7 @@ model() {
 	echo "$model_name"
 }
 
+# Command dispatch — each case maps to one of the functions above.
 case $command in
 committed)
 	committed

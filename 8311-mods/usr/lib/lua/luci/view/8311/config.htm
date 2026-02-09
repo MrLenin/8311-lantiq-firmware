@@ -1,3 +1,24 @@
+<%--
+  config.htm -- 8311 Configuration page
+
+  Renders a dynamic, tabbed configuration form for all 8311 firmware
+  environment variables.  The controller passes `fwenvs`, a table of
+  categories each containing a list of typed form items (text, number,
+  checkbox, select, select_named, password).
+
+  Special handling:
+    - internet_vlan / services_vlan fields are hidden by default (shown
+      by JS when the VLAN service mode requires them).
+    - After the "fix_vlans" checkbox, an "Edit hook script" button and a
+      modal textarea are injected for editing /ptconf/8311/vlan_fixes_hook.sh.
+
+  Context variables (set by controller/8311.lua):
+    fwenvs : ordered table of { id, category, items[] }
+    Each item: { id, name, description, type, value, default, required,
+                 pattern, maxlength, min, max, options[] }
+
+  JS dependencies: 8311.js (switchTab, saveConfig, hook script handlers)
+--%>
 <%-
 local tools = require "8311.tools"
 local esc = tools.html_escape

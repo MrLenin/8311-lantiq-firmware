@@ -1,5 +1,6 @@
 --[[
 LuCI - Lua Configuration Interface
+(stock OpenWRT -- included unmodified for the 8311 firmware rootfs)
 
 Copyright 2008 Steven Barth <steven@midlink.org>
 Copyright 2008-2011 Jo-Philipp Wich <xm@subsignal.org>

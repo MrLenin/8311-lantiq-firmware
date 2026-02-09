@@ -9,6 +9,20 @@ You may obtain a copy of the License at
 
 	http://www.apache.org/licenses/LICENSE-2.0
 
+admin_status/index.htm -- System Overview / Status page (upstream + 8311 mods)
+
+Based on the stock OpenWRT LuCI status page.  8311-specific modifications:
+  - System section: Model and Firmware Version read from system_info.sh
+    instead of stock sysinfo functions
+  - GPON Status section (entirely new): registration state, RX/TX power,
+    temperatures, link speed, reboot count, boot image, interop version
+    -- all via /opt/lantiq/bin/system_info.sh subcommands
+  - Plugin include loop at the bottom scans view/admin_status/index/ for
+    additional .htm fragments
+
+The page doubles as a JSON API: when ?status=1 is requested, it returns
+system metrics (uptime, memory, connections, DHCP leases, wifi) as JSON
+for the XHR.poll() live-update loop (every 5 seconds).
 -%>
 
 <%
@@ -562,6 +576,7 @@ You may obtain a copy of the License at
 
 	<table width="100%" cellspacing="10">
 		<tr><td width="33%"><%:Hostname%></td><td><%=luci.sys.hostname() or "?"%></td></tr>
+		<%-- 8311 mod: model string and firmware version from system_info.sh --%>
 		<tr><td width="33%"><%:Model%></td><td><%=luci.sys.exec("/opt/lantiq/bin/system_info.sh model")%></td></tr>
 		<tr><td width="33%"><%:Firmware Version%></td><td><%=luci.sys.exec("/opt/lantiq/bin/system_info.sh omcid_version")%></td></tr>
 		<tr><td width="33%"><%:Kernel Version%></td><td><%=luci.sys.exec("uname -r")%></td></tr>
@@ -571,6 +586,7 @@ You may obtain a copy of the License at
 	</table>
 </fieldset>
 
+<%-- 8311 mod: entire GPON Status section -- not present in stock LuCI --%>
 <fieldset class="cbi-section">
 	<legend><%:GPON Status%></legend>
 
@@ -673,6 +689,7 @@ You may obtain a copy of the License at
 </fieldset>
 <% end %>
 
+<%-- Plugin extension point: include any .htm fragments from view/admin_status/index/ --%>
 <%-
 	require "luci.util"
 	require "nixio.fs"

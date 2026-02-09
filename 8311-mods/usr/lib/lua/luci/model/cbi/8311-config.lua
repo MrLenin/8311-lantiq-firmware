@@ -1,6 +1,27 @@
 --[[
 LuCI - Lua Configuration Interface
 
+8311 Configuration CBI Form
+===========================
+Main UCI/CBI configuration form for the 8311 firmware mod, served at
+admin/gpon/config. Reads and writes the UCI config file /etc/config/8311
+(section "config").
+
+Organized into tabs:
+  PON      - Serial number, vendor/equipment IDs, software versions,
+             OMCC, registration, PLOAM, MIB file selection, UNI type
+  VLAN     - VLAN tagging service, upstream/downstream VLAN operations,
+             multicast, N:1 mode, mapper overrides, IGMP
+  Device   - Boot delay, serial console, dying gasp, RX LOS, failsafe
+  Advanced - OMCID binary patching, 802.1x, signal status, TX control,
+             PLOAM workarounds, logging
+  Reboot   - Automatic reboot on no-O5 state, LCT interface restart,
+             IP monitoring, scheduled reboot
+
+After commit, on_after_commit runs config_onu.sh with multiple verbs to
+apply the new settings, then restarts the VLAN, OMCI monitor, and optic
+monitor services.
+
 Copyright 2011 Ralph Hempel <ralph.hempel@lantiq.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +35,24 @@ require("luci.tools.gpon")
 
 local tools = require "8311.tools"
 
+-- Map("8311") binds this form to /etc/config/8311
 local config_map = Map("8311")
 
+-- Use our custom "map" template (view/map.htm) which adds tab support
+-- at the Map level, rather than the stock cbi/map template.
 config_map.template = "map"
 
 local uci = require("luci.model.uci").cursor()
 local config_section = uci:get_all("8311", "config")
 
+-- After UCI commit, apply changes by calling config_onu.sh with each verb:
+--   set        - write PON identity settings to the firmware environment
+--   mod        - apply OMCID binary patches (if mod_omcid is enabled)
+--   disable    - apply disable flags (sigstatus, etc.)
+--   ignore     - apply PLOAM ignore flags
+--   reboot     - configure auto-reboot behavior
+--   switchasc  - apply serial console / dying gasp pin mux settings
+-- Then restart the runtime services that depend on these settings.
 function config_map.on_after_commit(configMap)
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh set")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh mod")
@@ -34,6 +66,8 @@ function config_map.on_after_commit(configMap)
 	luci.sys.call("/etc/init.d/monitoptic restart")
 end
 
+-- Shared validator for firmware bank override fields.
+-- Accepts empty string (no override), "A", or "B".
 local function validate_bank(value)
 	local pattern = "^[AB]?$"
 	if not string.match(value, pattern) then return nil end
@@ -60,6 +94,7 @@ local gpon_sn =
 
 gpon_sn.datatype = "and(string, maxlength(12))"
 
+-- PON serial number: 4 alphanumeric vendor chars + 8 hex digits
 function gpon_sn.validate(self, value)
 	local pattern = "^%w%w%w%w%x%x%x%x%x%x%x%x$"
 	if not string.match(value, pattern) then return nil end
@@ -297,6 +332,8 @@ local us_vlan_id =
 us_vlan_id.datatype = "string"
 us_vlan_id.rmempty = true
 
+-- Accept "u" for untagged mode, or a numeric VLAN ID 0-4094.
+-- The tostring(n)==value check rejects strings like "007" or "1.0".
 function us_vlan_id.validate(self, value)
 	if value == "u" then return value end
 	local n = tonumber(value)
@@ -378,6 +415,8 @@ local vlan_mapper_map =
 vlan_mapper_map.datatype = "string"
 vlan_mapper_map.rmempty = true
 
+-- Validate comma-separated VID:MAPPER_HEX pairs (e.g. "34:1102,35:1103").
+-- Each VID must be in the valid VLAN range 1-4094, mapper must be hex.
 function vlan_mapper_map.validate(self, value)
 	if value == "" then return value end
 	for pair in string.gmatch(value, "([^,]+)") do
@@ -483,7 +522,9 @@ failsafe_delay.rmempty = true
 ---------------------------------------
 -- Advanced Tab Start
 ---------------------------------------
--- This section's not bad, but could still have improved language
+-- Options here modify the omcid binary at runtime (patching), which is
+-- inherently risky -- an incorrect patch can cause a boot loop.
+-- Most options are gated behind the mod_omcid flag via :depends().
 local mod_omcid =
 	config:taboption("advanced", Flag, "mod_omcid", translate("Patch OMCID"),
 	translate("Change the behavior of OMCID by patching the binary. WARNING: " ..
@@ -547,7 +588,13 @@ disable_sigstatus.rmempty = true
 
 local enable_txstatus =
 	config:taboption("advanced", Flag, "enable_txstatus", translate("Force Enable " ..
-	"Optic TX"), translate("Re-enable optic TX on detection that TX status is disabled."))
+	"Optic TX"), translate("WARNING: On a shared PON, the laser may have been " ..
+	"disabled for a legitimate safety reason (OLT rogue-ONU detection, hardware " ..
+	"overcurrent fault, emergency stop). This option monitors for unexpected TX " ..
+	"disable events and re-enables the laser, but only when the ONU is in O5 " ..
+	"state, no emergency stop is active, and downstream RX signal is present. " ..
+	"Only enable this if you are experiencing a known BOSA firmware bug that " ..
+	"silently disables TX during normal operation."))
 
 enable_txstatus.datatype = "bool"
 enable_txstatus.default = false
@@ -596,7 +643,9 @@ omci_log_level:value("7")
 ---------------------------------------
 -- Reboot Tab Start
 ---------------------------------------
--- This whole section needs better naming and language
+-- Auto-recovery settings: reboot or restart LCT when connectivity is lost.
+-- These help recover from stuck PON states but carry the risk of reboot
+-- loops if monitor IPs are misconfigured.
 local tryreboot =
 	config:taboption("reboot", Flag, "tryreboot", translate("Reboot OpenWrt on No-O5"),
 	translate("Reboot OpenWrt if no O5 state is obtained while there is no Loss of Signal for" ..

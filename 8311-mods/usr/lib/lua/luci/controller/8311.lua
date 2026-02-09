@@ -1,6 +1,21 @@
 --[[
 LuCI - Lua Configuration Interface
 
+8311 Controller
+===============
+Main LuCI controller for the 8311 firmware mod. Defines the admin menu
+structure and dispatches pages for:
+  - Configuration (PON, VLAN, device, management settings via fwenv or CBI)
+  - PON Status (proxies gtop/otop CLI output to the browser)
+  - PON ME Explorer (OMCI managed-entity dump viewer)
+  - VLAN Tables (extended VLAN rule decoder)
+  - Module Information (optic/GTC info template)
+  - Optic Calibration and Network Address CBI forms
+
+Two parallel menu trees are registered:
+  "admin/8311/*"  -- the original fwenv-based configuration UI
+  "admin/gpon/*"  -- the newer UCI/CBI-based configuration UI
+
 Copyright 2011 Ralph Hempel <ralph.hempel@lantiq.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +45,9 @@ local fs = require "nixio.fs"
 local support_file = "/tmp/support.tar.gz"
 
 function index()
+	-----------------------------------------------------------------------
+	-- Menu tree: admin/8311/* (fwenv-based configuration UI)
+	-----------------------------------------------------------------------
 	entry({"admin", "8311"}, firstchild(), _("8311"), 99).dependent=false
 	entry({"admin", "8311", "config"}, call("action_config"), _("Configuration"), 1)
 	entry({"admin", "8311", "pon_status"}, call("action_pon_status"), _("PON Status"), 2)
@@ -40,6 +58,8 @@ function index()
 	-- entry({"admin", "8311", "save"}, post_on({ data = true }, "action_save"))
 	--entry({"admin", "8311", "get_hook_script"}, call("action_get_hook_script")).leaf=true
 	--entry({"admin", "8311", "save_hook_script"}, call("action_save_hook_script")).leaf=true
+
+	-- leaf=true allows the URL path to continue (e.g. /pontop/gtop_status)
 	entry({"admin", "8311", "pontop"}, call("action_pontop")).leaf=true
 	entry({"admin", "8311", "pon_dump"}, call("action_pon_dump")).leaf=true
 	entry({"admin", "8311", "vlans", "extvlans"}, call("action_vlan_extvlans"))
@@ -47,6 +67,10 @@ function index()
 
 --	entry({"admin", "8311", "firmware"}, call("action_firmware"), _("Firmware"), 6);
 
+	-----------------------------------------------------------------------
+	-- Menu tree: admin/gpon/* (UCI/CBI-based configuration UI)
+	-- These use standard LuCI CBI model files for form rendering.
+	-----------------------------------------------------------------------
 	entry({"admin", "gpon"}, alias("admin", "gpon", "config"), _("8311"), 80).index = true
 	entry({"admin", "gpon", "config"}, cbi("8311-config"), _("Configuration"), 30).index = true
 	entry({"admin", "gpon", "management"}, cbi("8311-management"), _("Network Addresses"), 40).index = true
@@ -58,6 +82,13 @@ function action_information()
 	luci.template.render("lantiq/gpon-gtc-info")
 end
 
+--[[
+	pontop_page_details()
+	Returns the full list of gtop/otop diagnostic pages.
+	Each entry maps a short id (used in URLs) to the exact page name string
+	expected by the gtop/otop CLI, plus a translatable label for the UI.
+	Entries with otop=true are queried via /opt/lantiq/bin/otop instead of gtop.
+]]--
 function pontop_page_details()
 	return {{
 			id="gtop_status",
@@ -221,6 +252,9 @@ function pontop_page_details()
 	}
 end
 
+-- Build a lookup table from page id -> {page name, otop flag} for quick
+-- dispatch in action_pontop(). Strips out the UI label since it isn't
+-- needed at dispatch time.
 function pontop_pages()
 	local details = pontop_page_details()
 	local pages = {}
@@ -231,10 +265,24 @@ function pontop_pages()
 	return pages
 end
 
+-- Callback invoked when the language option is changed in the fwenv config UI.
+-- Persists the selection to UCI so LuCI picks it up on next page load.
 function language_change(value)
 	util.exec("uci set luci.main.lang=" .. util.shellquote(value) .. " && uci commit luci")
 end
 
+--[[
+	fwenvs_8311()
+	Builds the complete form definition for the fwenv-based configuration page
+	(admin/8311/config). Returns a table of categories, each containing a list
+	of option items with metadata (type, validation, defaults, etc.).
+
+	This is the data model for the *original* config UI that reads/writes
+	firmware environment variables directly (via fw_getenv/fw_setenv), as
+	opposed to the newer CBI-based UI under admin/gpon/*.
+
+	Categories: PON, ISP Fixes, Device, Management
+]]--
 function fwenvs_8311()
 	local zones = util.trim(util.exec("grep -v '^#' /usr/share/zoneinfo/zone.tab  | awk '{print $3}' | sort -uV ; echo UTC"))
 	local timezones = {}
@@ -664,9 +712,13 @@ function fwenvs_8311()
 	}
 end
 
+-- Proxy handler for gtop/otop diagnostic pages. Called via XHR from the
+-- PON Status page. The page_id comes from the URL path (leaf=true on the
+-- route allows it to pass through). Runs the appropriate CLI tool with
+-- "-b" (batch/non-interactive) and streams the text output back.
 function action_pontop(page_id)
 	local cmd
-	
+
 	page_id = page_id or "Status"
 
 	local pages = pontop_pages()
@@ -675,6 +727,7 @@ function action_pontop(page_id)
 		return false
 	end
 
+	-- Select gtop or otop based on the page's otop flag
 	if not pages[page_id].otop then
 		cmd = string.format("/opt/lantiq/bin/%s -g \"%s\" -b", "gtop", pages[page_id].page)
 	else
@@ -699,6 +752,9 @@ function action_vlans()
 	ltemplate.render("8311/vlans", {})
 end
 
+-- Runs the extended VLAN decoder script twice: first with "-t" (table
+-- summary), then without flags (full rule dump). Output is streamed as
+-- plain text for display in the VLAN Tables page.
 function action_vlan_extvlans()
 	luci.http.prepare_content("text/plain; charset=utf-8")
 
@@ -733,6 +789,10 @@ function action_support_download()
 	ltn12.pump.all(archive, luci.http.write)
 end
 
+-- Merge the form definition from fwenvs_8311() with current values read
+-- from the firmware environment. Items flagged "base" are read from the
+-- standard U-Boot env; everything else comes from the 8311 partition.
+-- Base64-encoded items (e.g. fw_match_b64) are decoded for display.
 function populate_8311_fwenvs()
 	local fwenvs = fwenvs_8311()
 	local fwenvs_values = tools.fw_getenvs_8311()
@@ -763,6 +823,13 @@ function action_config()
 	})
 end
 
+-- POST handler for saving the fwenv-based configuration form.
+-- Compares each submitted value against the current fwenv value and only
+-- writes changes. Special handling:
+--   - Checkboxes: avoid storing redundant default values
+--   - base64 items: re-encode before writing
+--   - "change" callbacks (e.g. language_change): invoked before write
+--   - "base" items: written to the standard U-Boot env, not the 8311 partition
 function action_save()
 	local value = nil
 	if http.getenv('REQUEST_METHOD') == 'POST' then
@@ -772,6 +839,7 @@ function action_save()
 			for itemid, item in pairs(cat.items) do
 				value = formvalue(item.id) or ''
 
+				-- Normalize checkbox values: don't persist if equal to default
 				if item.type == 'checkbox' then
 					if item.value == '' and ((item.default and value == '1') or (not item.default and (value == '0' or value == ''))) then
 						value = ''
@@ -779,6 +847,7 @@ function action_save()
 						value = '0'
 					end
 				elseif item.value == '' and item.default and value == item.default then
+					-- Don't store value if it matches the default and was previously unset
 					value = ''
 				end
 
@@ -812,6 +881,10 @@ function action_pon_explorer()
 	})
 end
 
+-- Fetches a single OMCI managed entity instance via omci_pipe.sh.
+-- Called from the PON ME Explorer to drill into a specific ME.
+-- Both me_id and instance_id are validated as pure digit strings to
+-- prevent shell injection.
 function action_pon_dump(me_id, instance_id)
 	if not me_id or not me_id:match("^%d+$") or
 	   not instance_id or not instance_id:match("^%d+$") then
@@ -826,6 +899,9 @@ function action_pon_dump(me_id, instance_id)
 	luci.http.write(output)
 end
 
+-- Firmware upgrade page handler. Manages the upload/validate/install
+-- lifecycle for firmware .tar files. Supports actions: validate, install,
+-- install_reboot, cancel, and reboot.
 function action_firmware()
 	local version = require "8311.version"
 	local altversion = {
@@ -959,9 +1035,11 @@ function supportOut(data)
 	supportOutput = (supportOutput or '') .. data
 end
 
---location: (string) The full path to where the file should be saved.
---input_name: (string) The name specified by the input html field.  <input type="submit" name="input_name_here" value="whatever you want"/>
---file_name: (string, optional) The optional name you would like the file to be saved as. If left blank the file keeps its uploaded name.
+-- Registers a chunked file upload handler with LuCI's HTTP layer.
+-- location:   (string) Directory path to save the uploaded file into.
+-- input_name: (string) HTML input field name to accept uploads from.
+-- file_name:  (string, optional) Override filename; defaults to the
+--             uploaded file's original name if not provided.
 function setFileHandler(location, input_name, file_name)
 	local fp
 

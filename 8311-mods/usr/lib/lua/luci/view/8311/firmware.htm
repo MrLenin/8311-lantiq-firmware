@@ -1,3 +1,23 @@
+<%--
+  firmware.htm -- Firmware upgrade / dual-bank management page
+
+  Displays active and inactive firmware bank info (version, revision,
+  variant) and provides a multi-step upgrade workflow:
+    1. Upload  -> validates the .tar firmware file
+    2. Install -> writes to the inactive bank
+    3. Reboot  -> switches to the newly written bank
+
+  Context variables (set by controller/8311.lua):
+    version     : { bank, version, revision, variant } -- active bank
+    altversion  : { bank, version, revision, variant } -- inactive bank
+    firmware_file_exists : bool -- upload already staged in /tmp
+    firmware_action      : string -- current workflow step
+    firmware_exec        : { code } -- result of last firmware operation
+    firmware_output      : string -- log output to display
+
+  JS dependencies: 8311.js (uploadFirmware, installFirmware, cancelFirmware,
+                   rebootFirmware)
+--%>
 <%
 local tools = require "8311.tools"
 local esc = tools.html_escape

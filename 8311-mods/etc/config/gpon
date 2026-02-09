@@ -32,14 +32,9 @@ config gpon 'ethernet'
 config gpon 'gpe'
 	option nPeNumber '4'
 
-config onu 'onu'
-	option iopmask '0'
-	option igmp_version '3'
-	option mib_customized '0'
-	option vendor_id 'ALCL'
-	option hw_ver '3FE56641AAAA01'
-	option equipment_id 'BVL3A5HNAAG010SP'
-	option uni_type 'pptp'
+# NOTE: The 'onu' section that was previously here has been moved to
+# /etc/config/8311 (section 'config').  All scripts now reference
+# 8311.config.* instead of gpon.onu.*.
 
 config gpon 'goi'
 

@@ -1,3 +1,14 @@
+<%--
+  pon_me.htm -- PON Managed Entity Explorer
+
+  Displays a clickable list of OMCI managed entities (pre-rendered by
+  the controller into the `omci` variable).  Clicking an ME row
+  triggers a JS fetch that populates the #me_dump <pre> with the full
+  attribute dump for that class/instance.
+
+  Context variables:
+    omci : pre-formatted HTML string of ME links (from controller)
+--%>
 <%+header%>
 <script type="text/javascript" src="<%=resource%>/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="<%=resource%>/view/8311.js"></script>

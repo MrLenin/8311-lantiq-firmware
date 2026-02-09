@@ -1,16 +1,31 @@
 #!/bin/sh
 # 8311 firmware update guard - fw_setenv wrapper
 #
-# Blocks committed_image changes from OMCI firmware updates to prevent
-# boot order corruption when the mtd write has been blocked.
-# Allows imageX_version and imageX_is_valid through for OLT compliance.
+# Replaces the stock /usr/sbin/fw_setenv binary to intercept U-Boot
+# environment changes triggered by OMCI firmware updates. After omcid
+# downloads and (attempts to) flash a new image, it calls fw_setenv to
+# set committed_image to the newly written slot so the bootloader boots
+# from it on the next reboot. If the mtd wrapper already blocked the
+# actual flash write, allowing this committed_image change would cause
+# the device to boot from an empty/stale partition -- bricking it.
+#
+# This wrapper blocks ONLY committed_image writes. Other fw_setenv calls
+# (e.g., imageX_version, imageX_is_valid) are allowed through so the OLT
+# sees correct version/validity info and does not keep retrying the update.
+#
+# The original fw_setenv binary is preserved at /usr/sbin/fw_setenv.real.
+#
+# Works in tandem with the mtd wrapper (/sbin/mtd) which blocks the
+# actual firmware flash to MTD.
 #
 # Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
 # Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
 # Bypass:  /usr/sbin/fw_setenv.real [args]
 
+# $1 is the U-Boot env variable name being set
 case "$1" in
 	committed_image)
+		# Guard enabled: block to prevent boot-partition switch to an unwritten slot
 		if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
 			logger -t 8311-fw-guard "Blocked fw_setenv $*"
 			exit 0
@@ -18,4 +33,5 @@ case "$1" in
 		;;
 esac
 
+# Not a guarded variable (or guard disabled) -- pass through to the real fw_setenv
 exec /usr/sbin/fw_setenv.real "$@"

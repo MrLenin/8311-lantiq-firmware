@@ -1,12 +1,30 @@
 #!/bin/sh
+# config_onu.sh — ONU configuration and identity management
+#
+# Called by omcid.sh init script and by LuCI backend handlers to manage:
+#   - GPON serial number, PLOAM/LOID credentials (via sfp_i2c EEPROM writes)
+#   - Vendor ID, equipment ID, HW version (MIB customization for ISP spoofing)
+#   - Network interface settings (LCT IP, gateway, MAC addresses)
+#   - omcid binary patching (version string, 802.1x enforcement)
+#   - RX LOS GPIO override, factory reset, console/ASC toggle
+#
+# Usage: config_onu.sh <command>
+# Commands: load, set, init, setip, update, mod, restore_sw_ver, restore_8021x,
+#           ignore, disable, rebootcause, rebootnum, reboot, switch, switchasc,
+#           initasc, factoryreset
+#
+# Dependencies: sfp_i2c, fw_printenv/fw_setenv, uci, onu CLI
 
 command=$1
 
+# Stock Alcatel G-010S-P identity values (used for factory reset)
 STOCK_EQUIPMENT_ID="BVL3A5HNAAG010SP"
 STOCK_HW_VER="3FE56641AAAA01"
 STOCK_VENDOR_ID="ALCL"
-omcid_stock_csum="b78fb6fa62fa967096af0e21c5a5879d"
+omcid_stock_csum="0da3eb0b76af1df5f4df414e3fc09dbb"  # MD5 of baked-in patched omcid binary
 
+# Read current identity from firmware env and sync to UCI config.
+# Called during initial setup to populate the web UI with current values.
 load_config() {
 	local gpon_sn
 	local omci_loid
@@ -32,6 +50,10 @@ load_config() {
 	uci commit 8311.config.vendor_id
 }
 
+# Apply UCI identity config to firmware env and EEPROM. Compares current values
+# against stored values and only writes on change. Handles two serial number
+# formats: 8-char ASCII ("ALCL12345678") or 16-char hex-encoded vendor + serial.
+# Also manages MIB customization (vendor/equipment/HW overrides for ISP spoofing).
 set_config() {
 	local gpon_sn
 	local omci_loid
@@ -71,6 +93,8 @@ set_config() {
 
 	gpon_sn_len=${#gpon_sn}
 
+	# 16-char hex SN format: first 8 chars = hex-encoded 4-char vendor (e.g.
+	# "414c434c" -> "ALCL"), last 8 chars = hex serial number
 	if [ -n "$gpon_sn_len" ] && [ "$gpon_sn_len" = "16" ]; then
 		gpon_sn_vendor=$(echo "$gpon_sn" | cut -c 1-8 | /usr/bin/xxd -r -ps)
 		gpon_sn_serial=$(echo "$gpon_sn" | cut -c 9-16)
@@ -160,6 +184,9 @@ set_config() {
 	fi
 }
 
+# Apply all identity settings unconditionally (no change detection).
+# Called once during omcid.sh init before omcid starts. Also handles
+# MIB customization and clears the rebootdirect flag.
 init_config() {
 	local gpon_sn
 	local omci_loid
@@ -256,6 +283,8 @@ init_config() {
 	uci -q commit 8311.config
 }
 
+# Sync network settings (LCT IP/gateway/MAC, host MAC) between UCI and firmware env.
+# LCT = Local Craft Terminal (management interface on the SFP stick).
 set_ip() {
 	local lct_addr
 	local lct_gateway
@@ -319,6 +348,9 @@ set_ip() {
 	fi
 }
 
+# Patch the omcid binary in-place. Copies to /tmp, applies patches, copies back.
+# Safety: only patches if MD5 matches either stock checksum or the last-patched
+# checksum (stored in UCI). This prevents double-patching or patching unknown binaries.
 mod_omcid() {
 	local mod_omcid
 	local omcid_csum
@@ -330,6 +362,8 @@ mod_omcid() {
 
 	logger -t "[config_onu]" "Patching OMCID ..."
 
+	# Allow patching if: (a) stock binary (no prior patches), or
+	# (b) previously-patched binary (checksum matches our last known state)
 	if [ -n "$mod_omcid" ] &&
 		{ { [ -z "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_stock_csum" ]; } ||
 		  { [ -n "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_csum" ]; }; }; then
@@ -354,6 +388,9 @@ mod_omcid() {
 	fi
 }
 
+# Patch the omcid version string at a fixed binary offset.
+# $1 = new version string (max 58 chars, zero-padded to 58 bytes)
+# The version string is reported by omcid -v and visible to the OLT.
 mod_omcid_version() {
 	local omcid_version_cut
 	local omcid_version_current
@@ -363,11 +400,12 @@ mod_omcid_version() {
 	omcid_version_cut=$(echo "$omcid_version_user" | cut -c 1-58)
 	omcid_version_current=$(/opt/lantiq/bin/omcid -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75)
 
+	# Convert version string to hex, zero-pad to 116 hex chars (58 bytes)
 	printf '%s' "$omcid_version_cut" | hexdump -e '60/1 "%02x" "\n"' |
 		awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf "%c", 0; print ""}' |
 		cut -c 1-116 | xxd -r -p >/tmp/omcid_ver
 
-	#local omcid_version_offset_1=307944
+	# Binary offset in omcid where the version string is stored
 	local omcid_version_offset_2=316133
 
 	if [ "$omcid_version_cut" != "$omcid_version_current" ]; then
@@ -377,6 +415,8 @@ mod_omcid_version() {
 	fi
 }
 
+# Patch omcid to disable 802.1x enforcement by zeroing one byte.
+# Offset 275849 is a boolean flag in the omcid binary; 0x01=enforce, 0x00=disable.
 mod_omcid_8021x() {
 	local omcid_8021x_offset=275849
 
@@ -384,6 +424,7 @@ mod_omcid_8021x() {
 	printf '\x00' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
 }
 
+# Restore 802.1x enforcement in omcid by writing 0x01 back to the patch offset.
 restore_omcid_8021x() {
 	local omcid_version
 	local omcid_csum
@@ -416,6 +457,7 @@ restore_omcid_8021x() {
 	fi
 }
 
+# Restore the stock omcid version string to the binary.
 restore_omcid_version() {
 	local disable_8021x
 	local omcid_csum
@@ -456,6 +498,9 @@ restore_omcid_version() {
 	fi
 }
 
+# Toggle RX LOS (Loss of Signal) GPIO pin status. When disabled (rx_los=1),
+# forces the LOS pin low so the host device doesn't see a false LOS alarm.
+# When re-enabled, unexports the GPIO and restores onu LOS pin config.
 disable_rx_los_status() {
 	local los_pin
 	local LTQ_BIN
@@ -466,7 +511,9 @@ disable_rx_los_status() {
 	LTQ_BIN=/opt/lantiq/bin
 	los_pin=$(uci -q get sfp_pins.@pin[2].pin)
 	rx_los=$(uci -q get 8311.config.rx_los)
+	# -1 = pin disabled in onu firmware
 	rx_los_status_current1=$($LTQ_BIN/onu onu_los_pin_cfg_get | tee /dev/null | cut -f 3 -d '=')
+	# Check if GPIO is currently driven low
 	rx_los_status_current2=$(grep "gpio-$los_pin " /sys/kernel/debug/gpio | grep -c "lo")
 
 	if [ "$rx_los" = "1" ] &&
@@ -499,6 +546,7 @@ disable_rx_los_status() {
 	fi
 }
 
+# Toggle whether the ONU ignores PLOAM RX message loss events.
 ignore_rx_msg_lost() {
 	local ignore_rx_msg_lost
 
@@ -515,6 +563,8 @@ ignore_rx_msg_lost() {
 	fi
 }
 
+# Update GOI (GPON Optic Interface) calibration data in firmware env.
+# Expects base64-encoded data with specific delimiters ("begin-base64 644 goi_config@...@====@").
 update_goi() {
 	local goi_value
 	local goi_cur
@@ -532,6 +582,7 @@ update_goi() {
 	fi
 }
 
+# Read and clear the reboot cause from firmware env. Saves to /tmp for LuCI.
 rebootcause() {
 	local rebootcause
 
@@ -541,6 +592,7 @@ rebootcause() {
 	fw_setenv rebootcause 0
 }
 
+# Read reboot attempt counts from firmware env. Saves to /tmp for vlanexec.sh.
 rebootnum() {
 	local reboots_count
 	local omcid_reboot_count
@@ -560,6 +612,7 @@ rebootnum() {
 	echo "$omcid_reboot_count" >/tmp/omcid_reboot_count
 }
 
+# Execute a delayed reboot if rebootdirect flag is set (via LuCI).
 rebootdelay() {
 	local rebootdirect
 	local rebootwait
@@ -573,6 +626,7 @@ rebootdelay() {
 	fi
 }
 
+# Switch the committed boot image to the other firmware bank.
 switchimage() {
 	local imagenext
 
@@ -582,6 +636,7 @@ switchimage() {
 	fw_setenv "image${imagenext}_is_valid" 1
 }
 
+# Toggle the TTL serial console (ASC0). asc0=0 enables console, asc0=1 disables.
 switchasc() {
 	local console_en_env
 	local console_en
@@ -600,6 +655,7 @@ switchasc() {
 	fi
 }
 
+# Sync UCI console_en state with the firmware env asc0 value on boot.
 initasc() {
 	local console_en_env
 	local console_en
@@ -620,6 +676,8 @@ initasc() {
 	fi
 }
 
+# Clear all identity data from EEPROM and reset network settings to defaults.
+# sfp_i2c indices: 6=equipment_id, 7=vendor_id, 8=serial, 9=LOID, 10=LOID pw, 11=PLOAM pw
 factoryreset() {
 	logger -t "[config_onu]" "Factory Resetting ..."
 	/opt/lantiq/bin/sfp_i2c -i6 -s ""
@@ -634,6 +692,7 @@ factoryreset() {
 	fw_setenv ethaddr 'ac:9a:96:00:00:00'
 }
 
+# Command dispatch
 case $command in
 load)
 	load_config

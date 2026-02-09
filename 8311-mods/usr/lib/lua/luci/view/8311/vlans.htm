@@ -1,3 +1,10 @@
+<%--
+  vlans.htm -- VLAN Tables display page
+
+  Shows a read-only dump of all active VLAN filter/treatment rules
+  programmed by vlanexec.sh.  Content is fetched asynchronously by the
+  vlanTables() JS function on page load and rendered into the textarea.
+--%>
 <%+header%>
 <script type="text/javascript" src="<%=resource%>/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="<%=resource%>/view/8311.js"></script>

@@ -1,5 +1,6 @@
 --[[
 LuCI - Utility library
+(stock OpenWRT -- included unmodified for the 8311 firmware rootfs)
 
 Description:
 Several common useful Lua functions

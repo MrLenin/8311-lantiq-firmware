@@ -1,8 +1,12 @@
 --[[
-LuCI - Dispatcher
+LuCI - Dispatcher (upstream + 8311 backport)
 
 Description:
-The request dispatcher and module dispatcher generators
+The request dispatcher and module dispatcher generators.
+Stock OpenWRT LuCI dispatcher with one addition:
+  - lookup() function (after _create_node) backported from newer LuCI to
+    support dispatcher node resolution from arbitrary path arguments.
+    Used by the bootstrap theme header for menu rendering.
 
 FileId:
 $Id: dispatcher.lua 9018 2012-08-14 15:31:26Z jow $
@@ -666,6 +670,10 @@ function node(...)
 	return c
 end
 
+--- lookup(...) -- Backported from newer LuCI.
+--- Resolve a dispatcher node from path segments. Walks the tree cache
+--- from the full path backwards until it finds a matching (leaf) node.
+--- Returns (node, url) or nil if no match.
 function lookup(...)
 	local i, path = nil, {}
 	for i = 1, select('#', ...) do

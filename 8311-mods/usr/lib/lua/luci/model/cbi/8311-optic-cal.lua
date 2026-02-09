@@ -1,6 +1,26 @@
 --[[
 LuCI - Lua Configuration Interface
 
+Optic Calibration CBI Form
+===========================
+Manages the GOI (GPON Optic Interface) calibration data stored in the
+U-Boot environment. This data contains laser bias, modulation, and
+receive power calibration values specific to the individual SFP module.
+
+The form has two modes:
+  - If GOI calibration data already exists in the env: shows a "Confirm
+    Overwrite" checkbox (default unchecked) to protect against accidental
+    overwrites, since incorrect values risk damaging the laser.
+  - If no GOI data exists: shows an "Enter Calibration Information"
+    checkbox (default checked) prompting the user to paste it.
+
+The calibration value is a large base64 blob (~1000+ chars), displayed
+in a TextValue with a minimum-length validation.
+
+On commit, config_onu.sh update writes the UCI value to the firmware env.
+The Save button additionally calls goi_store_uboot.sh (only when no
+existing env data was present, as a first-time provisioning step).
+
 Copyright 2011 Ralph Hempel <ralph.hempel@lantiq.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +35,9 @@ require("luci.tools.gpon")
 local fs = require "nixio.fs"
 local sys = require 'luci.controller.admin.system'
 
+-- Check whether GOI calibration data exists in the U-Boot env.
+-- If it does, dump it to a temp file so the TextValue can display it.
+-- goi_len > 0 means calibration data is already present.
 local goi_exist =
 	luci.util.exec("fw_printenv -n goi_config 2>&- && fw_printenv -n goi_config " ..
 	">/tmp/goi_env")
@@ -33,7 +56,9 @@ local gpon_map = Map("gpon", translate("Optic Calibration"))
 -- 'goi' - section
 local goi_section = gpon_map:section(NamedSection, "goi", "GOI")
 
--- 'goi' - option
+-- Show different UI depending on whether calibration data already exists.
+-- When data exists: default to NOT overwriting (safety measure).
+-- When data is absent: default to allowing entry.
 local overwrite
 if ( goi_len ~= 0 ) then
 		overwrite =
@@ -61,6 +86,8 @@ else
 		overwrite.rmempty = false
 end
 
+-- Only write to the firmware env if the user explicitly confirmed.
+-- This prevents accidental overwrites when navigating the page.
 function gpon_map.on_after_commit(map)
 	local ow = overwrite:formvalue("goi") or "0"
 	if ow == "1" then
@@ -82,6 +109,8 @@ goi_value.rows = 15
 
 goi_value:depends("overwrite","1")
 
+-- Read the current value from the temp file (dumped from fwenv at page load),
+-- not from UCI, since GOI data lives in the firmware environment.
 function goi_value.cfgvalue()
 	return fs.readfile(goi_env) or ""
 end
@@ -94,10 +123,12 @@ save_button.inputstyle = "apply"
 
 save_button:depends("overwrite","1")
 
+-- Only run goi_store_uboot.sh for first-time provisioning (no existing data).
+-- If data already exists, the on_after_commit path handles updates instead.
 function save_button.write(self, section, value)
 	if ( goi_len == 0 ) then
 		luci.sys.call("/opt/lantiq/bin/goi_store_uboot.sh 2>&-")
 	end
-end  
+end
 
 return gpon_map

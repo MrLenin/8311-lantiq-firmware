@@ -1,16 +1,29 @@
 #!/bin/sh
 # 8311 firmware update guard - mtd wrapper
 #
-# Intercepts OMCI-triggered firmware writes (omcid writing /tmp/image[01].img
-# to MTD) while passing through all other mtd operations transparently.
+# Replaces the stock /sbin/mtd binary to intercept OMCI-triggered firmware
+# writes. When the OLT pushes a firmware image via OMCI Software Download,
+# omcid downloads it to /tmp/image[01].img and then calls `mtd write` to
+# flash it. This wrapper detects those specific image paths and blocks the
+# write when the guard is enabled, preventing the ISP from overwriting
+# custom firmware. All other mtd operations (erase, unlock, etc.) pass
+# through transparently.
+#
+# The original mtd binary is preserved at /sbin/mtd.real.
+#
+# Works in tandem with the fw_setenv wrapper (/usr/sbin/fw_setenv) which
+# blocks the corresponding committed_image change that would switch the
+# boot partition to the (now-empty) target slot.
 #
 # Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
 # Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
 # Bypass:  /sbin/mtd.real [args]
 
+# Scan all arguments for OMCI firmware image paths
 for arg in "$@"; do
 	case "$arg" in
 		/tmp/image0.img|/tmp/image1.img)
+			# Guard enabled: silently block the write (exit 0 so omcid thinks it succeeded)
 			if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
 				logger -t 8311-fw-guard "Blocked OMCI firmware write: mtd $*"
 				exit 0
@@ -19,4 +32,5 @@ for arg in "$@"; do
 	esac
 done
 
+# No guarded path found (or guard disabled) -- pass through to the real mtd
 exec /sbin/mtd.real "$@"

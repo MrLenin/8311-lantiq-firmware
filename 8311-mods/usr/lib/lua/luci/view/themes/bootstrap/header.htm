@@ -3,6 +3,18 @@
  Copyright 2008-2016 Jo-Philipp Wich <jow@openwrt.org>
  Copyright 2012 David Menting <david@nut-bolt.nl>
  Licensed to the public under the Apache License 2.0.
+
+ header.htm -- Bootstrap theme header (upstream, minimal 8311 mods)
+
+ Renders the full HTML document head, top navigation bar, and sidebar
+ menu tree.  Mostly stock LuCI bootstrap theme.  The navigation structure
+ is driven by the LuCI dispatcher node tree, which includes 8311-specific
+ pages registered in controller/8311.lua.
+
+ Key functions defined here:
+   nodeurl(prefix, name, query) - build a URL for a dispatcher node
+   subtree(prefix, node, level) - recursively render tab menus for level>2
+   submenu(prefix, node)        - render dropdown sub-menus in the top nav
 -%>
 
 <%

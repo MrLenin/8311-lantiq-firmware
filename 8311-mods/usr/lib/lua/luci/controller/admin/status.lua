@@ -1,5 +1,6 @@
 --[[
 LuCI - Lua Configuration Interface
+(upstream + 8311 mod: firewall/iptables menu entry removed)
 
 Copyright 2008 Steven Barth <steven@midlink.org>
 Copyright 2011 Jo-Philipp Wich <xm@subsignal.org>
@@ -11,6 +12,10 @@ You may obtain a copy of the License at
 	http://www.apache.org/licenses/LICENSE-2.0
 
 $Id: status.lua 9678 2013-03-07 12:17:43Z jow $
+
+8311 mod: The firewall status (iptables) menu entry has been removed from
+index() since the SFP stick does not run a firewall.  The action_iptables()
+function is retained but unreachable (no route exposes it).
 ]]--
 
 module("luci.controller.admin.status", package.seeall)
@@ -47,6 +52,7 @@ function action_dmesg()
 	luci.template.render("admin_status/dmesg", {dmesg=dmesg})
 end
 
+-- 8311: Unreachable -- no menu entry routes to this action (firewall removed).
 function action_iptables()
 	if luci.http.formvalue("zero") then
 		if luci.http.formvalue("zero") == "6" then

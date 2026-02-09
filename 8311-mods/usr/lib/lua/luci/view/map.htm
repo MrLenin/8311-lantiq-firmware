@@ -1,3 +1,9 @@
+<!-- map.htm: Simple (non-tabbed) Map template (8311 custom)
+     Used for CBI forms that don't need Map-level tabs (e.g. management,
+     optic-cal). Scrolls to top after render so the user sees validation
+     messages. This replaces the stock cbi/map template when config_map.template
+     is set to "map" in the CBI model.
+-->
 <%- if firstmap and messages then local msg; for _, msg in ipairs(messages) do -%>
 	<div class="errorbox"><%=pcdata(msg)%></div>
 <%- end end -%>

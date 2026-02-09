@@ -1,6 +1,9 @@
 #!/usr/bin/env lua
 -- Lua 5.1+ base64 v3.0 (c) 2009 by Alex Kloss <alexthkloss@web.de>
 -- licensed under the terms of the LGPL2
+--
+-- Third-party library included unmodified.  Used by the 8311 LuCI
+-- interface for base64-encoded firmware environment variable handling.
 
 -- character table string
 local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'

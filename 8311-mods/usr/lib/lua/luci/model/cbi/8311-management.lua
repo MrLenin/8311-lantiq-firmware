@@ -1,6 +1,20 @@
 --[[
 LuCI - Lua Configuration Interface
 
+Network Addresses (Management) CBI Form
+=========================================
+Edits the UCI config file /etc/config/network to configure the two
+network interfaces used by the 8311 module:
+
+  host  - IP Host interface (WAN-facing): only the MAC address is
+          configurable here; the OLT provisions the IP via OMCI.
+  lct   - Local Craft Terminal interface (LAN-facing): IP, subnet,
+          gateway, DNS, and MAC address for management access to
+          the module over the SFP cage host.
+
+On commit, config_onu.sh setip applies the new addresses to the
+running network configuration.
+
 Copyright 2011 Ralph Hempel <ralph.hempel@lantiq.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");

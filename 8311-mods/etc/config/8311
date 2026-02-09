@@ -1,0 +1,43 @@
+# 8311 Community Firmware MOD -- UCI Configuration
+#
+# This file is the primary configuration store for the 8311 mod.
+# It is read by the LuCI CBI form (model/cbi/8311-config.lua) and by
+# the shell scripts in opt/lantiq/bin/ and etc/init.d/.
+#
+# Identity fields (gpon_sn, ploam_password, omci_loid, omci_lpwd,
+# vendor_id, equipment_id, hw_ver) are synced bidirectionally with
+# EEPROM-backed firmware env vars by config_onu.sh load/set/init.
+# All other options are UCI-only.
+#
+# Options left unset here will use the defaults defined in the CBI
+# model or be treated as empty/disabled by the scripts.
+
+config config 'config'
+
+	# --- PON Identity (synced with firmware env by config_onu.sh) ---
+	# These are populated at boot by "config_onu.sh load" from fwenv.
+	# The CBI form writes them back via "config_onu.sh set".
+	# Defaults here match stock Alcatel G-010S-P identity.
+	option vendor_id 'ALCL'
+	option hw_ver '3FE56641AAAA01'
+	option equipment_id 'BVL3A5HNAAG010SP'
+	option uni_type 'pptp'
+	option mib_customized '0'
+
+	# --- OMCI / Registration ---
+	# omcc_version: OMCC baseline message set version (0xA0 = G.988 v160)
+	# iop_mask: interoperability workaround bitmask (0 = none)
+	option iop_mask '0'
+
+	# --- VLAN Tagging Service ---
+	# vlan_svc: 0 = disabled (use ITU-standard OLT-provisioned tagging)
+	#           1 = enabled (run vlanexec.sh for custom VLAN handling)
+	option igmp_version '3'
+
+	# --- Device ---
+	option bootdelay '3'
+	option failsafe_delay '15'
+
+	# --- OMCID Logging ---
+	# omci_log_level: 1 (critical) through 7 (verbose debug)
+	option omci_log_level '3'
