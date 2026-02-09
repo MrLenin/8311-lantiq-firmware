@@ -577,6 +577,18 @@ Offset  Size   Content
 **Architecture:** 64-bit VLIW instruction words (8 bytes each), 1876 instructions
 **Header magic:** `09 5a 06 01`
 
+**Cross-firmware comparison:** Three distinct GPE versions exist across all Nokia
+Falcon SFP ONUs. All share the same post-VLAN EAPoL dispatch bug:
+
+| Version | Header | Size | Firmwares | MD5 |
+|---------|--------|------|-----------|-----|
+| v6.4 | `09 2f` | 13,872B | G-010S-P AOPD39 (2015) | `7f1f6b642e87d62044a227e292801ed4` |
+| v7.5 | `09 5a 06 01` | 15,008B | G-010S-P BOPD09, G-010S-A AFGA95, **this firmware** | `8e44da609dbe4fd183b3b4346f335f20` |
+| v7.5+ | `09 5a 07 00` | 15,024B | G-010S-A BFIB36, BGCB22p03 | `b744e2845e8535f9f5a910762eb5accd` |
+
+G-010S-P AOPD39 uses path `a2x/falcon_gpe_fw.bin` (not `sfu/`). All v7.5+
+firmwares (G-010S-A only) are +16 bytes with offsets shifted accordingly.
+
 **EtherType references:**
 
 | EtherType | Offset | Opcode | Occurrences |
@@ -796,30 +808,225 @@ gtop -b -g "GTC counters"           # Global tx/rx GEM frames/bytes
 
 ---
 
+## Nokia omciMgr (G-010S-A) — 802.1x Comparison
+
+The G-010S-A uses Nokia's proprietary `omciMgr` C++ OMCI stack instead of
+Lantiq `omcid`. Despite different architecture, the 802.1x enforcement path
+is functionally equivalent. omciMgr does NOT use MIB files for ME init.
+
+**Source:** G-010S-A BGCB22p03 firmware from
+[hwti/G-010S-A](https://github.com/hwti/G-010S-A). Extracted rootfs at
+`/tmp/gpe-compare/G010SA_BGCB22p03_2021_root_0/`.
+
+### Call Chain
+
+```
+omciMgr: Dot1XPortExtension::set_attributes (VA 0x455a04, 548B)
+  → validates dot1x_enable: only 0 or 1
+  → validates action_register: only 2 or 3 (rejects 1 with OMCI error)
+  → configUniDot1xParams (VA 0x51afac, 132B) → async message
+    → configUniDot1xParamsAction (VA 0x51b030, 280B) → card type check
+      → sal_config_port_802_1x_action (libsal_qos.so, 0x3b90, 972B)
+        → is_802_1x_feature_supported → hal_is_sfu_system → TRUE
+        → hal_config_port_to_allow_all_packets (OPEN)
+        → hal_config_port_to_only_allow_802_1x_packets (BLOCK)
+          → hal_cfg_dot1x_state (libhal_dp.so, 0x2bd20, 248B)
+            → ioctl(fd, 0x80080725, ...) ← same ioctl as omcid
+```
+
+### SAL Decision Tree (decompiled)
+
+```c
+// libsal_qos.so: sal_config_port_802_1x_action
+if (dot1x_enable == 0)           → OPEN
+else if (action_register == 3)   → OPEN
+else if (action_register == 2)   → BLOCK
+else                             → return -1 (no ioctl)
+```
+
+### Defaults (set_to_default, VA 0x455e64)
+
+```
+me->dot1x_enable = 0       // sb zero, 2(a0)
+me->action_register = 3    // li v0, 3; sb v0, 3(a0)
+```
+
+Calls `configUniDot1xParams(portId, {0, 3})` → SAL → OPEN on init.
+
+### Key Difference: action_register=1 Handling
+
+| | omcid | omciMgr |
+|-|-------|---------|
+| AR=1 | BLOCK (maps 1&2 → BLOCK) | REJECTED (OMCI error, no ioctl) |
+| AR=2 | BLOCK | BLOCK |
+| AR=3 | OPEN | OPEN |
+
+omciMgr's validation explicitly rejects AR=1 at the ME layer before it
+reaches the SAL function. omcid accepts AR=1 and incorrectly blocks the port.
+Per G.988, AR=1 = "force authorized" = should OPEN. Neither implementation
+is correct for AR=1, but omciMgr fails less destructively.
+
+**Conclusion:** Both stacks BLOCK identically for AR=2 (what AT&T sends).
+Both use the same GPE firmware with the same EAPoL transparent mode bug.
+The G-010S-A "working" on AT&T is most likely OLT-side provisioning behavior
+(different ONU identity → different OMCI config pushed), not a firmware fix.
+
+---
+
 ## Nokia Proprietary Managed Entities
 
 Extracted from the G-010S-P BOPD09 firmware (`omciLibMgr`/`omciLibParser`).
 Nokia uses vendor-specific MEs in the 65xxx range (0xFF01+). These are
 NOT available in the Lantiq/sean firmware — only documented for reference.
 
-**Class table:** 31 vendor MEs from 65281 (0xFF01) to 65531 (0xFFEB).
+**Class table:** 31 vendor MEs from 65281 (0xFF01) to 65531 (0xFFFB).
 
-**Notable clock/time MEs (from Nokia ONT platforms, NOT in G-010S-P):**
+### Named entries (22) from omciLibParser string table
 
-| ME class | Name | Notes |
-|----------|------|-------|
-| 65288 | NTP_CONFIGURATION | NTP client config |
-| 65304 | NTP_CONFIGURATION_V2 | Extended NTP config |
-| 65314 | CLOCK_DATA_SET | PTP/1588 clock dataset |
-| 65315 | PTP_MASTER_CONFIG_DATA_PROFILE | PTP master config |
-| 65316 | PTP_PORT | PTP port config |
-| 65319 | ONU_CLOCK_ADJUSTMENTS | Clock tuning |
+| Class ID | Hex | Name | C++ Handler | Purpose |
+|----------|-----|------|-------------|---------|
+| 65281 | 0xFF01 | ONT AGGR GEM PORT PM HIST DATA | `AggrGemPortPMHistData` | Aggregate GEM port PM |
+| 65282 | 0xFF02 | ETHERNET TM HIST DATA | `EtherTMHistData` | Ethernet traffic management PM |
+| 65283 | 0xFF03 | STATIC MULTICAST ADDR LIST | `McastSubscriberInfo` | Static multicast addresses |
+| 65284 | 0xFF04 | VOIP CALL STATISTICS | `VoipCallStatistics` | VoIP call stats |
+| 65285 | 0xFF05 | MOCA_UNI_SUPPLEMENTAL_1 | — | MoCA UNI supplemental |
+| 65286 | 0xFF06 | MOCA_PHY_PM_HIST_DATA | — | MoCA PHY PM |
+| 65287 | 0xFF07 | VLAN_MAPPER | `VlanMapper` | VLAN mapper (Nokia extension) |
+| 65288 | 0xFF08 | NTP_CONFIGURATION | `NtpConfiguration` | NTP client config |
+| 65289 | 0xFF09 | ETHERNET_UNI_OAM | — | Ethernet UNI OAM |
+| 65291 | 0xFF0B | VOIP_CLIENT_1 | `VoipClient_1` | VoIP client |
+| 65292 | 0xFF0C | VOIP_SUPPLEMENT_1 | `VoipSupplement_1` | VoIP supplement |
+| 65295 | 0xFF0F | ONT_OPTICAL_SUPERVISION | `OntOpticalSupervision` | Optical monitoring/alarms |
+| 65296 | 0xFF10 | ONT_GENERIC_V2 | `OntGenericV2` | ONT-G extended (timers, etc.) |
+| 65297 | 0xFF11 | UNI_SUPPLEMENTAL_1V2 | `UniSupp_1V2` | UNI supplemental v2 |
+| 65301 | 0xFF15 | IP_MAC_ANTI_SPOOF_LIST | — | IP/MAC anti-spoofing |
+| 65304 | 0xFF18 | NTP_CONFIGURATION_V2 | `NtpConfigurationV2` | NTP config v2 (with alarms) |
+| 65307 | 0xFF1B | PPTP_HPNA_UNI | `HpnaUniPptp` | PPTP HPNA UNI |
+| 65312 | 0xFF20 | ANI_G_SUPP_1 | `AnigSupp_1` | ANI-G supplemental (RSSI alarms) |
+| 65313 | 0xFF21 | ONT AGGR ETHERNET PM HIST DATA | `AggrEthernetPMHistData` | Aggregate Ethernet PM |
+| 65314 | 0xFF22 | CLOCK_DATA_SET | `ClockDataSet` | IEEE 1588 clock data set |
+| 65315 | 0xFF23 | PTP_MASTER_CONFIG_DATA_PROFILE | `PtpMasterConfigDataProfile` | PTP master config |
+| 65316 | 0xFF24 | PTP_PORT | `PtpPort` | PTP port config |
+| 65319 | 0xFF27 | ONU_CLOCK_ADJUSTMENTS | `OnuClockAdjustments` | ONU clock tuning |
+
+### Unnamed entries (9) from binary class table scan
+
+| Class ID | Hex | Notes |
+|----------|-----|-------|
+| 65293 | 0xFF0D | Between VOIP_SUPPLEMENT_1 and ONT_OPTICAL_SUPERVISION |
+| 65299 | 0xFF13 | Between UNI_SUPPLEMENTAL_1V2 and IP_MAC_ANTI_SPOOF_LIST |
+| 65300 | 0xFF14 | Between UNI_SUPPLEMENTAL_1V2 and IP_MAC_ANTI_SPOOF_LIST |
+| 65303 | 0xFF17 | Between IP_MAC_ANTI_SPOOF_LIST and NTP_CONFIGURATION_V2 |
+| 65305 | 0xFF19 | Between NTP_CONFIGURATION_V2 and PPTP_HPNA_UNI |
+| 65306 | 0xFF1A | Between NTP_CONFIGURATION_V2 and PPTP_HPNA_UNI |
+| 65529 | 0xFFF9 | CTC ONU Capability (from MIB file) |
+| 65530 | 0xFFFA | CTC LOID Password (from MIB file) |
+| 65531 | 0xFFFB | CTC-related (highest entry in table) |
+
+### Notes
+
+**Gaps (not in this firmware):** 65290 (0xFF0A), 65294 (0xFF0E),
+65298 (0xFF12), 65302 (0xFF16), 65308–65311 (0xFF1C–0xFF1F),
+65317–65318 (0xFF25–0xFF26).
 
 **ME 65302 (0xFF16):** Reported by Gemini as a Nokia clock ME, but
-confirmed NOT present in the G-010S-P BOPD09 firmware. The class table
-jumps from 65301 (0xFF15) to 65303 (0xFF17). This ME may exist on other
-Nokia ONT platforms (e.g., XS-010X-Q) but not on the G-010S-P.
+confirmed NOT present in the G-010S-P BOPD09 firmware. May exist on other
+Nokia ONT platforms (e.g., XS-010X-Q).
+
+**65529–65531 (CTC):** China Telecom Corporation standard MEs, not Nokia
+proprietary. Present because the G-010S-P was also deployed on Chinese
+GPON networks.
+
+**Clock/timing stack:** 6 MEs — NTP_CONFIGURATION (65288),
+NTP_CONFIGURATION_V2 (65304), CLOCK_DATA_SET (65314),
+PTP_MASTER_CONFIG_DATA_PROFILE (65315), PTP_PORT (65316),
+ONU_CLOCK_ADJUSTMENTS (65319). None of these are in the G-010S-P's
+Lantiq/sean firmware — they exist only in Nokia's proprietary `omciLibMgr`.
 
 **ME 350:** Huawei uses ME 350 for ONU clock synchronization on their
 Lantiq-based ONTs (confirmed in Huawei SDK). This is a vendor-specific
 extension, not part of the standard G.988 OMCI spec.
+
+---
+
+## Calix Vendor Managed Entities
+
+Extracted by up-n-atom from Calix AXOS ONT firmware. Three vendor MEs
+registered in `init_omci_fsanontprivate()`:
+
+| ME class | Symbol | Purpose |
+|----------|--------|---------|
+| 241 (0x00F1) | `fsanOntPrivateInfoTable` | Time/timezone/DST — **clock setting** |
+| 65317 (0xFF25) | `fsanOntCalixRgConfigTable` | RG (Residential Gateway) config |
+| 65503 (0xFFDF) | `fsanOntCalixOntMgmtTable` | ONT management |
+
+### ME 241 — fsanOntPrivateInfoTable (Clock Setting)
+
+Decompiled from `fsanOntPrivateInfoTableSysSet` (Ghidra). This is how
+**Calix OLTs set the clock** on their ONTs — a vendor-specific alternative
+to the standard OMCI Synchronize Time action.
+
+**Attribute layout (from struct offsets):**
+
+| Offset | Attribute | Notes |
+|--------|-----------|-------|
+| +0x14 | Time value | Passed to `lib_omci_sys_set_time()` |
+| +0x18 | (unknown) | Set in case 3 |
+| +0x2c | Flags bitmap | bit 0: ?, bit 12: DST dirty, bit 15: time offset valid? |
+| +0x34 | Timezone offset | Seconds from UTC, passed to `omci_sys_set_time_offset()` |
+| +0x38 | DST enable | 0=false, non-zero=true → `omci_sys_set_daylight_savings()` |
+
+**SET handler flow (case 2):**
+```c
+// 1. Set timezone offset
+omci_sys_set_time_offset(*(param_1 + 0x34));
+
+// 2. Set daylight savings
+omci_sys_set_daylight_savings(*(param_1 + 0x38));
+
+// 3. Convert offset to timezone string
+if (dst_enable == 0)
+    lib_omci_sys_get_timezone_by_offset(-offset, tz_name, ...);
+else
+    lib_omci_sys_get_timezone_by_offset(-0xe10 - offset, tz_name, ...);
+    // 0xe10 = 3600 = 1 hour DST shift
+
+// 4. Set system clock
+lib_omci_sys_set_time(tz_name, buf1, buf2, *(param_1 + 0x14));
+```
+
+**Key difference from our approach:** Calix sends time + timezone + DST via
+a vendor ME SET operation. Our firmware uses the standard Synchronize Time
+action (ME 256) and reads hardware ToD registers instead. The Calix approach
+is richer (timezone-aware) but vendor-specific — only Calix OLTs send ME 241.
+
+### Vendor Clock ME Comparison
+
+| Vendor | ME | Method | Timezone | DST | Hardware Req |
+|--------|-----|--------|----------|-----|-------------|
+| Standard | 256 action 14 | Synchronize Time | No | No | None |
+| Nokia | 65288/65304 | NTP client config | Via NTP | Via NTP | NTP server access |
+| Nokia | 65314-65316 | PTP/1588 profiles | N/A | N/A | 1588 hardware (G-010S-B) |
+| Huawei | 350 | Direct clock set | Unknown | Unknown | None |
+| Calix | 241 | Time + TZ + DST set | Yes (offset) | Yes (flag) | None |
+
+### IEEE 1588v2 vs OMCI Synchronize Time
+
+These are two separate mechanisms that are often confused:
+
+1. **OMCI Synchronize Time** (ME 256 ONU-G, action 14): Standard OMCI action.
+   OLT sends year/month/day/hour/minute/second. Mandatory per G.988. Should be
+   sent by all OLTs regardless of 1588 capability. This is what our patch hooks.
+
+2. **IEEE 1588v2 / PLOAM ToD**: Precision time sync via GTC layer PLOAM messages.
+   Requires hardware support — Nokia made a dedicated G-010S-B (3FE 46955 AA)
+   with an additional switching chip for 1588v2 and SyncE. The G-010S-P/A lack
+   this hardware. OLT checks capability bits (e.g., on WAS-110: ME 131 attr 4)
+   before sending PLOAM ToD.
+
+The SBS2.TOD hardware registers (`tod_pps_get`, `sec_tai`) are populated by GTC
+ranging code (`tod_reload_update`), which runs during PLOAM O4→O5 regardless of
+1588 capability. Whether `sec_tai` contains a valid absolute timestamp depends on
+the OLT putting time data in the PLOAM ranging messages — needs live testing to
+confirm. If `sec_tai=0` on a live OLT (OLT doesn't populate ToD during ranging),
+the script's validation rejects it and does nothing.
