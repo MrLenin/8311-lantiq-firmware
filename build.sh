@@ -53,7 +53,7 @@ revision = "${FW_REVISION}"
 8311VER
 
 # Extract stock binaries needed for firmware update guard wrappers
-unsquashfs -f -d ./build/stock ./source/rootfs_g-010s-p.sqsh sbin/mtd
+unsquashfs -f -d ./build/stock ./source/rootfs_g-010s-p.sqsh sbin/mtd usr/sbin/fw_printenv
 
 mkimage -A mips -O linux -T kernel -C lzma -a 0X80002000 -e 0X80002000 -n SFP_7.5.3 -d ./source/kernel_g-010s-p.lzma ./build/uImage_g-010s-p
 touch -d "@$GIT_EPOCH" ./source/kernel_g-010s-p.lzma ./build/uImage_g-010s-p
