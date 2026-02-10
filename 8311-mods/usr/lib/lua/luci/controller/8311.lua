@@ -50,7 +50,7 @@ function index()
 	entry({"admin", "8311", "pon_status"}, call("action_pon_status"), _("PON Status"), 4)
 	entry({"admin", "8311", "pon_explorer"}, call("action_pon_explorer"), _("PON ME Explorer"), 5)
 	entry({"admin", "8311", "vlans"}, call("action_vlans"), _("VLAN Tables"), 6)
-	entry({"admin", "8311", "support"}, post_on({ data = true }, "action_support"), _("Support"), 7)
+	entry({"admin", "8311", "support"}, call("action_support"), _("Support"), 7)
 
 	-- Hook script handlers (deferred — tc/flower not used on G-010S-P)
 	--entry({"admin", "8311", "get_hook_script"}, call("action_get_hook_script")).leaf=true
@@ -299,9 +299,15 @@ end
 function action_vlan_extvlans()
 	luci.http.prepare_content("text/plain; charset=utf-8")
 
-	if luci.sys.process.exec({"/usr/sbin/8311-extvlan-decode.sh", "-t"}, luci.http.write, luci.http.write).code == 0 then
+	local tables = util.exec("/usr/sbin/8311-extvlan-decode.sh -t 2>/dev/null")
+
+	if tables and tables ~= "" then
+		luci.http.write(tables)
 		luci.http.write("\n\n")
-		luci.sys.process.exec({"/usr/sbin/8311-extvlan-decode.sh"}, luci.http.write, luci.http.write)
+		local rules = util.exec("/usr/sbin/8311-extvlan-decode.sh 2>/dev/null")
+		luci.http.write(rules or "")
+	else
+		luci.http.write("No Extended VLAN Tables Detected")
 	end
 end
 
@@ -325,9 +331,14 @@ function action_save_hook_script()
 end
 
 function action_support_download()
-	local archive = ltn12.source.file(io.open(support_file))
+	if not file_exists(support_file) then
+		luci.http.status(404, "Not Found")
+		return
+	end
+
+	luci.http.header("Content-Disposition", 'attachment; filename="support.tar.gz"')
 	luci.http.prepare_content("application/x-targz")
-	ltn12.pump.all(archive, luci.http.write)
+	ltn12.pump.all(ltn12.source.file(io.open(support_file)), luci.http.write)
 end
 
 function action_pon_explorer()
@@ -450,24 +461,45 @@ function action_firmware()
 end
 
 function action_support()
-	local values = luci.http.formvalue()
-	local action = values["action"] or ""
+	local support_log = "/tmp/8311-support.log"
+	local support_running = "/tmp/8311-support-running"
 
-	local support_file_exists = false
-	local support_output = ""
+	local action = luci.http.formvalue("action") or ""
 
 	if action == "generate" then
-		cmd = { "/usr/sbin/8311-support.sh" }
-		luci.sys.process.exec(cmd, supportOut, supportOut)
+		os.remove(support_file)
+		os.remove(support_log)
+		os.execute(
+			"(touch " .. support_running ..
+			" && /usr/sbin/8311-support.sh >" .. support_log .. " 2>&1" ..
+			"; rm -f " .. support_running ..
+			") </dev/null >/dev/null 2>&1 &"
+		)
+		luci.http.redirect(dispatcher.build_url("admin", "8311", "support"))
+		return
 	elseif action == "delete" then
 		os.remove(support_file)
+		os.remove(support_log)
+		luci.http.redirect(dispatcher.build_url("admin", "8311", "support"))
+		return
 	end
 
-	support_file_exists = file_exists(support_file)
+	local generating = file_exists(support_running)
+	local support_file_exists = file_exists(support_file)
+	local support_output = ""
+
+	if file_exists(support_log) then
+		local f = io.open(support_log, "r")
+		if f then
+			support_output = f:read("*a") or ""
+			f:close()
+		end
+	end
 
 	ltemplate.render("8311/support", {
-		support_output=supportOutput or "",
-		support_file_exists=support_file_exists
+		support_output=support_output,
+		support_file_exists=support_file_exists,
+		support_generating=generating
 	})
 end
 
@@ -484,11 +516,6 @@ end
 function firmwareUpgradeOutput(data)
 	data = data or ''
 	firmwareOutput = (firmwareOutput or '') .. data
-end
-
-function supportOut(data)
-	data = data or ''
-	supportOutput = (supportOutput or '') .. data
 end
 
 -- Registers a chunked file upload handler with LuCI's HTTP layer.

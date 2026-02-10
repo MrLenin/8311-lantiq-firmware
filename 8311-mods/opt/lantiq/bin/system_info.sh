@@ -27,16 +27,16 @@ fw_setenv="/usr/sbin/fw_setenv"
 #   48575443 = "HWTC" (Huawei), 414c434c = "ALCL" (Nokia), 5a544547 = "ZTEG" (ZTE)
 olttype() {
 	local olt_type
-	olt_type=$(grep "olt type" /tmp/collect | cut -f 2 -d ':')
-	if [ "$olt_type" = "48575443" ]; then
-		echo "HWTC ($olt_type)"
-	elif [ "$olt_type" = "414c434c" ]; then
-		echo "ALCL ($olt_type)"
-	elif [ "$olt_type" = "5a544547" ]; then
-		echo "ZTE ($olt_type)"
-	else
-		echo "Other ($olt_type)"
-	fi
+	# /tmp/collect is populated by vlanexec.sh when vlan-svc is enabled
+	olt_type=$(grep "olt type" /tmp/collect 2>/dev/null | cut -f 2 -d ':')
+	olt_type=$(echo "$olt_type" | tr -d ' ')
+	case "$olt_type" in
+		48575443) echo "HWTC ($olt_type)" ;;
+		414c434c) echo "ALCL ($olt_type)" ;;
+		5a544547) echo "ZTE ($olt_type)" ;;
+		"")       echo "Unknown (vlan-svc not running)" ;;
+		*)        echo "Other ($olt_type)" ;;
+	esac
 }
 
 # List active VLAN IDs by merging the GPE VLAN table and FID assignment table,
@@ -214,8 +214,8 @@ vendor() {
 	local is_nokia
 	local vendor_name
 
-	is_huawei=$($fw_printenv gSerial | grep -c HWTC)
-	is_nokia=$($fw_printenv ver | grep -c 2015.04)
+	is_huawei=$($fw_printenv gSerial 2>&- | grep -c HWTC)
+	is_nokia=$($fw_printenv ver 2>&- | grep -c 2015.04)
 
 	if [ "$is_huawei" = "1" ]; then
 		vendor_name="HUAWEI"

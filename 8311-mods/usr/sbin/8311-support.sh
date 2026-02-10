@@ -20,7 +20,7 @@ echo -n "Dumping system info ..."
 echo " done"
 
 echo -n "Dumping FW ENVs ..."
-/usr/sbin/fw_printenv 2>&- | sort -V > "$OUTDIR/fwenvs.txt"
+/usr/sbin/fw_printenv 2>&- | sort > "$OUTDIR/fwenvs.txt"
 echo " done"
 
 echo -n "Dumping UCI config ..."

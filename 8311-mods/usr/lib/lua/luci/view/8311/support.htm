@@ -12,23 +12,20 @@
   Context variables (set by controller/8311.lua):
     support_output      : string -- generation log output
     support_file_exists : bool   -- archive ready for download
+    support_generating  : bool   -- script is running in background
 %>
 <%
 local tools = require "8311.tools"
 local esc = tools.html_escape
-
-local action = "validate"
-local upload_enable = true
-local install_enable = false
-local cancel_enable = false
-local reboot_enable = false
 local i18n = require "luci.i18n"
 local translate = i18n.translate
 -%>
 
 <%+header%>
+<% if support_generating then %>
+<meta http-equiv="refresh" content="3">
+<% end %>
 <script type="text/javascript" src="<%=resource%>/jquery-3.7.1.min.js"></script>
-<script type="text/javascript" src="<%=resource%>/jquery.validate.min.js"></script>
 <script type="text/javascript" src="<%=resource%>/view/8311.js"></script>
 
 <h2 name="content"><%:Support%></h2>
@@ -41,7 +38,7 @@ local translate = i18n.translate
 	<p><%:Connect the fiber for at least 30 seconds before generating a support archive.%></p>
 	<p style="font-weight: bold"><%:WARNING: A support archive contains potentially sensitive information. Do not share it publicly.%></p>
 
-	<form id="support-form" method="post" action="<%=REQUEST_URI%>" enctype="multipart/form-data">
+	<form id="support-form" method="post" action="<%=REQUEST_URI%>">
 		<div id="zone-content-wrapper">
 			<div id="zone-content">
 <% if support_output ~= '' then %>
@@ -49,10 +46,14 @@ local translate = i18n.translate
 <% end %>
 			</div>
 		</div>
+<% if support_generating then %>
+		<button type="button" class="support-button cbi-button cbi-button-action spinning" disabled="disabled"><%:Generating Support Archive ...%></button>
+<% else %>
 		<button type="button" class="support-button cbi-button cbi-button-action" onclick="return submitSupportForm(this, 'generate');"><%:Generate Support Archive%></button>
+<% end %>
 <% if support_file_exists then %>
 		<button type="button" class="support-button cbi-button cbi-button-action important" onclick="location.href='support/support.tar.gz'"><%:Download Support Archive%></button>
-		<button type="button" class="support-button cbi-button cbi-button-reset" onclick="submitSupportForm(this, 'delete');"><%:Delete Support Archive%></button>
+		<button type="button" class="support-button cbi-button cbi-button-reset" onclick="return submitSupportForm(this, 'delete');"><%:Delete Support Archive%></button>
 <% end %>
 
 		<input id="support-action" type="hidden" name="action" value="generate" />
