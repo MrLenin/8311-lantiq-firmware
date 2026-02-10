@@ -1,0 +1,38 @@
+#!/bin/sh
+# 8311 firmware update guard - fw_printenv wrapper
+#
+# Intercepts reads of variables shadowed by the fw_setenv wrapper.
+#
+# During a guarded firmware update, omcid calls fw_setenv to change
+# committed_image (switching the boot bank to the newly-flashed slot).
+# The fw_setenv wrapper blocks this from reaching U-Boot's environment
+# and instead writes the value to /tmp/8311_shadow/committed_image.
+#
+# This wrapper returns the shadow value so omcid reads back what it
+# thinks it wrote, maintaining the ruse that the firmware update
+# succeeded. U-Boot always reads the real (unchanged) fwenv on boot.
+#
+# Shadow files live in /tmp (tmpfs) -- cleared on every reboot.
+# This ensures U-Boot always boots from the real committed bank.
+#
+# The real fw_printenv binary is at /opt/lantiq/bin/fw_printenv.
+# The dual-personality binary checks argv[0] for mode dispatch:
+#   argv[0] contains "fw_printenv" → print mode
+#   argv[0] contains "fw_setenv"  → set mode
+#
+# Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
+# Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
+# Bypass:  /opt/lantiq/bin/fw_printenv [args]
+
+SHADOW_DIR="/tmp/8311_shadow"
+
+# Single-variable request: return shadow value if one exists.
+# omcid uses this form: popen("fw_printenv committed_image 2>&-")
+if [ $# -eq 1 ] && [ -f "$SHADOW_DIR/$1" ]; then
+	printf '%s=%s\n' "$1" "$(cat "$SHADOW_DIR/$1")"
+	exit 0
+fi
+
+# All other cases (no args, multi-var, non-shadowed var):
+# pass through to the real binary.
+exec /opt/lantiq/bin/fw_printenv "$@"

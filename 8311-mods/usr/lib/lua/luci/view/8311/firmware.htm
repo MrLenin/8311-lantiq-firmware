@@ -1,4 +1,4 @@
-<%--
+<%#
   firmware.htm -- Firmware upgrade / dual-bank management page
 
   Displays active and inactive firmware bank info (version, revision,
@@ -17,7 +17,7 @@
 
   JS dependencies: 8311.js (uploadFirmware, installFirmware, cancelFirmware,
                    rebootFirmware)
---%>
+%>
 <%
 local tools = require "8311.tools"
 local esc = tools.html_escape

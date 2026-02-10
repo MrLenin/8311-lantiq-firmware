@@ -247,6 +247,64 @@ model() {
 	echo "$model_name"
 }
 
+# Aggregated system summary for the PON Status "System Info" tab.
+# Collects identity, registration state, optics, and debug info into
+# a single formatted text block displayed in the status textarea.
+summary() {
+	local gpon_sn loid loid_pw ploam_pw ploam_state signal
+	local olt_type vlan_info link_info reboot_info reboot_nums
+	local optic_info temp_info omcid_ver fw_ver hw_model
+
+	# Identity (from firmware env)
+	gpon_sn=$($fw_printenv nSerial 2>&- | cut -f2 -d=)
+	loid=$($fw_printenv omci_loid 2>&- | cut -f2 -d=)
+	loid_pw=$($fw_printenv omci_lpwd 2>&- | cut -f2 -d=)
+	ploam_pw=$($fw_printenv nPassword 2>&- | cut -f2 -d= | /usr/bin/xxd -r 2>/dev/null)
+
+	# Registration & signal
+	ploam_state=$($onu ploamsg 2>/dev/null | cut -b 24)
+	signal=$($otop -b -g s 2>/dev/null | grep 'Signal detect' | head -n 2 | cut -b 52-56)
+
+	# System info
+	olt_type=$(olttype)
+	vlan_info=$(vlaninfo)
+	link_info=$(linkstatus)
+	reboot_info=$(rebootcause)
+	reboot_nums=$(rebootnum)
+	optic_info=$(optic)
+	temp_info=$(temperature)
+	omcid_ver=$(omcid_version)
+	fw_ver=$(version)
+	hw_model=$(model)
+
+	printf '=== GPON Identity ===\n'
+	printf '  %-22s %s\n' "GPON Serial:" "$gpon_sn"
+	printf '  %-22s %s\n' "LOID:" "$loid"
+	printf '  %-22s %s\n' "LOID Password:" "$loid_pw"
+	printf '  %-22s %s\n' "PLOAM Password:" "$ploam_pw"
+
+	printf '\n=== Registration ===\n'
+	printf '  %-22s %s\n' "PLOAM State:" "O${ploam_state}"
+	printf '  %-22s %s\n' "Signal Detect:" "$signal"
+	printf '  %-22s %s\n' "OLT Type:" "$olt_type"
+
+	printf '\n=== Hardware ===\n'
+	printf '  %-22s %s\n' "Model:" "$hw_model"
+	printf '  %-22s %s\n' "Link Status:" "$link_info"
+	printf '  %-22s %s\n' "Temperature:" "$temp_info"
+	printf '  %-22s %s\n' "Optic Power:" "$optic_info"
+
+	printf '\n=== Firmware ===\n'
+	printf '  %-22s %s\n' "Firmware Version:" "$fw_ver"
+	printf '  %-22s %s\n' "OMCID Version:" "$omcid_ver"
+	printf '  %-22s %s\n' "Active Bank:" "$(committed)"
+
+	printf '\n=== Debug ===\n'
+	printf '  %-22s %s\n' "Active VLANs:" "$vlan_info"
+	printf '  %-22s %s\n' "Last Reboot Cause:" "$reboot_info"
+	printf '  %-22s %s\n' "Reboot Counters:" "$reboot_nums"
+}
+
 # Command dispatch — each case maps to one of the functions above.
 case $command in
 committed)
@@ -287,6 +345,9 @@ vendor)
 	;;
 model)
 	model
+	;;
+summary)
+	summary
 	;;
 *)
 	echo "Error Command $command"

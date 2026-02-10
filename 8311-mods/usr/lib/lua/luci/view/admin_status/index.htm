@@ -576,7 +576,6 @@ for the XHR.poll() live-update loop (every 5 seconds).
 
 	<table width="100%" cellspacing="10">
 		<tr><td width="33%"><%:Hostname%></td><td><%=luci.sys.hostname() or "?"%></td></tr>
-		<%-- 8311 mod: model string and firmware version from system_info.sh --%>
 		<tr><td width="33%"><%:Model%></td><td><%=luci.sys.exec("/opt/lantiq/bin/system_info.sh model")%></td></tr>
 		<tr><td width="33%"><%:Firmware Version%></td><td><%=luci.sys.exec("/opt/lantiq/bin/system_info.sh omcid_version")%></td></tr>
 		<tr><td width="33%"><%:Kernel Version%></td><td><%=luci.sys.exec("uname -r")%></td></tr>
@@ -586,7 +585,6 @@ for the XHR.poll() live-update loop (every 5 seconds).
 	</table>
 </fieldset>
 
-<%-- 8311 mod: entire GPON Status section -- not present in stock LuCI --%>
 <fieldset class="cbi-section">
 	<legend><%:GPON Status%></legend>
 
@@ -689,7 +687,6 @@ for the XHR.poll() live-update loop (every 5 seconds).
 </fieldset>
 <% end %>
 
-<%-- Plugin extension point: include any .htm fragments from view/admin_status/index/ --%>
 <%-
 	require "luci.util"
 	require "nixio.fs"

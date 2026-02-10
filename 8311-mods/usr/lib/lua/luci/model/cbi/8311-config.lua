@@ -34,6 +34,7 @@ You may obtain a copy of the License at
 require("luci.tools.gpon")
 
 local tools = require "8311.tools"
+local nixio = require "nixio"
 
 -- Map("8311") binds this form to /etc/config/8311
 local config_map = Map("8311")
@@ -45,25 +46,54 @@ config_map.template = "map"
 local uci = require("luci.model.uci").cursor()
 local config_section = uci:get_all("8311", "config")
 
--- After UCI commit, apply changes by calling config_onu.sh with each verb:
---   set        - write PON identity settings to the firmware environment
---   mod        - apply OMCID binary patches (if mod_omcid is enabled)
---   disable    - apply disable flags (sigstatus, etc.)
---   ignore     - apply PLOAM ignore flags
---   reboot     - configure auto-reboot behavior
---   switchasc  - apply serial console / dying gasp pin mux settings
--- Then restart the runtime services that depend on these settings.
+-- Options that require omcid restart to take effect (read at startup only)
+local omcid_opts = {"omcc_version", "iop_mask", "mib_file", "omci_log_level",
+                    "omci_log_to_console", "sw_verA", "sw_verB", "pon_slot",
+                    "vendor_id", "equipment_id", "hw_ver", "uni_type",
+                    "cp_hw_ver_sync", "override_active", "override_commit",
+                    "mod_omcid", "omcid_version", "omcid_8021x"}
+
+-- Snapshot omcid-relevant options before commit so we can detect changes
+local _omcid_snapshot = {}
+
+function config_map.on_before_commit(configMap)
+	local cur = require("luci.model.uci").cursor()
+	local section = cur:get_all("8311", "config")
+	for _, opt in ipairs(omcid_opts) do
+		_omcid_snapshot[opt] = (section and section[opt]) or ""
+	end
+end
+
+-- After UCI commit, apply changes via config_onu.sh, then conditionally
+-- restart omcid if any omcid-relevant option changed.
 function config_map.on_after_commit(configMap)
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh set")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh mod")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh disable")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh ignore")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh reboot")
-	--luci.sys.call("/opt/lantiq/bin/config_onu.sh switch")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh switchasc")
+	luci.sys.call("/opt/lantiq/bin/config_onu.sh set_sw_ver")
+	luci.sys.call("/opt/lantiq/bin/config_onu.sh set_bootdelay")
+	luci.sys.call("/opt/lantiq/bin/config_onu.sh set_dying_gasp")
 	luci.sys.call("/etc/init.d/vlan-svc.sh restart")
 	luci.sys.call("/etc/init.d/monitomcid restart")
 	luci.sys.call("/etc/init.d/monitoptic restart")
+
+	-- Check if any omcid-relevant option changed; restart if so
+	local cur = require("luci.model.uci").cursor()
+	local new_section = cur:get_all("8311", "config")
+	local need_restart = false
+	for _, opt in ipairs(omcid_opts) do
+		if (_omcid_snapshot[opt] or "") ~= ((new_section and new_section[opt]) or "") then
+			need_restart = true
+			break
+		end
+	end
+
+	if need_restart then
+		luci.sys.call("/etc/init.d/omcid.sh restart")
+	end
 end
 
 -- Shared validator for firmware bank override fields.
@@ -251,20 +281,31 @@ omci_lpwd.default = ""
 omci_lpwd.rmempty = true
 
 local mib_file =
-	config:taboption("pon", Value, "mib_file", translate("MIB File"),
-	translate("MIB file used by omcid. Defaults to /etc/mibs/prx300_1U.ini " ..
-	"(U:SFU, V:HGU)"))
+	config:taboption("pon", ListValue, "mib_file", translate("MIB File"),
+	translate("MIB file used by omcid. 'auto.ini' selects a stock template " ..
+	"based on UNI type, or generates a custom MIB when identity fields are " ..
+	"changed from stock defaults."))
 
-mib_file.datatype = "string"
 mib_file.default = "auto.ini"
 
-mib_file:value("auto.ini")
-mib_file:value("data_1g_8q_us1280_ds512.ini")
-mib_file:value("data_1v_8q.ini")
+-- Auto is always first (runtime-resolved symlink)
+mib_file:value("auto.ini", translate("auto.ini (Automatic)"))
 
-function mib_file.validate(self, value)
-	-- TODO
-	return value
+-- Dynamically enumerate /etc/mibs/*.ini at runtime
+local mib_exclude = { ["auto.ini"]=true }
+
+local mib_dir = nixio.fs.dir("/etc/mibs")
+if mib_dir then
+	local mib_files = {}
+	for entry in mib_dir do
+		if entry:match("%.ini$") and not mib_exclude[entry] then
+			mib_files[#mib_files + 1] = entry
+		end
+	end
+	table.sort(mib_files)
+	for _, entry in ipairs(mib_files) do
+		mib_file:value(entry)
+	end
 end
 
 local pon_slot =
@@ -513,6 +554,16 @@ local failsafe_delay =
 failsafe_delay.datatype = "and(uinteger,range(10,300))"
 failsafe_delay.default = "15"
 failsafe_delay.rmempty = true
+
+local fw_update_guard =
+	config:taboption("device", Flag, "fw_update_guard", translate("Firmware Update Guard"),
+	translate("Block OLT-initiated firmware updates. When enabled, the mtd and " ..
+	"fw_setenv wrappers will reject OMCI firmware writes and committed_image " ..
+	"changes, preventing the OLT from overwriting or switching firmware banks."))
+
+fw_update_guard.datatype = "bool"
+fw_update_guard.default = true
+fw_update_guard.rmempty = true
 
 ---------------------------------------
 -- Device Tab End

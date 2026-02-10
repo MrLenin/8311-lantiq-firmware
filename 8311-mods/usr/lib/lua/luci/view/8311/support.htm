@@ -1,4 +1,4 @@
-<%--
+<%#
   support.htm -- Support archive generator page
 
   Provides a UI to generate, download, and delete a diagnostic support
@@ -12,7 +12,7 @@
   Context variables (set by controller/8311.lua):
     support_output      : string -- generation log output
     support_file_exists : bool   -- archive ready for download
---%>
+%>
 <%
 local tools = require "8311.tools"
 local esc = tools.html_escape

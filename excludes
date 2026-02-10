@@ -51,6 +51,7 @@ usr/lib/lua/luci/model/cbi/lantiq/gpon-config-ipaddr.lua
 usr/lib/lua/luci/model/cbi/lantiq/gpon-config-onu.lua
 usr/lib/lua/luci/util.lua
 usr/sbin/fw_setenv
+usr/sbin/fw_printenv
 usr/lib/lua/luci/view/admin_network
 usr/lib/lua/luci/view/admin_network/diagnostics.htm
 usr/lib/lua/luci/view/admin_network/iface_overview.htm

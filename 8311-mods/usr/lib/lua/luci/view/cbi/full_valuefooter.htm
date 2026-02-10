@@ -1,4 +1,4 @@
-<%--
+<%#
   cbi/full_valuefooter.htm -- CBI form value footer (stock LuCI)
 
   Closes a CBI form value widget and renders its description text and
@@ -7,7 +7,7 @@
 
   This is a stock LuCI template included in the 8311 rootfs to support
   the CBI-based configuration forms in model/cbi/8311-*.lua.
---%>
+%>
 		<% if self.description and #self.description > 0 then -%>
 			<% if not luci.util.instanceof(self, luci.cbi.DynamicList) and (not luci.util.instanceof(self, luci.cbi.Flag) or self.orientation == "horizontal") then -%>
 				<br />

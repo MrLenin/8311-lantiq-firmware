@@ -2,36 +2,59 @@
 # 8311 firmware update guard - fw_setenv wrapper
 #
 # Replaces the stock /usr/sbin/fw_setenv binary to intercept U-Boot
-# environment changes triggered by OMCI firmware updates. After omcid
-# downloads and (attempts to) flash a new image, it calls fw_setenv to
-# set committed_image to the newly written slot so the bootloader boots
-# from it on the next reboot. If the mtd wrapper already blocked the
-# actual flash write, allowing this committed_image change would cause
-# the device to boot from an empty/stale partition -- bricking it.
+# environment changes triggered by OMCI firmware updates.
 #
-# This wrapper blocks ONLY committed_image writes. Other fw_setenv calls
-# (e.g., imageX_version, imageX_is_valid) are allowed through so the OLT
-# sees correct version/validity info and does not keep retrying the update.
+# When the guard is enabled:
+#   committed_image    — SHADOWED to /tmp/8311_shadow/committed_image.
+#                        The real fwenv is NOT changed, so U-Boot always
+#                        boots the real committed bank. The fw_printenv
+#                        wrapper returns the shadow value so omcid reads
+#                        back what it wrote, maintaining the ruse.
+#   image[01]_version  — CAPTURED to UCI sw_verA/sw_verB, then allowed
+#                        through to fwenv. This stores the OLT-pushed
+#                        version so we can report it back via the sw_ver
+#                        override mechanism (0x84CE patch + config_onu.sh).
+#   image[01]_is_valid — allowed through (harmless; both banks are valid)
 #
-# The original fw_setenv binary is preserved at /usr/sbin/fw_setenv.real.
+# The real fw_setenv is a symlink at /opt/lantiq/bin/fw_setenv pointing to
+# /opt/lantiq/bin/fw_printenv (the stock dual-personality binary that
+# checks argv[0] to determine print vs set mode).
 #
-# Works in tandem with the mtd wrapper (/sbin/mtd) which blocks the
-# actual firmware flash to MTD.
+# Works in tandem with:
+#   /sbin/mtd          — blocks the actual firmware flash to MTD
+#   /usr/sbin/fw_printenv — returns shadow values to omcid
+#
+# Shadow files live in /tmp (tmpfs) -- cleared on every reboot.
 #
 # Enable:  uci set 8311.config.fw_update_guard=1; uci commit 8311
 # Disable: uci set 8311.config.fw_update_guard=0; uci commit 8311
-# Bypass:  /usr/sbin/fw_setenv.real [args]
+# Bypass:  /opt/lantiq/bin/fw_setenv [args]
 
-# $1 is the U-Boot env variable name being set
+# $1 is the U-Boot env variable name being set, $2 is the value
 case "$1" in
 	committed_image)
-		# Guard enabled: block to prevent boot-partition switch to an unwritten slot
 		if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
-			logger -t 8311-fw-guard "Blocked fw_setenv $*"
+			logger -t 8311-fw-guard "Shadowed committed_image=$2 (real fwenv unchanged)"
+			mkdir -p /tmp/8311_shadow
+			printf '%s' "$2" > /tmp/8311_shadow/committed_image
 			exit 0
+		fi
+		;;
+	image0_version)
+		if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
+			logger -t 8311-fw-guard "Captured image0_version=$2 → sw_verA"
+			uci set "8311.config.sw_verA=$2"
+			uci commit 8311
+		fi
+		;;
+	image1_version)
+		if [ "$(uci -q get 8311.config.fw_update_guard)" = "1" ]; then
+			logger -t 8311-fw-guard "Captured image1_version=$2 → sw_verB"
+			uci set "8311.config.sw_verB=$2"
+			uci commit 8311
 		fi
 		;;
 esac
 
 # Not a guarded variable (or guard disabled) -- pass through to the real fw_setenv
-exec /usr/sbin/fw_setenv.real "$@"
+exec /opt/lantiq/bin/fw_setenv "$@"

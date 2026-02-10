@@ -22,7 +22,6 @@ config config 'config'
 	option hw_ver '3FE56641AAAA01'
 	option equipment_id 'BVL3A5HNAAG010SP'
 	option uni_type 'pptp'
-	option mib_customized '0'
 
 	# --- OMCI / Registration ---
 	# omcc_version: OMCC baseline message set version (0xA0 = G.988 v160)
@@ -37,6 +36,7 @@ config config 'config'
 	# --- Device ---
 	option bootdelay '3'
 	option failsafe_delay '15'
+	option fw_update_guard '1'
 
 	# --- OMCID Logging ---
 	# omci_log_level: 1 (critical) through 7 (verbose debug)

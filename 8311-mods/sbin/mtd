@@ -32,5 +32,55 @@ for arg in "$@"; do
 	esac
 done
 
+# Attempt firmware version extraction before flashing (fw_match_b64 feature).
+# If a PCRE regex pattern is configured, extract the firmware version from
+# the image file and update sw_verA/sw_verB in UCI + fwenv.
+_extract_fw_version() {
+	local img="$1"
+	local bank="$2"
+	local fw_match
+	local fw_match_num
+	local version
+
+	fw_match=$(uci -q get 8311.config.fw_match_b64)
+	[ -z "$fw_match" ] && return
+
+	fw_match_num=$(uci -q get 8311.config.fw_match_num)
+	fw_match_num=${fw_match_num:-1}
+
+	# Requires grep -P (PCRE) — may not be available in all busybox builds
+	if ! grep -P "" /dev/null 2>/dev/null; then
+		logger -t 8311-fw-match "grep -P (PCRE) not available, skipping version extraction"
+		return
+	fi
+
+	version=$(strings "$img" 2>/dev/null | grep -P -o "$fw_match" | sed -n "${fw_match_num}p")
+
+	if [ -n "$version" ]; then
+		logger -t 8311-fw-match "Extracted firmware version from bank $bank: $version"
+		if [ "$bank" = "0" ]; then
+			uci set 8311.config.sw_verA="$version"
+			/opt/lantiq/bin/fw_setenv image0_version "$version"
+		else
+			uci set 8311.config.sw_verB="$version"
+			/opt/lantiq/bin/fw_setenv image1_version "$version"
+		fi
+		uci commit 8311
+	else
+		logger -t 8311-fw-match "No version match found in firmware image"
+	fi
+}
+
+for arg in "$@"; do
+	case "$arg" in
+		/tmp/image0.img)
+			_extract_fw_version "$arg" 0
+			;;
+		/tmp/image1.img)
+			_extract_fw_version "$arg" 1
+			;;
+	esac
+done
+
 # No guarded path found (or guard disabled) -- pass through to the real mtd
 exec /sbin/mtd.real "$@"

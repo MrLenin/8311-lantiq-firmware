@@ -7,11 +7,8 @@ etc/init.d/omcid.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/omcid.sh
 etc/init.d/onu.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/onu.sh
 etc/init.d/pin_cfg.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/pin_cfg.sh
 etc/init.d/vlan-svc.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/vlan-svc.sh
-etc/mibs/nameless.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/nameless.ini
 etc/mibs/data_1g_8q_us1280_ds512.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1g_8q_us1280_ds512.ini
 etc/mibs/data_1v_8q.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q.ini
-etc/mibs/pptp.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/pptp.ini
-etc/mibs/veip.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/veip.ini
 etc/rc.d/S94vlan-svc.sh S @TIMESTAMP 777 0 0 ../init.d/vlan-svc.sh
 etc/uci-defaults/30_luci-theme-bootstrap F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig F @TIMESTAMP 664 0 0 cat ./8311-mods/etc/uci-defaults/sfp-pins-preconfig
@@ -22,6 +19,7 @@ lib/functions/hexbin.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/functions/hexbi
 lib/8311-omci-lib.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/8311-omci-lib.sh
 sbin/mtd F @TIMESTAMP 755 0 0 cat ./8311-mods/sbin/mtd
 sbin/mtd.real F @TIMESTAMP 755 0 0 cat ./build/stock/sbin/mtd
+opt/lantiq/bin/fw_printenv F @TIMESTAMP 755 0 0 cat ./build/stock/usr/sbin/fw_printenv
 opt/lantiq/bin/config_onu.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/system_info.sh
@@ -43,10 +41,11 @@ usr/lib/lua/luci/model/cbi/8311-management.lua F @TIMESTAMP 644 0 0 cat ./8311-m
 usr/lib/lua/luci/model/cbi/8311-optic-cal.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-optic-cal.lua
 usr/lib/lua/luci/util.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/util.lua
 usr/sbin/fw_setenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_setenv
-usr/sbin/fw_setenv.real F @TIMESTAMP 755 0 0 cat ./build/stock/usr/sbin/fw_printenv
+usr/sbin/fw_printenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_printenv
+opt/lantiq/bin/fw_setenv S @TIMESTAMP 777 0 0 /opt/lantiq/bin/fw_printenv
 usr/sbin/8311-extvlan-decode.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/8311-extvlan-decode.sh
+usr/sbin/8311-support.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/8311-support.sh
 usr/lib/lua/luci/view/8311 D @TIMESTAMP 775 0 0
-usr/lib/lua/luci/view/8311/config.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/config.htm
 usr/lib/lua/luci/view/8311/firmware.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/firmware.htm
 usr/lib/lua/luci/view/8311/pon_me.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/pon_me.htm
 usr/lib/lua/luci/view/8311/pon_status.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/pon_status.htm
@@ -54,7 +53,6 @@ usr/lib/lua/luci/view/8311/support.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/
 usr/lib/lua/luci/view/8311/vlans.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/8311/vlans.htm
 usr/lib/lua/luci/view/admin_status/index.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/admin_status/index.htm
 usr/lib/lua/luci/view/cbi/full_valuefooter.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/cbi/full_valuefooter.htm
-usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/lantiq/gpon-gtc-info.htm
 usr/lib/lua/luci/view/map.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/map.htm
 usr/lib/lua/luci/view/themes/bootstrap/footer.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/footer.htm
 usr/lib/lua/luci/view/themes/bootstrap/header.htm F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/view/themes/bootstrap/header.htm

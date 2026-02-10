@@ -235,6 +235,61 @@ after — our `LI $v0, 0` ensures it reports success.
 `memset()` JALX (`1e 00 0a b4`) with 209 call sites, `sprintf()` JALX
 (`1e 00 0c a0`).
 
+### Patch: NOP reboot in SW Image Activate handler
+
+| Field | Value |
+|-------|-------|
+| File offset | `0x417B6` (268,214) |
+| VA | `0x004417B6` |
+| Size | 4 bytes |
+| Original | `1a 00 ca bc` (MIPS16 JAL to `omci_api_reboot`) |
+| Patched | `65 00 65 00` (two MIPS16 NOPs) |
+| Function | `omci_api_sw_image_activate` (VA 0x0044175C) |
+| Encoding | MIPS16e (big-endian) |
+
+**Problem:** When the OLT pushes a firmware update via OMCI SW Download + Activate
+Image (ME 7), the activate handler writes boot-selection magic to RAM, sets
+`committed_image` via `fw_setenv`, then calls `omci_api_reboot()` which spawns a
+background thread that does `kill(1, SIGTERM)` after a timeout. Even when the mtd
+and fw_setenv wrappers block the actual flash and bank switch, omcid still reboots
+the stick, causing a needless service outage.
+
+**Solution:** NOP the MIPS16 JAL instruction that calls `omci_api_reboot()`
+(VA 0x00432AF0) from within `omci_api_sw_image_activate()`. The delay slot
+instruction (`move $s0, $v0`) becomes a regular instruction that harmlessly
+copies the `fw_setenv` return value, which is then returned by the function.
+
+**Call chain (from SDK `gpon_omci_api-4.5.0`):**
+```
+activate_image_action_handle()           [omci_sw_image.c]
+  → omci_api_sw_image_activate()         [omci_api_sw_image.c]
+      → dev_ctl(FIO_ONU_REGISTER_SET)    write 0xDEADBEEF to 0xBF200038
+      → dev_ctl(FIO_ONU_REGISTER_SET)    write sw_image_id to 0xBF20003C
+      → omci_api_falcon_uboot_env_set("committed_image", X)  ← blocked by wrapper
+      → omci_api_reboot(timeout)         ← NOP'd by this patch
+          → IFXOS_ThreadInit("reboot")
+              → IFXOS_MSecSleep(timeout)
+              → IFXOS_Reboot()           kill(1, SIGTERM)
+```
+
+**Note:** The shipping binary combines `omci_api_falcon_sw_image_activate()` and
+`omci_api_falcon_sw_image_commit()` into a single function — different from the
+SDK source where they are separate. The `committed_image` write is handled by
+the `fw_setenv` wrapper (`/usr/sbin/fw_setenv`). The RAM magic writes
+(DEADBEEF/image_id) are harmless without a reboot.
+
+**Context (Ghidra MIPS16 disassembly):**
+```
+004417ae  1a 20 02 5e   jal  FUN_00440978      ; fw_setenv committed_image
+004417b2  65 00         _nop                    ; delay slot
+004417b4  94 12          lw  a0, local_res8(sp)  ; load reboot_timeout
+004417b6  65 00 65 00   nop; nop                ; ← WAS: jal omci_api_reboot
+004417ba  67 02         move s0, v0              ; (was delay slot, now regular)
+004417bc  67 50         move v0, s0              ; return fw_setenv result
+004417be  64 78         restore                  ; epilogue
+004417c0  e8 a0         jrc  ra                  ; return
+```
+
 ### Verification
 
 ```sh
@@ -242,8 +297,8 @@ cmp -l dev-orig/opt/lantiq/bin/omcid \
        8311-mods/opt/lantiq/bin/omcid
 ```
 
-Should show 64 changed bytes total: 3 (image version patch) + 28 (code patch,
-4 bytes unchanged) + 33 (string replacement).
+Should show 68 changed bytes total: 3 (image version patch) + 28 (code patch,
+4 bytes unchanged) + 33 (string replacement) + 4 (reboot NOP).
 
 ---
 

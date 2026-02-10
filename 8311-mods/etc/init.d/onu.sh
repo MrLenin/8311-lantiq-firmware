@@ -168,13 +168,19 @@ gtc_config() {
 	config_get nT01 "ploam" nT01
 	config_get nT02 "ploam" nT02
 	
-	# Dying gasp: prefer U-Boot env; fall back to UCI only if the env
-	# value is missing or invalid (anything other than 0 or 1).
+	# Dying gasp priority chain:
+	#   1. fwenv nDyingGaspEnable (escape hatch — settable via U-Boot serial
+	#      console even when the device can't boot far enough for UCI)
+	#   2. 8311.config.dying_gasp_en (web UI setting)
+	#   3. gpon.gtc.nDyingGaspEnable (stock fallback)
 	nDyingGaspEnable=""
 	nDyingGaspEnable=$(fw_printenv nDyingGaspEnable 2>&- | cut -f2 -d=)
 
 	if [ -z "$nDyingGaspEnable" ] || { [ "$nDyingGaspEnable" -ne "$DYING_GASP_ENABLED" ] && [ "$nDyingGaspEnable" -ne "$DYING_GASP_DISABLED" ]; }; then
-	     config_get nDyingGaspEnable "gtc" nDyingGaspEnable
+		nDyingGaspEnable=$(uci -q get 8311.config.dying_gasp_en)
+	fi
+	if [ -z "$nDyingGaspEnable" ] || { [ "$nDyingGaspEnable" -ne "$DYING_GASP_ENABLED" ] && [ "$nDyingGaspEnable" -ne "$DYING_GASP_DISABLED" ]; }; then
+		config_get nDyingGaspEnable "gtc" nDyingGaspEnable
 	fi
 	
 	config_get nDyingGaspHyst "gtc" nDyingGaspHyst

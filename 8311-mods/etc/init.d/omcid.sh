@@ -6,8 +6,8 @@
 #
 # Configures and launches the OMCI daemon (omcid) as a procd-managed service.
 # Responsible for:
-#   - Resolving the MIB file (env -> UCI -> auto-generation from templates)
-#   - Generating a custom MIB when mib_customized=1 (vendor_id, hw_ver, etc.)
+#   - Resolving the MIB file (env > UCI > auto-select by UNI type)
+#   - Patching MIB identity fields, slot, and hardware version via sed
 #   - Setting OMCC version, IOP mask, LCT interface, and log level
 #   - Validating the omcid binary and restoring/modding it as needed
 #
@@ -15,7 +15,7 @@
 #   /opt/lantiq/bin/omcid          - OMCI daemon binary
 #   /opt/lantiq/bin/config_onu.sh  - Binary restore/mod helper
 #   /lib/falcon.sh                 - Board helpers
-#   /etc/mibs/*.ini                - MIB template files (nameless, pptp, veip)
+#   /etc/mibs/*.ini                - MIB template files
 #   /etc/config/8311               - 8311 UCI config
 #
 # Boot flow position: START=85, runs after onu.sh (61) and pin_cfg.sh (63).
@@ -78,78 +78,24 @@ is_flash_boot() {
 	grep overlayfs /proc/self/mounts >/dev/null
 }
 
-# generate_custom_mib -- Build a custom MIB file from user-supplied identity fields.
-#
-# Reads vendor_id, hw_ver, equipment_id, and uni_type from UCI 8311.config,
-# then assembles /etc/mibs/custom.ini by:
-#   1. Copying the base "nameless" template (no identity baked in)
-#   2. Appending ONT-G (ME 256) with vendor_id + hw_ver
-#   3. Appending ONT2-G (ME 257) with equipment_id
-#   4. Appending either VEIP or PPTP UNI managed entities based on uni_type
-#
-# Field length limits (from G.988 attribute definitions):
-#   vendor_id    :  4 chars  (truncated via printf %.4s)
-#   hw_ver       : 14 chars  (null-padded with \0 to 14)
-#   equipment_id : 20 chars  (null-padded with \0 to 20)
-#
-# Returns 1 if any required UCI field is missing or the template is absent.
-generate_custom_mib() {
-	vendor_id=$(uci -q get 8311.config.vendor_id) || return 1
-	hw_ver=$(uci -q get 8311.config.hw_ver) || return 1
-	equipment_id=$(uci -q get 8311.config.equipment_id) || return 1
-	uni_type=$(uci -q get 8311.config.uni_type | tr 'A-Z' 'a-z') || return 1
-
-	# Truncate to G.988 maximum attribute lengths
-	vendor_id=$(printf '%.4s' "${vendor_id}")
-	hw_ver=$(printf '%.14s' "$(echo "$hw_ver" | sed 's/\\0//g')")
-	equipment_id=$(printf '%.20s' "$(echo "$equipment_id" | sed 's/\\0//g')")
-
-	# Right-pad with literal \0 sequences to fill the fixed-width fields
-	hw_ver=$(printf %s "$hw_ver" "$(printf '%*s' $((14-${#hw_ver})) '' | sed 's/[[:space:]]/\\0/g')")
-	equipment_id=$(printf %s "$equipment_id" "$(printf '%*s' $((20-${#equipment_id})) '' | sed 's/[[:space:]]/\\0/g')")
-
-	mibsrc='/etc/mibs/nameless.ini'
-	mibtgt='/etc/mibs/custom.ini'
-
-	pptpsrc='/etc/mibs/pptp.ini'
-	veipsrc='/etc/mibs/veip.ini'
-
-	if [ ! -f "${mibsrc}" ]; then
-		return 1
-	fi
-
-	if [ -f ${mibtgt} ]; then
-		rm -f ${mibtgt}
-	fi
-
-	# Start from the identity-less base template
-	cp ${mibsrc} ${mibtgt}
-
-	{
-		# ONT-G (ME 256, instance 0): identity + vendor info
-		printf '\n# ONT-G\n256 0 %s %s 00000000 2 0 0 0 0 #0\n' "${vendor_id}" "${hw_ver}"
-		# ONT2-G (ME 257, instance 0): equipment ID + capability flags
-		printf '\n# ONT2-G\n257 0 %s 0xa0 0xcc 1 1 64 64 1 64 0 0x007f 0 24 48\n' "${equipment_id}"
-
-		# Append UNI type: VEIP for virtualised Ethernet, PPTP otherwise
-		if [ -n "$uni_type" ] && [ "$uni_type" = "veip" ]; then
-			printf '\n%s\n' "$(cat ${veipsrc})"
-		else #if [ -n "$uni_type" ] && [ "$uni_type" == "pptp" ]; then
-			printf '\n%s\n' "$(cat ${pptpsrc})"
-		fi
-	} >>${mibtgt}
-}
+# Stock identity constants -- used to detect whether MIB patching is needed.
+STOCK_VENDOR_ID="ALCL"
+STOCK_EQUIPMENT_ID="BVL3A5HNAAG010SP"
+STOCK_HW_VER="3FE56641AAAA01"
 
 # start_service -- procd hook: resolve configuration and launch omcid.
 #
 # Configuration resolution phases:
-#   1. MIB file     -- env > UCI > auto-generate (custom or stock by UNI type)
+#   0. Failsafe     -- optional startup delay for recovery access
+#   1. MIB file     -- env > UCI > auto-select by UNI type
 #   2. OMCI status  -- status file path for runtime counters
 #   3. OMCC version -- protocol version (default 160 / 0xA0 baseline)
 #   4. LCT iface    -- map network.lct.ifname to omcid -g flag
 #   5. IOP mask     -- interop workaround bitmask (env > UCI > 0)
 #   6. Binary check -- validate omcid, restore/mod if needed
-#   7. Log level    -- 1-7 (default 3)
+#   7a. Log level   -- 1-7 (default 3)
+#   7b. MIB patch   -- identity, pon_slot, cp_hw_ver_sync via sed
+#   7c. Bank override -- override committed_image fwenv
 #   8. Launch       -- procd-managed respawn with resolved parameters
 start_service() {
 	local mib_file
@@ -163,40 +109,51 @@ start_service() {
 	local iop_mask_uci
 	local omci_iop_mask
 	local lct=""
-	local mib_customized
 	local uni_type
+	local vendor_id
+	local equipment_id
+	local hw_ver
 	local omcid_valid
+	local failsafe_delay
 
 	#is_flash_boot && wait_for_jffs
 
+	# --- Phase 0: Failsafe delay ---
+	# Delay omcid startup to give the user time to access the device
+	# before it registers on the PON (useful for recovery from bad OMCI config).
+	failsafe_delay=$(uci -q get 8311.config.failsafe_delay)
+	if [ -n "$failsafe_delay" ] && [ "$failsafe_delay" -gt 0 ] 2>/dev/null; then
+		logger -t "[omcid]" "Failsafe delay: waiting $failsafe_delay seconds before starting omcid ..."
+		sleep "$failsafe_delay"
+	fi
+
 	# --- Phase 1: Resolve MIB file ---
 	# Priority: U-Boot env mib_file > UCI mib_file (if not "auto.ini") > auto
+	# Auto mode selects the stock template by UNI type (PPTP or VEIP) and
+	# patches identity fields via sed in Phase 7b if they differ from stock.
+	local need_identity_patch=0
+
 	mib_file_env=$(fw_printenv mib_file 2>&- | cut -f 2 -d '=')
 	mib_file_uci=$(uci -q get 8311.config.mib_file)
-	mib_customized=$(uci -q get 8311.config.mib_customized)
 	uni_type=$(uci -q get 8311.config.uni_type)
+	vendor_id=$(uci -q get 8311.config.vendor_id)
+	equipment_id=$(uci -q get 8311.config.equipment_id)
+	hw_ver=$(uci -q get 8311.config.hw_ver)
 
 	if [ -f "/etc/mibs/$mib_file_env" ]; then
 		# Env points to a real file on disk -- use it directly
 		mib_file="/etc/mibs/$mib_file_env"
-	elif [ -n "$mib_file_uci" ] && [ "$(echo "$mib_file_uci" | grep -c "auto.ini")" != "1" ]; then
-		# UCI specifies a non-auto MIB file -- use it as-is
-		mib_file="$mib_file_uci"
+	elif [ -n "$mib_file_uci" ] && [ "$mib_file_uci" != "auto.ini" ]; then
+		# UCI specifies a non-auto MIB file
+		mib_file="/etc/mibs/$mib_file_uci"
 	else
-		# Auto-select: generate custom MIB or pick a stock template by UNI type
-		if [ "$mib_customized" = "1" ]; then
-			generate_custom_mib
-			ln -sf /etc/mibs/custom.ini /etc/mibs/auto.ini
+		# Auto-select stock template by UNI type
+		if [ "$(echo "$uni_type" | tr 'A-Z' 'a-z')" = "veip" ]; then
+			mib_file="/etc/mibs/data_1v_8q.ini"
 		else
-			if [ -n "$uni_type" ] && [ "$uni_type" = "veip" ]; then
-				ln -sf /etc/mibs/data_1v_8q.ini /etc/mibs/auto.ini
-			else #if [ -n "$uni_type" ] && [ "$uni_type" == "pptp" ]; then
-				ln -sf /etc/mibs/data_1g_8q_us1280_ds512.ini /etc/mibs/auto.ini
-			fi
+			mib_file="/etc/mibs/data_1g_8q_us1280_ds512.ini"
 		fi
-		mib_file="/etc/mibs/auto.ini"
-		uci set "8311.config.mib_file=$mib_file"
-		uci commit 8311
+		need_identity_patch=1
 	fi
 
 	# --- Phase 2: OMCI status file ---
@@ -288,6 +245,133 @@ start_service() {
 		omci_log_path="/dev/console"
 	else
 		omci_log_path="/tmp/log/debug"
+	fi
+
+	# --- Phase 7b: MIB file patching ---
+	# All MIB modifications are applied here via sed on a working copy in
+	# /tmp, preserving the original templates on disk.
+	#
+	# Patches applied (in order):
+	#   1. Identity  -- vendor_id, hw_ver (ME 256), equipment_id (ME 257)
+	#                   Auto mode only; skipped if identity matches stock.
+	#   2. pon_slot  -- UNI slot number in ME 5, 6, 11, 264, 329
+	#   3. cp_hw_ver_sync -- Circuit Pack version field in ME 6
+	#
+	# Each sed replaces only the target token(s) in the line, preserving
+	# all template-specific fields (ANI slot types, queue metrics, etc.).
+	local pon_slot
+	local cp_hw_ver_sync
+	local mib_patched=0
+
+	pon_slot=$(uci -q get 8311.config.pon_slot)
+	cp_hw_ver_sync=$(uci -q get 8311.config.cp_hw_ver_sync)
+
+	# --- 7b.1: Identity patching (auto mode only) ---
+	if [ "$need_identity_patch" = "1" ]; then
+		if [ "$vendor_id" != "$STOCK_VENDOR_ID" ] || \
+		   [ "$equipment_id" != "$STOCK_EQUIPMENT_ID" ] || \
+		   [ "$hw_ver" != "$STOCK_HW_VER" ]; then
+
+			cp "$mib_file" /tmp/omcid_mib.ini
+			mib_file="/tmp/omcid_mib.ini"
+			mib_patched=1
+
+			# Truncate to G.988 maximum attribute lengths
+			local vid eid hver pad_len
+			vid=$(printf '%.4s' "$vendor_id")
+			hver=$(printf '%.14s' "$(echo "$hw_ver" | sed 's/\\0//g')")
+			eid=$(printf '%.20s' "$(echo "$equipment_id" | sed 's/\\0//g')")
+
+			# Right-pad with \0 sequences to fill fixed-width fields
+			pad_len=$((14 - ${#hver}))
+			if [ "$pad_len" -gt 0 ]; then
+				hver="${hver}$(printf '%*s' "$pad_len" '' | sed 's/ /\\0/g')"
+			fi
+			pad_len=$((20 - ${#eid}))
+			if [ "$pad_len" -gt 0 ]; then
+				eid="${eid}$(printf '%*s' "$pad_len" '' | sed 's/ /\\0/g')"
+			fi
+
+			logger -t "[omcid]" "Patching MIB identity: vendor=$vid hw_ver=$hver equip=$eid"
+
+			# ME 256 (ONT-G): replace vendor_id (attr 1) and hw_ver (attr 2)
+			sed -i "s/^\(256 0 \)[^ ]* [^ ]*/\1${vid} ${hver}/" "$mib_file"
+
+			# ME 257 (ONT2-G): replace equipment_id (attr 1)
+			sed -i "s/^\(257 0 \)[^ ]*/\1${eid}/" "$mib_file"
+		fi
+	fi
+
+	# --- 7b.2: UNI slot patching (all modes) ---
+	if [ -n "$pon_slot" ]; then
+		local slot_hex
+		slot_hex=$(printf '%02x' "$pon_slot")
+		logger -t "[omcid]" "Patching MIB: pon_slot=$pon_slot (0x${slot_hex})"
+
+		if [ "$mib_patched" = "0" ]; then
+			cp "$mib_file" /tmp/omcid_mib.ini
+			mib_file="/tmp/omcid_mib.ini"
+			mib_patched=1
+		fi
+
+		# Change UNI slot in CardHolder(5), CircuitPack(6), PPTP(11),
+		# UNI-G(264), VEIP(329). Matches instance IDs ending in 01 (port 1)
+		# only, preserving ANI entries which end in 80.
+		sed -i \
+			-e "s/^\([?! ]*5 \)0x[0-9a-fA-F][0-9a-fA-F]01 /\10x${slot_hex}01 /" \
+			-e "s/^\([?! ]*6 \)0x[0-9a-fA-F][0-9a-fA-F]01 /\10x${slot_hex}01 /" \
+			-e "s/^\([?! ]*11 \)0x[0-9a-fA-F][0-9a-fA-F]01 /\10x${slot_hex}01 /" \
+			-e "s/^\([?! ]*264 \)0x[0-9a-fA-F][0-9a-fA-F]01 /\10x${slot_hex}01 /" \
+			-e "s/^\([?! ]*329 \)0x[0-9a-fA-F][0-9a-fA-F]01 /\10x${slot_hex}01 /" \
+			"$mib_file"
+	fi
+
+	# --- 7b.3: Circuit Pack version sync (all modes) ---
+	if [ "$cp_hw_ver_sync" = "1" ] && [ -n "$hw_ver" ]; then
+		logger -t "[omcid]" "Patching MIB: syncing Circuit Pack version to hw_ver=$hw_ver"
+
+		if [ "$mib_patched" = "0" ]; then
+			cp "$mib_file" /tmp/omcid_mib.ini
+			mib_file="/tmp/omcid_mib.ini"
+			mib_patched=1
+		fi
+
+		# Pad hw_ver to 14 chars with \0 sequences (G.988 Version attribute width)
+		local padded_ver
+		padded_ver=$(printf '%.14s' "$(echo "$hw_ver" | sed 's/\\0//g')")
+		local pad_len=$((14 - ${#padded_ver}))
+		if [ "$pad_len" -gt 0 ]; then
+			padded_ver="${padded_ver}$(printf '%*s' "$pad_len" '' | sed 's/ /\\0/g')"
+		fi
+
+		# Replace Version field (field 5 after class ID) in all ME 6 lines
+		sed -r \
+			"s#^(([!? ]*)?6(\s+(\"[^\"]*\"|[^\"][^ ]*)){4}\s+)(\"[^\"]*\"|[^\"][^ ]*)#\1${padded_ver}#g" \
+			-i "$mib_file"
+	fi
+
+	# --- 7b.4: Update auto.ini symlink ---
+	if [ "$need_identity_patch" = "1" ]; then
+		ln -sf "$mib_file" /etc/mibs/auto.ini
+	fi
+
+	# --- Phase 7c: Override committed firmware bank ---
+	# omcid reads committed_image via fw_printenv at startup (ME 7).
+	# Set the fwenv before launch; bypasses the fw_setenv wrapper which
+	# blocks committed_image writes from OLT-initiated firmware updates.
+	local override_commit
+	override_commit=$(uci -q get 8311.config.override_commit)
+
+	if [ -n "$override_commit" ]; then
+		local commit_val=""
+		case "$override_commit" in
+			A) commit_val=0 ;;
+			B) commit_val=1 ;;
+		esac
+		if [ -n "$commit_val" ]; then
+			logger -t "[omcid]" "Overriding committed bank to: $override_commit ($commit_val)"
+			/opt/lantiq/bin/fw_setenv committed_image "$commit_val"
+		fi
 	fi
 
 	# --- Phase 8: Launch omcid under procd with auto-respawn ---

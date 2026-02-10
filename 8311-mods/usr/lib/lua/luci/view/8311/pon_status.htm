@@ -1,4 +1,4 @@
-<%--
+<%#
   pon_status.htm -- PON Status display page
 
   Tabbed view showing live GPON/OMCI status information.  Tab content
@@ -12,7 +12,7 @@
 
   Tabs typically include: gtop_status, omci_info, vlan_data, etc.
   Default active tab: gtop_status (GPON GTC/ONU PLOAM state).
---%>
+%>
 <%
 
 local tools = require "8311.tools"
@@ -26,20 +26,34 @@ local esc = tools.html_escape
 <h2 name="content"><%:PON Status%></h2>
 <br />
 
-<ul class="cbi-tabmenu">
-<% for pageid, page in pairs(pages) do %>
-	<li data-tab="<%= page.id %>" class="<% if pageid < 2 then %>cbi-tab<% else %>cbi-tab-disabled<% end %>"
-<%- if page.display == false then %> style="display: none"<% end %>>
-	<a href="#" onclick="switchTabPonStatus('<%= page.id %>');"><%= esc(page.label) %></a></li>
-<% end %>
-</ul>
-<div class="content_syslog">
-<textarea id="syslog" style="font-size:10pt; font-family: monospace;" readonly="readonly" wrap="off" rows="48">
-</textarea>
+<div class="cbi-section">
+	<h3><%:System Info%></h3>
+	<textarea id="system_info" style="font-size:10pt; font-family: monospace;" readonly="readonly" wrap="off" rows="22">Loading...</textarea>
+</div>
+
+<div class="cbi-section">
+	<h3><%:Diagnostic Pages%></h3>
+	<ul class="cbi-tabmenu">
+	<% for pageid, page in pairs(pages) do %>
+		<li data-tab="<%= page.id %>" class="<% if pageid < 2 then %>cbi-tab<% else %>cbi-tab-disabled<% end %>"
+	<%- if page.display == false then %> style="display: none"<% end %>>
+		<a href="#" onclick="switchTabPonStatus('<%= page.id %>');"><%= esc(page.label) %></a></li>
+	<% end %>
+	</ul>
+	<div class="content_syslog">
+	<textarea id="syslog" style="font-size:10pt; font-family: monospace;" readonly="readonly" wrap="off" rows="48">
+	</textarea>
+	</div>
 </div>
 
 <script type="text/javascript">
 $( document ).ready(function() {
+	$.ajax({
+		url: 'pontop/system_info',
+		dataType: 'text'
+	}).done(function(data) {
+		$('#system_info').text(data);
+	});
 	switchTabPonStatus('gtop_status');
 });
 </script>

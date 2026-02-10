@@ -21,7 +21,7 @@ command=$1
 STOCK_EQUIPMENT_ID="BVL3A5HNAAG010SP"
 STOCK_HW_VER="3FE56641AAAA01"
 STOCK_VENDOR_ID="ALCL"
-omcid_stock_csum="0da3eb0b76af1df5f4df414e3fc09dbb"  # MD5 of baked-in patched omcid binary
+omcid_stock_csum="e3d83ea6bc5598768d7ae9756f483324"  # MD5 of baked-in patched omcid binary
 
 # Read current identity from firmware env and sync to UCI config.
 # Called during initial setup to populate the web UI with current values.
@@ -59,8 +59,6 @@ set_config() {
 	local omci_loid
 	local omci_password
 	local ploam_password
-	local mib_customized
-	local mib_customized_old
 	local vendor_id_from_sn
 	local gpon_sn_vendor
 	local gpon_sn_serial
@@ -72,8 +70,6 @@ set_config() {
 	omci_loid=$(uci -q get 8311.config.omci_loid)
 	omci_password=$(uci -q get 8311.config.omci_lpwd)
 	ploam_password=$(uci -q get 8311.config.ploam_password)
-	mib_customized=$(uci -q get 8311.config.mib_customized)
-	mib_customized_old=$(uci -q get 8311.config.mib_customized_old)
 	vendor_id_from_sn=$(echo "$gpon_sn" | cut -c -4)
 	vendor_id=$(uci -q get 8311.config.vendor_id)
 	equipment_id=$(uci -q get 8311.config.equipment_id)
@@ -109,10 +105,13 @@ set_config() {
 	gpon_sn_old_upper=$(echo "$gpon_sn_old" | tr 'a-z' 'A-Z')
 
 	if [ -n "$gpon_sn_upper" ] && [ "$gpon_sn_upper" != "$gpon_sn_old_upper" ]; then
-		logger -t "[config_onu]" "Setting Vendor ID: $vendor_id_from_sn."
-		/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id_from_sn}"
-		uci set 8311.config.vendor_id="${vendor_id_from_sn}"
-		uci commit 8311.config.vendor_id
+		# SN changed: auto-derive vendor from SN if vendor_id is stock or empty
+		if [ -z "$vendor_id" ] || [ "$vendor_id" = "$STOCK_VENDOR_ID" ]; then
+			logger -t "[config_onu]" "Setting Vendor ID (from SN): $vendor_id_from_sn."
+			/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id_from_sn}"
+			uci set 8311.config.vendor_id="${vendor_id_from_sn}"
+			uci commit 8311.config.vendor_id
+		fi
 		logger -t "[config_onu]" "Setting GPON SN: $gpon_sn."
 		/opt/lantiq/bin/sfp_i2c -i8 -s "${gpon_sn}"
 	elif [ -z "$gpon_sn" ]; then
@@ -120,43 +119,13 @@ set_config() {
 		/opt/lantiq/bin/sfp_i2c -i8 -s ""
 	fi
 
-	if [ "$mib_customized" = "1" ]; then
-		if [ -n "$vendor_id" ]; then
-			logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
-			/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
-			uci set 8311.config.vendor_id="${vendor_id}"
-			uci commit 8311.config.vendor_id
-		fi
-
-		if [ -n "$equipment_id" ]; then
-			logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
-			/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
-			uci set 8311.config.equipment_id="${equipment_id}"
-			uci commit 8311.config.equipment_id
-		fi
-
-		if [ -n "$hw_ver" ]; then
-			logger -t "[config_onu]" "Setting ONT Version: $hw_ver."
-			uci set 8311.config.hw_ver="${hw_ver}"
-			uci commit 8311.config.hw_ver
-		fi
-
-		if [ -z "$mib_customized_old" ]; then
-			uci set 8311.config.mib_customized_old="${mib_customized}"
-			uci commit 8311.config.mib_customized_old
-		fi
-	elif [ "$mib_customized_old" = "1" ]; then
-		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set 8311.config.vendor_id="${STOCK_VENDOR_ID}"
-		uci commit 8311.config.vendor_id
-		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set 8311.config.equipment_id="${STOCK_EQUIPMENT_ID}"
-		uci commit 8311.config.equipment_id
-		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set 8311.config.hw_ver="${STOCK_HW_VER}"
-		uci commit 8311.config.hw_ver
-		uci delete 8311.config.mib_customized_old
-		uci commit 8311.config.mib_customized_old
+	# Always apply identity fields to EEPROM (no mib_customized gate —
+	# auto-detection in omcid.sh handles custom MIB generation)
+	if [ -n "$vendor_id" ]; then
+		/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
+	fi
+	if [ -n "$equipment_id" ]; then
+		/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
 	fi
 
 	if [ -n "$omci_loid" ] && [ "$omci_loid" != "$omci_loid_old" ]; then
@@ -195,8 +164,6 @@ init_config() {
 	local vendor_id_from_sn
 	local gpon_sn_vendor
 	local gpon_sn_serial
-	local mib_customized
-	local mib_customized_old
 	local gpon_sn_len
 	local vendor_id
 	local equipment_id
@@ -207,8 +174,6 @@ init_config() {
 	omci_password=$(uci -q get 8311.config.omci_lpwd)
 	ploam_password=$(uci -q get 8311.config.ploam_password)
 	vendor_id_from_sn=$(echo "$gpon_sn" | cut -c -4)
-	mib_customized=$(uci -q get 8311.config.mib_customized)
-	mib_customized_old=$(uci -q get 8311.config.mib_customized_old)
 	gpon_sn_len=${#gpon_sn}
 	vendor_id=$(uci -q get 8311.config.vendor_id)
 	equipment_id=$(uci -q get 8311.config.equipment_id)
@@ -220,43 +185,12 @@ init_config() {
 		gpon_sn=$gpon_sn_vendor$gpon_sn_serial
 	fi
 
-	if [ "$mib_customized" = "1" ]; then
-		if [ -n "$vendor_id" ]; then
-			logger -t "[config_onu]" "Setting Vendor ID: $vendor_id."
-			/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
-			uci set 8311.config.vendor_id="${vendor_id}"
-			uci commit 8311.config.vendor_id
-		fi
-
-		if [ -n "$equipment_id" ]; then
-			logger -t "[config_onu]" "Setting Equipment ID: $equipment_id."
-			/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
-			uci set 8311.config.equipment_id="${equipment_id}"
-			uci commit 8311.config.equipment_id
-		fi
-
-		if [ -n "$hw_ver" ]; then
-			logger -t "[config_onu]" "Setting ONT Version: $hw_ver."
-			uci set 8311.config.hw_ver="${hw_ver}"
-			uci commit 8311.config.hw_ver
-		fi
-
-		if [ -z "$mib_customized_old" ]; then
-			uci set 8311.config.mib_customized_old="${mib_customized}"
-			uci commit 8311.config.mib_customized_old
-		fi
-	elif [ "$mib_customized_old" = "1" ]; then
-		logger -t "[config_onu]" "Resetting Vendor ID."
-		uci set 8311.config.vendor_id="${STOCK_VENDOR_ID}"
-		uci commit 8311.config.vendor_id
-		logger -t "[config_onu]" "Resetting Equipment ID."
-		uci set 8311.config.equipment_id="${STOCK_EQUIPMENT_ID}"
-		uci commit 8311.config.equipment_id
-		logger -t "[config_onu]" "Resetting ONT Version."
-		uci set 8311.config.hw_ver="${STOCK_HW_VER}"
-		uci commit 8311.config.hw_ver
-		uci delete 8311.config.mib_customized_old
-		uci commit 8311.config.mib_customized_old
+	# Always apply identity fields to EEPROM
+	if [ -n "$vendor_id" ]; then
+		/opt/lantiq/bin/sfp_i2c -i7 -s "${vendor_id}"
+	fi
+	if [ -n "$equipment_id" ]; then
+		/opt/lantiq/bin/sfp_i2c -i6 -s "${equipment_id}"
 	fi
 
 	if [ -n "$gpon_sn" ]; then
@@ -692,6 +626,63 @@ factoryreset() {
 	fw_setenv ethaddr 'ac:9a:96:00:00:00'
 }
 
+# Sync sw_verA/sw_verB from UCI to firmware env (image0_version/image1_version).
+# omcid reads these at startup for Software Image MEs [7].
+set_sw_ver() {
+	local sw_verA
+	local sw_verB
+	local sw_verA_old
+	local sw_verB_old
+
+	sw_verA=$(uci -q get 8311.config.sw_verA)
+	sw_verB=$(uci -q get 8311.config.sw_verB)
+	sw_verA_old=$(fw_printenv image0_version 2>&- | cut -f2 -d=)
+	sw_verB_old=$(fw_printenv image1_version 2>&- | cut -f2 -d=)
+
+	if [ -n "$sw_verA" ] && [ "$sw_verA" != "$sw_verA_old" ]; then
+		logger -t "[config_onu]" "Setting image0_version: $sw_verA."
+		fw_setenv image0_version "$sw_verA"
+	fi
+	if [ -n "$sw_verB" ] && [ "$sw_verB" != "$sw_verB_old" ]; then
+		logger -t "[config_onu]" "Setting image1_version: $sw_verB."
+		fw_setenv image1_version "$sw_verB"
+	fi
+}
+
+# Sync bootdelay from UCI to firmware env. Takes effect on next reboot.
+set_bootdelay() {
+	local bootdelay
+	local bootdelay_old
+
+	bootdelay=$(uci -q get 8311.config.bootdelay)
+	bootdelay_old=$(fw_printenv bootdelay 2>&- | cut -f2 -d=)
+
+	if [ -n "$bootdelay" ] && [ "$bootdelay" != "$bootdelay_old" ]; then
+		logger -t "[config_onu]" "Setting bootdelay: $bootdelay."
+		fw_setenv bootdelay "$bootdelay"
+	fi
+}
+
+# Sync dying_gasp_en from UCI to firmware env (nDyingGaspEnable).
+# Pattern matches switchasc: UCI → fwenv sync, takes effect on next reboot.
+set_dying_gasp() {
+	local dying_gasp_en
+	local dying_gasp_env
+
+	dying_gasp_en=$(uci -q get 8311.config.dying_gasp_en)
+	dying_gasp_env=$(fw_printenv nDyingGaspEnable 2>&- | cut -f2 -d=)
+
+	if [ "$dying_gasp_en" = "1" ] && [ "$dying_gasp_env" != "1" ]; then
+		logger -t "[config_onu]" "Enabling dying gasp, reboot required ..."
+		fw_setenv nDyingGaspEnable 1
+	fi
+
+	if [ "$dying_gasp_en" != "1" ] && [ "$dying_gasp_env" = "1" ]; then
+		logger -t "[config_onu]" "Disabling dying gasp, reboot required ..."
+		fw_setenv nDyingGaspEnable 0
+	fi
+}
+
 # Command dispatch
 case $command in
 load)
@@ -741,6 +732,15 @@ switchasc)
 	;;
 initasc)
 	initasc
+	;;
+set_sw_ver)
+	set_sw_ver
+	;;
+set_bootdelay)
+	set_bootdelay
+	;;
+set_dying_gasp)
+	set_dying_gasp
 	;;
 factoryreset)
 	factoryreset
