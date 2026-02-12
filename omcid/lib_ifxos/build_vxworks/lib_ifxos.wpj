@@ -1,0 +1,566 @@
+Document file - DO NOT EDIT
+
+<BEGIN> BUILD_PPC860gnu_BUILDRULE
+lib_ifxos.out
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_AR
+arppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_ARCHIVE
+$(PRJ_DIR)/PPC860gnu/lib_ifxos.a
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_AS
+ccppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_CC
+ccppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_CFLAGS
+-g \
+	-mcpu=860 \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860 \
+	-DVXWORKS \
+	-Wall \
+	-Wshadow \
+	-Wpointer-arith \
+	-Waggregate-return \
+	-Wredundant-decls \
+	-D_MPC860_ \
+	-D__PROTOTYPE_5_0 \
+	-DHAVE_IFXOS_SYSOBJ_SUPPORT=0 \
+	-I$(PRJ_DIR)/../src/include \
+	-I$(PRJ_DIR)/../src/include/vxworks
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_CFLAGS_AS
+-g \
+	-mcpu=860 \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_CPP
+ccppc -E -P -xc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_LD
+ldppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_NM
+nmppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_PPC860gnu_MACRO_SIZE
+sizeppc
+<END>
+
+<BEGIN> BUILD_PPC860gnu_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} {$(WIND_BASE)/target/src/} {$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_PPC860gnu_TC
+::tc_PPC860gnu
+<END>
+
+<BEGIN> BUILD_RULE_archive
+
+<END>
+
+<BEGIN> BUILD_RULE_lib_ifxos.out
+
+<END>
+
+<BEGIN> BUILD_RULE_objects
+
+<END>
+
+<BEGIN> BUILD__CURRENT
+archive
+<END>
+
+<BEGIN> BUILD__LIST
+PPC860gnu archive
+<END>
+
+<BEGIN> BUILD_archive_BUILDRULE
+archive
+<END>
+
+<BEGIN> BUILD_archive_MACRO_AR
+arppc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_ARCHIVE
+$(PRJ_DIR)/archive/lib_ifxos.a
+<END>
+
+<BEGIN> BUILD_archive_MACRO_AS
+ccppc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_CC
+ccppc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_CFLAGS
+-g \
+	-mcpu=860 \
+	-ansi \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860 \
+	-DVXWORKS \
+	-Wall \
+	-Wshadow \
+	-Wpointer-arith \
+	-Waggregate-return \
+	-Wredundant-decls \
+	-D_MPC860_ \
+	-D__PROTOTYPE_5_0 \
+	-DHAVE_IFXOS_SYSOBJ_SUPPORT=0 \
+	-I$(PRJ_DIR)/../src/include \
+	-I$(PRJ_DIR)/../src/include/vxworks
+<END>
+
+<BEGIN> BUILD_archive_MACRO_CFLAGS_AS
+-g \
+	-mcpu=860 \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860
+<END>
+
+<BEGIN> BUILD_archive_MACRO_CPP
+ccppc -E -P -xc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_LD
+ldppc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_LDDEPS
+
+<END>
+
+<BEGIN> BUILD_archive_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_archive_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_archive_MACRO_MAKEFLAGS
+-j4 -ws
+<END>
+
+<BEGIN> BUILD_archive_MACRO_NM
+nmppc
+<END>
+
+<BEGIN> BUILD_archive_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_archive_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_archive_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_archive_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_archive_MACRO_SIZE
+sizeppc
+<END>
+
+<BEGIN> BUILD_archive_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} {$(WIND_BASE)/target/src/} {$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_archive_TC
+::tc_PPC860gnu
+<END>
+
+<BEGIN> CORE_INFO_TYPE
+::prj_vxApp
+<END>
+
+<BEGIN> CORE_INFO_VERSION
+2.0
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_board_config.c_objects
+ifx_board_config.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_board_config.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_crc.c_objects
+ifx_crc.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_crc.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_fifo.c_objects
+ifx_fifo.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_fifo.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_getopt.c_objects
+ifx_getopt.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_getopt.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_getopt_ext.c_objects
+ifx_getopt_ext.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_getopt_ext.c_tool
+C/C++ compiler
+<END>
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_ini_access.c_objects
+ifx_ini_access.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_ini_access.c_tool
+C/C++ compiler
+<END>
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_version.c_objects
+ifxos_version.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_version.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_sys_show.c_objects
+ifxos_sys_show.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_sys_show.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_debug.c_objects
+ifxos_debug.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifxos_debug.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_board_config.c_objects
+lib_board_config.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_board_config.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_getopt.c_objects
+lib_getopt.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_getopt.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_ini_access.c_objects
+lib_ini_access.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_ini_access.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_copy_user_space.c_objects
+ifxos_vxworks_copy_user_space.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_copy_user_space.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_device_access.c_objects
+ifxos_vxworks_device_access.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_device_access.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_event.c_objects
+ifxos_vxworks_event.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_event.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_file_access.c_objects
+ifxos_vxworks_file_access.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_file_access.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_lock.c_objects
+ifxos_vxworks_lock.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_lock.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_alloc.c_objects
+ifxos_vxworks_memory_alloc.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_alloc.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_map.c_objects
+ifxos_vxworks_memory_map.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_map.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_misc.c_objects
+ifxos_vxworks_misc.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_misc.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_mutex.c_objects
+ifxos_vxworks_mutex.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_mutex.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_pipe.c_objects
+ifxos_vxworks_pipe.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_pipe.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print.c_objects
+ifxos_vxworks_print.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print_io.c_objects
+ifxos_vxworks_print_io.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print_io.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_select.c_objects
+ifxos_vxworks_select.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_select.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_socket.c_objects
+ifxos_vxworks_socket.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_socket.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_termios.c_objects
+ifxos_vxworks_termios.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_termios.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_thread.c_objects
+ifxos_vxworks_thread.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_thread.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_time.c_objects
+ifxos_vxworks_time.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_time.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> PROJECT_FILES
+$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_time.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_device_access.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_event.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_file_access.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_lock.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_alloc.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_misc.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_memory_map.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_mutex.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_pipe.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_print_io.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_select.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_socket.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_termios.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_thread.c \
+	$(PRJ_DIR)/../src/vxworks/ifxos_vxworks_copy_user_space.c \
+	$(PRJ_DIR)/../src/common/ifxos_version.c \
+	$(PRJ_DIR)/../src/common/ifxos_sys_show.c \
+	$(PRJ_DIR)/../src/common/ifxos_debug.c \
+	$(PRJ_DIR)/../src/common/ifx_ini_access.c \
+	$(PRJ_DIR)/../src/common/ifx_fifo.c \
+	$(PRJ_DIR)/../src/common/ifx_getopt.c \
+	$(PRJ_DIR)/../src/common/ifx_getopt_ext.c \
+	$(PRJ_DIR)/../src/common/ifx_board_config.c \
+	$(PRJ_DIR)/../src/common/ifx_crc.c
+<END>
+
+<BEGIN> userComments
+IFX OS Adaptation Layer
+<END>
+

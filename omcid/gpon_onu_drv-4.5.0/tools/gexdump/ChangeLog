@@ -1,0 +1,21 @@
+NEXT VERSION
+
+v0.0.6 2012-04-04
+- new handling for exceptions configuration
+
+v0.0.5 2012-03-22
+- fixed safe exit
+
+v0.0.4 2012-03-20
+- cleanup naming & file locations, replaced onu_exdump by gexdump 
+- -C, -T options added
+
+v0.0.3 2011-09-22
+- fix "-v" and "-h" options handling
+
+v0.0.2 2011-09-02
+- Add verbose option to show ignored packets.
+  The problem is that ignored packets dropped, this is not obvious.
+
+v0.0.1 2011-08-26
+- Initial release

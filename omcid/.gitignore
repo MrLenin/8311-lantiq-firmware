@@ -1,0 +1,18 @@
+# Build artifacts
+*.o
+*.lo
+*.la
+*.a
+.deps/
+.libs/
+.dirstamp
+config.log
+config.status
+config.h
+stamp-h1
+Makefile
+libtool
+autom4te.cache/
+
+# Built binary
+gpon_omci_onu-4.5.0/src/omcid

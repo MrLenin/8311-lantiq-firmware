@@ -1,0 +1,483 @@
+NEXT VERSION
+
+FIX:
+-
+ADD:
+-
+CHANGE(S):
+-
+
+V1.5.19 - 2013-05-22
+FIX:
+- GPONSW-1095: ifxos DEVIO_select() handling is wrong
+   prevent out of range access to array DEVIO_fd_table in functions DEVIO_*
+ADD:
+- new IFXOS getopt_long_r() function (reentrant version, intension is the use for non-Linux systems)
+
+V1.5.18 - 2013-02-04
+FIX:
+- better compatibility for C++, e.g. no typedef for IFX_void_t
+- some signed/unsigned warnings fixed in ifx_board_config.c and ifx_fifo.c
+- fix possible null pointer dereference in ifx_fifo.c and ifxos_win32_memory_alloc.c
+- GPONSW-1129: IFXOS_EventWait incorrectly returns with IFX_ERROR without waiting for timeout
+   nano seconds should be in the range 0 .. 999999999 (refer to the man page)
+ADD:
+- Eclipse IDE files for Windows build [VINETICLCSW-849]
+CHANGE(S):
+- correct whitespace (tabs) in ifx_ini_access.c
+
+V1.5.17 - 2012-05-12
+ADD:
+- build_ghs/lib_ifxos.gpj project file for building VxWorks version of IFXOS
+   using the MULTI Project Builder for PowerPC from Green Hills Software
+- permanently added ifxos_linux_event_appl.c to the library build
+
+V1.5.16 - 2011-09-21
+FIX:
+- remove \r for Linux printouts
+ADD:
+-
+CHANGE(S):
+-
+
+V1.5.15 - 2011-09-09
+FIX:
+-
+ADD:
+- IFXOS_BlockAlloc/IFXOS_BlockFree for userspace.
+CHANGE(S):
+-
+
+V1.5.14 - 2010-07-22
+FIX:
+- Portability: configure.in, Makefile.am - remove some OS specific options for the echo command.
+   (Patch V1.5.12: 100-portability.patch)
+- LINUX (Kernel 2.6.32): add include <linux/sched.h> (ifxos_linux_select_drv.c)
+   (Patch V1.5.12: 110-fix-2.6.32-wakeup.patch)
+- Byteorder: Fix compile error for byteorder detection (Little Endian might be not
+  defined on raw big endian systems (MPC8315)
+   (Patch V1.5.12: 120-fix-linux-byteorder.patch)
+CHANGE(S):
+- remove the board config part (library application code) from the IFXOS.
+
+V1.5.13 - 2010-05-27
+FIX:
+- Win32: return value of closesocket in case of error is SOCKET_ERROR
+- Corrected include vxworks.h to vxWorks.h (compile problems on Linux)
+- Guarantee at least that the given sleep time on IFXOS_MSecSleep is applied.
+  Previously it happened that a shorter time was used.
+ADD:
+-
+CHANGE(S):
+-
+
+V1.5.12 - 2010-01-13
+FIX:
+- LINUX: the function "interruptible_sleep_on_timeout" is strongly depricated with Kernel 2.6.
+  Replace it with "wait_event_interruptible_timeout" (see ifxos_linux_event_drv.c).
+- GetOpt Extention - fix incorrect cast for isspace macro.
+- IFX File Access: FileLoad - allocate filesize + 1 to add a '\0' termination
+  to the end of the file buffer. This allows other functions to parse the
+  buffer until the end termination (avoids out of bound read while file scan,
+  see ifx_ini_access.c::GetNextLine).
+- ifx_in_access.c::GetNextLine: break on '\0' termination.
+ADD:
+-
+CHANGE(S):
+- Update Lantiq License info.
+- separate options for gcc and cc compiler (default will be gcc).
+  For compile with cc compiler use the new configure option:
+  --enable-have-cc
+- Architecture name powerpc is no longer replaced by ppc as newer linux kernel
+  support the powerpc architecture name
+- changed informational print outs to normal log level
+- Linux: driver load now prints only one line of version and copyright
+
+V1.5.11 - 2009-07-30
+FIX:
+- VxWorks: remove VxWorks 6.4 specific includes.
+- fix ressource leak in CFG_LoadFile
+- fix possible zero pointer access in GetKeyString, IFXOS_ThreadInit
+- fix possible ressource leak in IFXOS_ThreadInit (Linux)
+- fix missing standard includes for SunOs
+ADD:
+- ifx_types.h 64bit extensions, added #HAVE_xxx_t defines, cosmetics
+- add check to CFG_SetBoardConfigFromArray
+- SunOS: add "getopt extended" and ini-file access to the build process
+CHANGE(S):
+- make install now strips the driver
+
+V1.5.10 - 2009-03-25
+FIX:
+- ifxos_linux_lock.h: add kernel version check before including of semaphore.h
+
+V1.5.9 - 2009-03-20
+ADD:
+- UDP socket support
+
+V1.5.8 - 2009-03-18
+CHANGE(S):
+ - RTEMS: ifxos_rtems_event.c: The event functions changed to use semaphores.
+ - XAPI: IFXOS_EventInit(): The semaphore name is created with an index.
+         IFXOS_EventWait(): Internal interpretation of waitTime_ms value 0 corrected.
+                                   Was WAIT_FOREWER, must be NO_WAIT.
+
+V1.5.7 - 2008-12-22
+ADD:
+- SUN Solaris Layer, add the SUN OS layer for the following basic functions:
+   * common handling
+   * printout handling
+   * file access handling
+  Therefore the following files have been added under:
+  - ./src/sun_os
+      * ifxos_sun_os_file_access_appl.c
+      * ifxos_sun_os_memory_alloc_appl.c
+      * ifxos_sun_os_print_appl.c
+      * ifxos_sun_os_print_io_appl.c
+  - ./src/inlcude/sun_os
+      * ifxos_sun_os_common.h\
+      * ifxos_sun_os_file_access.h\
+      * ifxos_sun_os_print_io.h\
+      * ifxos_sun_os_print.h\
+      * ifxos_sun_os_std_defs.h
+
+V1.5.6 - 2008-12-12
+ADD:
+ - missing xapi header files added: ifxos_xapi.common.h and ifxos_std_defs.h
+ - ifxos_xapi_print.c added
+
+CHANGE(S):
+ - Added reset of bShutDown flag in IFXOS_ThreadInit() function.
+ - DEVIO_driver_install: function protected against preemtive calls during init
+ - ifxos_xapi_interrupt.h: xapi_extension functions replaced
+ - IFXOS_THREAD_NAME_LEN set to 4 bytes (4 bytes + null termination)
+ - RTEMS files updated to correspod to other OSes.
+
+
+V1.5.5 - 2008-11-27
+ADD:
+- LINUX Appl:
+   - add events also for LINUX user space.
+     (new file: ifxos_linux_event_appl.c)
+- LINUX Appl:
+   For simulation and compilation under LINUX user space the following
+   IFXOS functionality have been added:
+   - functions for copy between user and driver space.
+     (new file: ifxos_linux_copy_user_space_appl.c)
+   - functions for virtual to physical memory ranges (dummy).
+     (new file: ifxos_linux_memory_map_appl.c)
+   - functions for driver select handling, dummy - for simulation use the IFXOS DEVIO.
+     (new file: ifxos_linux_select_appl.c)
+   - macros for print on interrupt level (also for user space)
+- LINUX: build process, add a new configure option to allow to switch off the
+   build of the LINUX kernel module
+   --with-kernel-module
+      Per default the option is set, under LINUX this option allows to build
+      the IFXOS without the kernel module.
+      (use --without-kernel-module)
+
+CHANGE(S):
+- Win32: IFXOS_FMemOpen: create temp file in the local filesystem (c:\temp or
+   in directory specified by TMP environment variable)
+
+V1.5.4 - 2008-07-11
+ADD:
+- IFXOS socket: add IFXOS_Shutdown routine.
+                (Win32, Linux, VxWorks, eCos)
+FIX:
+- eCos: thread delete and shutdown.
+   After an eCos thread ends the thread will be still registered within the
+   eCos scheduler. To remove the thread also from the scheduler a explizit
+   cyg_thread_delete() call is necessary.
+FIX:
+- IFXOS Runtime Check: macro "pointer check not null".
+- IFXOS Runtime Check: Virtual Memory Map, return pointer virtual address
+   this pointer location must contain a NULL ptr.
+ADD:
+- Lint default header, add prototypes (isalpha, isalnum)
+
+V1.5.3 - 2008-06-24
+change(s):
+- XAPI: removed 'brake' statement from line 237 as unreachable code.
+- Common: all '-1' in ifx_fifo.c changed to '~0' to match unsigned
+  data type.
+
+V1.5.2 - 2008-06-17
+change(s):
+- LINUX: fix some warnings (unused variables and print formats)
+- eCos: cleanup includes and automatic detection of features (IFXOS_HAVE...)
+        (allows build against minimal configs and/or lwip network stack)
+        manual configuration from outside is still possible by defining the CFLAGS
+        e.g. CFLAGS=-DIFXOS_HAVE_FILE_ACCESS=0
+
+V1.5.1 - 2008-06-06
+FIX:
+- LINUX Driver: export function "IFXOS_NamedLockInit".
+- Private Memory Files, allow config changes from outside via compile switch.
+
+V1.5.0 - 2008-05-30
+added: RTEMS support.
+
+V1.4.4 - 2008-05-20
+change: IFXOS_TimedLockGet() for VxWorks:
+           Error message on timed lock timeout is supressed for case
+           timeout_ms == 0 (valid case).
+
+V1.4.3 - 2008-05-19
+added: IFXOS_process_t type and IFXOS_ProcessIdGet() for XAPI.
+
+V1.4.2 - 2008-05-15
+added: Exported functions in Linux driver IFXOS_versionGet(),
+   IFXOS_versionCheck_equal(),
+   IFXOS_versionCheck_egThan(),
+   IFXOS_versionCheck_lessThan().
+
+V1.4.1 - 2008-05-13
+added: IFXOS_LockTimedGet for Linux
+change(s):
+- LINUX Driver: export new function "IFXOS_NamedLockInit"
+- Private Memory Files:
+- GetKeyString(), GetSection(): decrease stack usage (using dynamic memory alloaction).
+- GetKeyString(), GetSection(): using IFX_ERROR return code incase of invalid input parameters.
+
+V1.4.0 - 2008-04-23
+added: IFXOS System Objects
+   New file:
+      - ifxos_sys_show.c
+      - ifxos_sys_show.h
+      - ifxos_sys_show_interface.h
+
+   The IFXOS layer keeps for each object an additional system object for debug
+   purposals. Those System Objects will contain setup and runtime informations.
+   The following objects are currently supported:
+      - lock
+      - thread
+      - FIFO
+      - mutex (prepared)
+      - event (prepared)
+
+   To use the System Objects you have to do the following steps:
+   - compile the IFXOS and the applications with the corresponding switch
+      ("HAVE_IFXOS_SYSOBJ_SUPPORT")
+   - Initialize the System Objects once after startup (please hava a look to the
+     corresponding functions and macros in "ifxos_sys_show_interface.h")
+
+added: Function - IFXOS_NamedLockInit
+   The function expects additional a name of the lock.
+   Currently the lock name is used only within the new IFXOS System Objects.
+
+V1.3.0 - 2008-03-31
+added: XAPI support.
+   - test compilation possible with Tornado Project file
+     lib_ifxos_xapi.wpj
+   - Functionality modules covered:
+      * event
+      * lock
+      * memory_alloc
+      * mutex
+      * select
+      * thread
+      * time
+
+V1.1.2 - 2008-03-10
+
+added: private memory file handling
+   - no file system required
+   - for eCos, Nucleus, Win32 (for testing)
+added: Socket Macro for set address family.
+added: VAR_FIFO - add range check for FIFO read and peek.
+
+fix: IFXOS_SocketConnect, return value was from type IFXOS_socket_t
+     (should be IFX_int_t)
+
+change(s):
+- Socket: interprete the return value of the recv function and return IFX_ERROR
+          if something went wrong.
+
+V1.1.1 - 2008-02-08
+change(s):
+- added LINT configuration
+- added ifxos_std_defs.h file, moved ifxos_lint_std_defs.h to ./lint directory
+- added OS specific ifxos_<os name>_std_defs.h files
+
+V1.1.0 - 2008-01-28
+bugfix(es):
+- DEV IO: FIX DEVIO_select
+   - previous implementation: if the timeout = 0, then the call waits until a
+     new event has been received.
+   --> now: if timeout = 0 return immediately after one poll of the selected devices.
+
+added interface:
+- COMMON: IFXOS Version support (ifxos_version.h, ifxos_version.c)
+- Socket: IFXOS_SocketConnect, IFXOS_SocFdZero, IFXOS_SocFdClr, IFXOS_SocketAton
+- varibale FIFO: IFX_Var_Fifo_peekElement
+
+change(s):
+- DEVIO, Device Access Select: add local fd struct (for FD_out) if no return struct is given.
+
+added:
+- IFXOS Version handling:
+   - extract the version into a sperate file
+   - provide check macros and functions for version check while compile and runtime.
+- VAR FIFO: add "peek" function to check the contents of the FIFO buffer
+- Thread handling, add check macros
+- Socket: add the following functions:
+          IFXOS_SocketConnect: establish an TCP connection
+          IFXOS_SocFdZero:  clear the socket fd mask
+          IFXOS_SocFdClr:   clear a given fd within the socket fd mask
+          IFXOS_SocketAton: convert a given dotted ASCII address string to a network address
+
+V1.0.2 - 2007-12-14
+bugfix(es):
+- getopt extention, the parsing of a array of arguments was not correct.
+
+V1.0.1 - 2007-11-23
+bugfix(es):
+- FIX: compile warnings with the new introduced IFX types
+added:
+- IFXOS internal print function, add the GNUC attribute to the typedef
+  (note: some compiler does not support this feature, so to enable this check
+   you have to enable this via the compile switch "IFXOS_CHECK_ARGUMENTS")
+
+V1.0.0 - 2007-11-16
+
+This release was reworked to due to strict alignment issues.
+In addition new basic types IFX_time_t, IFX_size_t, IFX_ulong_t and IFX_long_t introduced.
+This types will be 8 byte wide on 64bit target architecture.
+
+change(s):
+- All IFX_Fifo_..() and IFX_Var_Fifo_...() functions rewritten to
+  deal only with IFX_ulong_t aligned memory addresses.
+added:
+- IFX_Var_Fifo_Test() (needs INCLUDE_SYS_FIFO_TEST to be defined)
+- eCos: added additional checks for CYGINT_ISO_TERMIOS support
+- eCos: replaced #include <sys/socket.h> by #include <network.h>
+        to avoid conflicts with different TCP/IP stacks
+- eCos: replaced #include <sys/ioccom.h> by #include <network.h>
+        to avoid conflict when <sys/ioccom.h> is missing
+- eCos: replaced #include <cyg/hal/plf_intr.h> header by #include <cyg/kernel/kapi.h>
+        header to avoid platform specific problems
+- eCos: fixed ifxos_ecos_file_access.c. IFXOS_HAVE_FILESYSTEM define will be checked if
+        file system is available.
+        Disable default values in file ifxos_ecos_file_access.h for
+        - IFXOS_HAVE_FILE_ACCESS,
+        - IFXOS_HAVE_FILESYSTEM and
+        - IFXOS_HAVE_MEMORY_FILE .
+- eCos: removed content of src\ecos\ifxos_ecos_device_access.c .
+        It was duplicated within src\dev_io\ifxos_device_io_access.c
+
+V0.1.2 - 2007-10-31
+ADD:
+- getopt extension functions for argument handling.
+   (see common/ifx_getopt_ext.c, inlcude/ifx_getopt_ext.h)
+
+bugfix(es):
+- C++ Compile: fix <extern "C" { .. }> in ifxos_linux_thread.h
+
+V0.1.1 - 2007-10-17
+change(s):
+- added: IFX_CalcChecksum, IFX_CalcChecksumCRC16, IFX_CalcChecksumCRC32
+   (see common/ifx_crc.c, include/ifx_crc.h)
+
+V0.1.0 - 2007-10-08
+change(s):
+- change "init" object sequence,
+         remove automatical object delete call within the init sequence.
+Add:
+- GENERIC_OS: Add the "GENERIC_OS" Layer to the IFXOS.
+              This is an "empty" layer and can be used as a starting frame or
+              for LINT processing.
+- Win32: Add "set thread priority"
+bugfix(es):
+
+V0.0.14 - 2007-09-26
+bugfix(es):
+SMS00666480: IFXOS_MSecSleep(1) under eCos is now sleeping at least 10msec
+change(s):
+- ifxos_device_io.h: maximum number of device descriptors & devices increased from 64 to 108
+
+V0.0.13 - 2007-08-29
+change(s):
+- move _IO macro from device_io header to the device access header.
+   + take the defintion out from the OS specific headers.
+
+bugfix(es):
+- dev_io: "DEVIO_open()", search for available devices.
+  A available device name (device table) must match to the requested
+  device name in the following way:
+  + exact match (both are the same)
+  + request a device with "appendix", if no exact match is found, we
+    have to search for a available device where the device name (fix) matches
+    exact to the leading part of the requestet device name. Then the trailer
+    of the requested device name will be used as a "appendix".
+
+V0.0.12 - 2007-08-28
+change(s):
+- Add configure options to specify external CFLAGS,
+  independent for driver and application/library
+  (--enable-add_drv_cflags and --enable-add_appl_cflags),
+  required for MIPS platforms and Linux kernel 2.4
+
+V0.0.11 - 2007-08-24
+bugfix(es):
+- IFXOS_DevFdZero added
+
+V0.0.10 - 2007-08-21
+bugfix(es):
+- LINUX Application: pipe O_DIRECT flag removed
+
+V0.0.9 - 2007-08-17
+change(s):
+- Add compile check to enable/disable a feature from extern.
+- Add macros to check the valid flag (lock, event, mutex, thread).
+- LINUX Kernel Module: Add module init and exit.
+- Makefile.am: move getopt to the OS specific section.
+- Makefile.am: add section for additional lib functions.
+bugfix(es):
+- LINUX Kernel Module - memory allocaction: fixed IFXOS_LOCAL_CHECK definition
+
+V0.0.8 - 2007-08-14
+change(s):
+- Added #include <asm/irq.h> to src/include/linux/ifxos_linux_interrupt.h
+  for declaration of enable_irq() and disable_irq() functions.
+- Renamed lib_xxx files to ifx_xxx files in VxWorks project file lib_ifxos.wpj.
+
+V0.0.7 - 2007-08-07
+change(s):
+- Renamed lib_xxx files to ifx_xxx files.
+- Renamed ifx_fifo interface from Fifo_xxx to IFX_Fifo_xxx .
+bugfix(es):
+- Linux / application / lock: fixed implementation for IFXOS_LockTimedGet()
+  in case that the timeout is -1 or 0
+- The IFXOS_INTSTAT type is now OS specific.
+
+V0.0.6 - 2007-08-03
+change(s):
+- added IFXOS_Reboot
+
+V0.0.5 - 2007-07-19
+change(s):
+- added win32 and vxworks files to source distribution
+
+V0.0.3 - 2007-07-12
+change(s):
+- fixed kernel 2.6 build
+
+V0.0.3 - 2007-07-05
+change(s):
+- changed License within the source files
+- pthread semaphore is used now for Linux implementation
+- various bugfixes
+
+V0.0.2 - 2007-06-07
+change(s):
+- added fifo, getopt, board_config, ini_access files
+- added a container to event, mutex and lock
+  - the container contain a valid flag
+  - therefore calling a function even with a invalid object will be save and return a error code
+- added interrupt stuff
+- updated interface for event, mutex, lock and threads
+  - removed xxxCreate function (no allocation of sync objects anymore)
+  - implemented xxxInit functions
+- addded uSleep functionality
+- added Nucleus to Makefile.am

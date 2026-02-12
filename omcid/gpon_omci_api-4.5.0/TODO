@@ -1,0 +1,30 @@
+TODO:
+  - Consider fatal errors callback (do we need it?)
+  - Implement checksum checking in the GPON AL (upon SW DL end)
+  GEM port network CTP:
+    - UNI counter attribute on OMCI side
+    - Select policer with unlimited traffic
+    - Add mapping for ONU_MAPPER_GEMPORTCTP_PORTID_TO_IDX
+  GAL Ehternet profile:
+    - Set gnGEM_PayloadSizeMax = 4095 on MIB reset
+  Traffic Scheduler-G
+    - Check if FIO_GPE_SCHEDULER_GET returns added scheduler index
+  802.1p mapper
+    - Check if the same DSCP profile table is already in use (do really need?)
+    - Check DSCP implementation
+    - Check indexes/ids bounds for mapper
+  GEM ITP:
+    - Do we need to set nITP_Index in GPE_bridgePortTableStructure_t?
+  VLAN Tagging Filter Data:
+    - Create mapping for ONU_GPE_TAGGING_FILTER_TABLE_ID starting from
+      ONU_GPE_VLAN_TABLE_SIZE/ONU_VLAN_GRP_SIZE + 1; because lower 64 entries
+      are reserved for VLAN table
+  VLAN Tagging Operation Config Data:
+    - Select an undefined code for value 15 (xxxTreatment)
+    - Should default rule group be unique? (Can we have several default gropus?)
+    - Add support for "Downstream VLAN Tagging Operation Mode" after
+      implementation become clear
+  Priority Queue-G
+    - Check "Related Port" implementation
+    - Implement "Queue configure option", "Maximum queue size", "Allocated queue size" after UMPR update
+

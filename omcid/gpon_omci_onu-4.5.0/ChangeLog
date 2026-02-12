@@ -1,0 +1,931 @@
+NEXT VERSION
+
+v4.5.0 2013.03.08
+
+common:
+- GPONSW-1054: OMCI - support of LOID based authentication
+- GPONSW-1077: Bridge port counter reset function missing
+
+v4.4.1 2012.12.12
+- aligned version number to OMCI API
+
+v4.4.0 2012.11.20
+
+common:
+- add customer ME's
+- "Dot1X port extension package" ME dummy implementation added
+
+Bug fix(es):
+- GPONSW-831: OMCI Mib Upload "Number of subsequent requests: 0"
+  + remove old upload timer event before adding a new one
+  + force new MIB copy in case that the old copy is invalid because of timer event
+- GPONSW-921: [BBF] 6.1.2 - OMCI scrambling issue
+- GPONSW-937: GEM IWTP Driver request was not executed
+  add the operational state handling of the Multicast GEM ITP ME
+
+v4.3.0 2012.08.10
+
+common:
+- GPONSW-842: upstream queues connected to T-CONT directly
+  + remove obsolete sanity checks
+  + allow all TCONT policies, make the attribute RW
+  + call omci_api_tcont_create() during MIB create
+
+v4.2.0 2012.07.30
+
+common:
+- GPONSW-745: OMCI: Multicast VLAN handling
+- GPONSW-768: Setting ONU Ethernet Mode from OLT
+- GPONSW-773: TMU inverse weight calculation in driver
+- GPONSW-822: BBF 6.9.1
+  report LOS alarm when link has changed with admin state == unlocked
+- GPONSW-826: BBF 6.10.8 Commit software image fails
+  update is_committed attributes of SW Image MEs in 'commit image' handler
+Bug fix(es):
+- GPONSW-742: Inverse Weight calculation inaccurate - fix attribute check
+- GPONSW-763: OMCI: Priority Queue Drop Precedence - further enhancements
+  + update all Bridge Ports within Priority Queue handling
+- GPONSW-766: OMCI - Downstream Priority Queue selection by GEM port
+  + provide parameter ds_priority_queue_ptr and ds_traffic_descriptor_profile_ptr
+    to omci_api_gem_port_network_ctp_update()
+- GPONSW-796: the traffic descriptor ME wasn't initialized completely
+- don't execute mib_upload if the seq_num is zer
+
+v4.1.1 2012.06.22
+
+Bug fix(es):
+- GPONSW-742: Inverse Weight calculation inaccurate
+- GPONSW-763: OMCI: Priority Queue Drop Precedence
+
+v4.1.0 2012.06.15
+
+common:
+- GPONSW-655: UNI ingress policing
+- GPONSW-677: reduce system load of omci daemon in idle state
+  + core and action threads synchronization added via ifxos event objects
+- new file(s) added:
+  + omci_multicast_subscriber_monitor.c
+  + omci_multicast_subscriber_monitor.h
+ME implementation:
+ - Multicast Subscriber Monitor implementation added
+ - Ethernet PMHD implementation updated
+ - Ethernet PMHD 2 implementation updated
+ - Ethernet PMHD 3 implementation updated
+ - Ethernet Frame PMHD US implementation updated
+ - Ethernet Frame PMHD DS implementation updated
+ - GAL Ethernet PMHD implementation updated
+Bug fix(es):
+- allow write operation on Priority Queue / Related Port
+  the attribute is only used during create() operation
+  changes by the OLT will be ignored
+- GPONSW-738: mib.ini in CR/LF format instead of LF format
+
+v4.0.2 2012.05.08
+
+Bug fix(es):
+- remove some ME pointer checks (create ME's with invalid pointer attributes)
+- GPONSW-679: Can't create "GEM port network CTP", fix traffic descriptor check
+
+v4.0.1 2012.04.27
+
+common:
+- lib_cli support added
+- fixed linux simulation build (build_linux)
+- fixed win32 projects
+- CLI cleanup
+- update omci_simulate to align with new CLI commands names
+- always assume that remote device is big endian
+- show signed int/short/char in 'meg' CLI command
+- use pthread rwlock for MIB lock when possible
+- use pthread mutex for ME recursive lock when possible
+- increase SW DL timeout to 15 minutes
+- lock MIB when calling mib_destroy in omci_shutdown
+- safe exit added (required for dmalloc)
+Bug fix(es):
+- GPONSW-555: OMCI ANI-G optical power values
+  ANI-G ME format fixed for some attributes (UINT->INT)
+- GPONSW-614: memory access issue
+
+v4.0.0 2012.01.26
+
+- GPONSW-322: OMCI ME: Call Control PMHD
+- GPONSW-514: On-screen flood during SW download
+- GPONSW-493: OD-247 Test 6.1.1 - no downstream data
+- GPONSW-493: added more debugging printouts to Ext VLAN ME
+- added 'Add ME' manual to the doxygen
+- added 'omci_msg_num_get' API routine
+- fixed omci_simulate 'action timeout' restoring (was too soon)
+- fixed counters retrieval for external PM MEs
+- ME implementation:
+  + RTP PMHD: implementation added (GPONSW-313)
+  + Call Control PMHD: dummy implementation added (GPONSW-322)
+  + GPONSW-506: OMCI: MAC filter table implementation
+- update remote ONU access
+
+v3.0.9 2011.12.20
+
+- GPONSW-454: add API to change OMCI action timeout and update omci_simulate
+Bug fix(es):
+- GPONSW-457: add interworking option 0x05 handling within GEM Interworking
+  TP ME.
+- GPONSW-462: sanity checks fixed.
+- Fix doxygen errors
+
+v3.0.8 2011.12.08
+
+ME implementation:
+- added Voice Line Status ME
+- Ext VLAN oper config: report sorted table entries
+Bug fix(es):
+- GPONSW-440: Extended VLAN operation: sorted entries
+  Entries sort added
+- GPONSW-446: extended vlan: default rules not enabled
+  Default rules enabled
+- GPONSW-439: sort me_def_class_array upon startup
+- GPONSW-439: sort MEs by instance_id in mib_me_create
+- GPONSW-439: don't sort me_def_class_array, sort mib.me_class_array instead
+- fix issue with mib_me_find when it doesn't NULL returned me pointer on error
+
+v3.0.7 2011.12.06 (Saint Nicholas edition)
+
+- Flush retransmit buffer upon MIB reset
+- GPONSW-410: abort in me_lock if MIB is not locked
+- GPONSW-410: add MIB lock to PLOAM state change callback
+- Move lock wrappers and OS wrappers under omci_os.h/.c
+- Move uci headers to src/ (they're private)
+- Remove ME lock for MIB reset action
+- Remove duplicate includes
+- Fix warnings
+- GPONSW-428: always include "Unauthorized join request behavior" attribute
+  within "MC Operations profile" ME according to the latest G988 std.
+
+v3.0.6 2011.11.22
+- add the possibility to retrieve and clear the MIB sequence number
+
+v3.0.5 2011.11.10
+
+Bug fix(es):
+- GPONSW-344: Dasan OLT V3.05 Interoperability fails
+
+v3.0.4 2011.10.28
+- fix compile warnings
+
+v3.0.3 2011.10.21
+- fix assertion when accessing OMCI ME
+- improve pjsip target compilation
+
+v3.0.2 2011.10.16
+
+common:
+- new file(s) added:
+  + omci_rtp_pmhd.c
+  + omci_rtp_pmhd.h
+  + omci_network_dial_plan_table.c
+  + omci_network_dial_plan_table.h
+  + omci_sip_call_init_pmhd.c
+  + omci_sip_call_init_pmhd.h
+  + omci_sip_agent_pmhd.c
+  + omci_sip_agent_pmhd.h
+  + omci_voice_service_profile.c
+  + omci_voice_service_profile.h
+- WHAT string added
+ME implementation:
+  + RTP PMHD implementation added
+  + Network Dial Plan Table implementation added
+  + SIP call initiation PMHD implementation added
+  + SIP agent PMHD implementation added
+  + Voice Service Profile implementation added
+  + VoIP Voice CTP: service profile handling added
+  + SIP Agent Config Data: SIP Response table dummy handling added
+CLI:
+- cli_omci_sip_answer(): implementation added.
+- "sip_user_cfg_set"/"sipucs" extended with "realm" argument.
+- "dls/dls", "dmls/dmlg" extended with the MCC module
+Bug fix(es):
+- GPONSW-304: sip user data problem.
+  "User part AOR" NULL pointer check added to the "SIP user data" ME.
+- GPONSW-300: sntpclient hold the sip port number.
+  Direct system() call replaced with usock handling.
+- GPONSW-318: sip agent uses wrong ip address.
+  Added timeout handler to refresh SIP agent configuration upon update calls
+  to IP host config data ME.
+- GPONSW-319: sip user uses wrong ip address.
+  Added additional IP address argument for OMCI API user update.
+  IP host IP address used for SIP user IP address.
+- GPONSW-311: don't apply static IP 0.0.0.0 in IP host config data.
+- GPONSW-306: added missing me_unlock for SIP user data ME.
+- GPONSW-277: use strtok_r instead of strtok (race between PIPE and CORE
+  thread).
+- GPONSW-344: Dasan OLT V3.05 Interoperability fails
+PM:
+- Add possibility to indicate 15-min interval end to the me_counters_get
+  handler (via OMCI_PM_INTERVAL_END)
+- Remove OMCI_ME_PROP_HAS_ARC for PM MEs attributes
+- Change ME_CREATED_BY_ONT to ME_CREATED_BY_OLT for PM MEs
+omci_simulate:
+- add version, WHAT string
+
+v3.0.1 2011.08.31
+
+ME implementation:
+  + ONU dynamic power management control implementation added
+
+v3.0.0 2011.08.18
+
+CLI:
+- "sipacs" optional parameters added
+- "sipc" description fixed
+common:
+- add table attributes support for 'memg' CLI command
+- fixed possible locking problems
+- fixed wrong class_id@instance_id printout in mib_me_create
+- added failsafe OMCI mode
+- made ME lock reentrant
+ME implementation:
+  + add GEM port network CTP PMHD ME
+  + "IP Host Config Data": current IP address handling fixed
+  + "IP Host Monitoring Data": move under #ifdef INCLUDE_PM
+  + "UNI-G": updated
+  + "SIP User Data": minor fixes
+  + "ONU Power Shedding": implemented (using admin state)
+  + "Circuit Pack": updated Power shed override attribute definition
+
+v2.0.1 2011.05.25
+- add internal PM support (without thresholds support)
+- add internal PM thresholds support
+
+v2.0.0 2011.04.15
+
+v1.0.4 2011.02.25
+- don't link as static binary
+- add sip_call, sip_hangup CLI implementation
+- fix OMCI MSG dump (add newline)
+- add implementation for VoIP MEs
+- remove OMCI UDP simulation
+
+v1.0.3 2011.02.19
+- debug enhancements
+
+v1.0.2 2011.01.28
+- debug enhancements
+
+v1.0.1 2011.01.07
+
+v1.0.0 2010.10.29
+- omcivig -> vig
+- Fix several klocwork issues
+- Add omci_is_me_supported to the interface (used by daemon)
+- Fix issue with MIB reset (wrong debug level set/restore)
+
+v0.7.3 2010.10.18
+- Variables renaming started
+- Source code re-factoring (automated): functions renamed globally
+- Change prefix to OMCI_
+
+v0.7.2 2010.07.03
+- Partly renamed OMCI SW interface (todo: include/cli; include/onu_omci_ethernet_pmhd2.h ...; src/*)
+- Add AVC CLI command
+- Remove managed entities API routines (not used)
+
+v0.7.1 2010.07.02
+- Reworked win32 projects
+
+v0.7.0 2010.07.23
+- Fixes according to GPON AL -> OMCI API rename
+- Fixed several klocwork issues
+- Added possibility to modify updated values in Update handler
+- Reworked (a little bit) new ME adding
+
+v0.6.0 2010.06.23
+- Added MIB config path command argument
+- Fixed VC8 project files
+- Reduced mallocs usage during initialization (was 61 call; become 53)
+- Removed redundant malloc call during ME creation
+- Reworked lists implementation (support free lists)
+- Renamed current simple lists implementation (used in table attribute) into
+DLIST (double-linked list)
+- Moved private headers to the src directory
+- Added configure option to enable/disable "free" lists (--enable-list-no-free)
+
+v0.5.8 2010.03.09
+- Remote UDP parameters are passed through menuconfig
+- Added -m daemon option to select startup MIB
+- Added nAttrMask to MeDataWrite (to allow partly update; currently non-set
+attributes are not fetched!!! used only to overcome setting of table
+attributes)
+
+v0.5.7 2010.02.25
+- Added IFXOS (to show/hide IFXOS debug outputs) & MIB_RESET (to show/hide
+outputs during MIB reset) debug levels
+- Fixed issue with 100% CPU loading by core thread
+- Fixed issue to set security mode
+
+v0.5.6 2010.02.19
+common:
+- Added typecasts for debug routines arguments (to fix klocwork issues)
+- Added additional information to the debug output when ME not found
+- Added suppress AVC argument for ONU_OMCI_MeAttrWrite
+- Added PPTP LCT UNI ME (for MOTO)
+
+v0.5.5 2010.02.12
+common:
+­ Added suppress AVC mask
+- Disable debug output on MIB reset
+- Commented out
+  + 802.1p mapper update handler (need to check it out)
+  + MAC bridge port config data
+
+v0.5.4 2010.01.22
+common:
+- All fail attempts to get/release lock now lead to call to abort()
+- IFXOS_CRLF -> CRLF
+- IFXOS_DBG_PRINT_USR -> printf
+- Added fix for possible error with long long support check
+
+v0.5.3 2009.12.29
+common:
+- Fixed some lint errors
+
+v0.5.2 2009.12.18
+common:
+- Indented & linted
+- Updated CLI PIPE implementation (some misprints fixes)
+- Added check for sizeof(_Bool) and sizeof(long long int) (should be 1 and 8 respectively)
+- OMCI_bool_t -> bool
+- Added OMCI_FORMAT_xxx definitions (for possible future support of extended OMCI messages)
+- Added test_build.sh script to test build configurations (+extended makefiles)
+- Fixed ONU_OMCI_MeDataWrite routine (emitted error when try to update ME with unsupported optional attributes)
+- Added support for ONU_OMCI_MeAttributesUpdatePrint (printouts like "Set foo = bar") to configuration without OMCI self description
+- Added fix for Get Next message when OLT tries to retrieve more than ONU_OMCI_TABLE_ATTR_COPY_NUM (defaults to 5) table attributes in a minute
+- Moved MIB initialize sequence to the daemon (it's not a library function to define MIB structure)
+- Transformed ONU_OMCI_COMPAT_MODE definition into context variable nOlt (so compatible mode can be changed on the fly)
+- med (ManagedEntityDump) -> meg (ManagedEntityGet) to remove collision with ManagedEntityDelete
+- Added the following API routines:
+  + ONU_OMCI_ManagedEntityCreate
+  + ONU_OMCI_ManagedEntityDelete
+  + ONU_OMCI_OltGet
+  + ONU_OMCI_MibReset
+
+v0.5.1 2009.12.11
+common:
+- Updated copyright headers
+- Separated common OMCI message variables into OMCI_Header_t
+- Added output during init of OMCI SW for (fixed their init handlers):
+  + Circuit Pack
+  + Software Image
+  + IP host config data
+
+v0.5.0 2009.12.04
+common:
+- Added new PM implementation (strongly based on ONU driver)
+- Updated PM tests
+- Updated test executors (run_all.sh & run_all_in_one.sh): they now log memory information
+- Integrated new AL interface for GEM Port PMHD & FEC PMHD
+- Implemented all provided callbacks of AL
+- EXTERN_C_XXX; -> __XXX_DECLS (to look more "standard")
+- Optimized & extended "med" CLI command (added additional argument nInterval)
+- Updated separation between API and private headers
+- Updated doxygen grouping
+
+v0.4.1 2009.11.27
+common:
+- Updated Code::Blocks project files
+- Removed usage of AL's ONU_MsgRecv
+- Updated events handling (added event callback for OMCI messages)
+
+v0.4.0 2009.11.20
+common:
+- Added Code::Blocks project files
+- Integrated AL's resource change callback (with dummy handler)
+- Updated message dump implementation (bytes swapping was missing in some places)
+- Introduced OMCI_Msg_GetTblRsp_t
+- Fixed ONU_OMCI_MeValidate for PM managed entities
+- Reworked validate handlers interface
+- Reworked "Create" action handler (set-by-create values are now passed via pInitData in initialize handler)
+- Added "mr" (MIB reset) CLI command
+
+v0.3.9 2009.11.13
+common:
+- Added possibility to create Managed Entities with custom initial data
+- Updated integration for 802.1p mapper service profile
+- Updated messages in case of AL update failure
+- New function(s) added:
+  + ONU_OMCI_MIB_Walk
+  + ONU_OMCI_MIB_WalkByClass
+
+v0.3.8 2009.11.06
+common:
+- Added support for updated GEM port network CTP interface
+- Updated integration for GEM ITP
+- Updated integration for PPTP Ethernet UNI
+- if (nRet) -> if (nRet != ONU_SUCCESS)
+
+v0.3.7 2009.10.30
+common:
+- Added "almd" CLI command
+
+v0.3.6 2009.10.23
+common:
+- Fixed klocwork issue
+- Added alarm callback; started using AL event handling
+- INCLUDE_OLT_UDP_SIMULATION -> INCLUDE_OMCI_UDP_SIMULATION
+
+v0.3.5 2009.10.16
+common:
+- Using updated AL software image interface
+- Added reboot protection for software download related actions
+- Added missing locks for API routines
+- Updated SW DL related OMCI messages definitions
+- Updated formatted OMCI messages dump to be like OCS
+- Fixed ME & ATTR naming lengths (max was 24, now 25; for ITU conforming)
+- Added new macroses:
+  + ONU_OMCI_CONTEXT_READ
+  + ONU_OMCI_CONTEXT_WRITE
+
+v0.3.4 2009.09.25
+common:
+- XxxTerminate -> XxxShutdown
+- XxxHandler -> XxxHandle
+- Removed IFX_ prefixes from types
+- Added WITH_AL argument for build_linux/Makefile to build OMCI SW without AL
+- INCLUDE_DRIVER -> INCLUDE_AL
+- Updated lint configuration
+
+v0.3.3 2009.09.18
+common:
+- Removed GPON AL prefix + some changes in handlers naming
+- Removed ONU_OMCI_PM_MeValidateHandler
+- Using EXTERN_C_{BEGIN,END} instead of 'extern "C" { }'
+
+v0.3.2 2009.09.04
+common:
+- Various fixes (mainly indenting) for Managed Entities headers
+- AVC is now sent only if attribute was really updated (not set to the current
+value)
+- Checked and fixed doxygen comments
+- Updated table tests
+- Added support for table attribute for:
+  + Multicast GEM interworking TP
+  + MAC bridge port filter table data
+  + Extended VLAN config data
+  + Multicast operations profile
+  + MAC bridge port bridge table data
+
+v0.3.1 2009.08.28
+common:
+- Removed OS debug module
+- Added validation for bit field values
+- Added validation for more attributes (see omci_status.xsl)
+- Added ONU_OMCI_ATTR_BOOL (used XXX_UINT for boolean values which is not so
+clear); updated all MEs regarding this change
+- Filled OMCI_CircuitPackType_t enum with values from 9.1.5-1/G.984.4
+- Integrated Multicast GEM interworking TP with GPON AL
+- Updated data is now copied automatically to ME data if UpdateHandler succeed
+- Added bounds check for ONU_OMCI_AttributesSwap
+- Added more runtime checks for MIB (during init phase)
+- Updated autotools configs for OMCI Test SW, GPON AL and GPON DRV (to use
+make dist)
+- Fixed UDP simulation (potentially broken during lint)
+- Implemented version fetching in GPON AL (from u-boot image header)
+- Fixed comments and made them more generic
+- Fixed possible bug with attributes offset overlap
+- Fixed validation for PM Managed Entities
+- Rewrote API functions (for FEC PMHD, GEM Port PMHD, T-Cont, SW image)
+- Added API for ANI-G
+
+v0.3.0 2009.08.21
+Removed file(s):
+  + onu_omci_os.h
+  + os/onu_omci_windows.h (.c)
+  + os/onu_omci_linux.h (.c)
+
+common:
+- Fixed DTI simulation
+- Updated build scripts (added possibility to build OMCI Test SW for MIPS)
+- Moved software download related actions to the GPON AL (remove OS module)
+
+v0.2.4 2009.08.14
+common:
+- Klocwork issues fixes
+- Added the rest of Managed Entities IDs to the omci_msg.h
+- Integrated more Managed Entities with GPON AL
+- Added type indication to the "med" CLI command
+- Started using IFX_void_t instead of IFX_uint8_t for many functions
+- Removed VOLATILE attribute property. The attribute value is now volatile in
+case of GetHandler presence
+- Added doxygen comments for OMCI messages structures
+- Reworked "dlg" command
+- Fixed indention (after removing IFX prefix) and enabled indent tool for ME
+implementation
+- Even if smart update is ON "set" printouts are printed (but not actually
+set)
+- Introduced ONU_OMCI_COMPAT_MODE for testing purposes (NSN compatibility is
+default, not OCS)
+- Updated Set and Create action handlers
+- Implemented dummy Managed Entities:
+  + Multicast subscriber config info
+  + IP host config data
+  + PPTP POTS UNI
+  + MAC bridge port extensions
+  + Multicast operations profile
+
+v0.2.3 2009.07.24
+common:
+- Implemented self-test dummy for ONT-G (as an example)
+- Fixed possible issue with the SW image (passed pointer to the store thread which may be lost)
+- Reworked locking scheme
+- Updated MibDump CLI command (had bad output for debug level == 0)
+- Updated coding style for omci_msg.h (added prefixes) + replaced defines with anonymous enums in omci_types.h
+- Added missing messages to the omci_msg.h (Test responses)
+- Added various fixes for klocwork issues (daemon arguments parse, software image, CLI pipe)
+- Fixed "smart update" for the table attributes
+- Added table attributes dummy handling for:
+  + Multicast GEM interworking TP
+  + MAC bridge port filter table data
+  + Extended VLAN config data
+- Integrated the following Managed Entities from the GPON AL:
+  + MAC bridge PMHD
+  + MAC bridge port designation data
+  + MAC bridge port filter table data
+  + MAC bridge port PMHD
+
+v0.2.2 2009.07.17
+common:
+- Added validation for ONT-G Battery backup
+- Updated CLI according new script version (0.10; 0.07; 0.02)
+- Added "smart update" feature (don't call validate & update handlers if the
+current data value is equal to the new one); use INCLUDE_SMART_UPDATE define
+to enable/disable it
+- Alarm message is sent and the alarm sequence number is updated only if the
+previous alarm status is not the same as current (for IFX_ONU_OMCI_MeAlarmSet)
+- Implemented generic PM Managed Entities validation handler (checks whether
+associated Threshold Data 1/2 Managed Entity exist)
+- Implemented config parsing skeleton (it's off by default)
+- Removed IFX prefix
+
+v0.2.1 2009.07.10
+common:
+- Added fixes for klocwork issues
+- Fixed ARC support
+- Added AVC support
+- Added possibility to use "omr" command while OMCI SW is compiled with the OLT SIM
+- Updated tests
+- Renamed "--enable-debug" to "--enable-debug-prints" in configure.in
+- Added validation for the following Managed Entities:
+  + Ani-G
+  + Cardholder
+  + Circuit pack (except "Power shed override" attribute)
+  + 802.1p mapper service profile (except "DSCP to P-bit mapping" attribute )
+  + Dot1 rate limiter
+  + GAL Ethernet profile
+  + GEM interworking termination point (except "GAL profile pointer" and "Interworking termination point pointer")
+  + Large String
+  + MAC bridge config data
+  + MAC bridge port bridge table data
+  + MAC bridge port config data
+  + MAC bridge port designation data
+  + MAC bridge service profile
+  + Multicast GEM interworking TP (except "Multicast Address Table")
+  + ONT power shedding
+  + Port mapping package-G (except "Port list X")
+  + Priority Queue-G (except queue sizes)
+  + T-CONT
+  + Traffic descriptor
+  + Traffic scheduler
+  + UNI-G
+  + VLAN tagging filter data (except "VLAN filter list" attribute)
+  + VLAN tagging operation config data (except "VLAN tag TCI value")
+  + PPTP Ethernet UNI
+  + GEM port network CTP
+- Added counters update implementation for the following PM Managed Entities:
+  + Ethernet frame PMHD DS, US
+  + Ethernet PMHD 1, 2, 3
+  + GAL Ethernet PMHD
+  + MAC bridge PMHD
+  + MAC bridge port PMHD
+
+v0.2.0 2009.07.03
+common:
+- Implemented new Set and Create handlers
+- Removed old Set and Create action handlers (no support for dedicated set henceforth); removed attributes set handlers support
+- Updated ManagedEntity* API routines (removed binding to instance id in some cases)
+- Updated debugging code
+- Updated ManagedEntityDump output (added attributes names)
+- Moved all non-ITU attributes of SW image to pInternalData
+- Adopted skeleton for all Managed Entities
+- Updated tests
+- Implemented default Validate & Update handlers
+
+v0.1.1 2009.06.26
+common:
+- Added OLT UDP simulation
+- Updated CLI generation scripts
+- IFX_ONU_OMCI_DBG_MODULE now defined only in debug build (for clarity)
+- Various fixes for Managed Entities
+- IFX_ONU_OMCI_SwImage_VersionGet is auto generated now (thx to new scripts)
+- Started using CRC32 I.363 for SW DL actions instead of IEEE
+- Added data swapping for MIB Upload action
+- Added entities with no attributes (like PON PPTP) to the MIB Upload
+- Implemented ONT remote debug Managed Entity
+- Removed onu_omci_fifo.c .h (using IFXOS FIFO instead)
+- Updated SW DL related actions according to T-REC-G.Imp984.4-200812-I!!MSW-E.doc (need to verify)
+
+V0.1.0 2009.06.18
+common:
+- Moved all device related functionality to the GPON AL (including DEVIO & DTI
+simulation)
+- Added support for DTI CLI
+- Moved low-level handling to the GPON AL for all implemented MEs
+- Excluded incoming messages with AK = 1
+- New projects for Win32
+
+V0.0.5 2009.06.11
+common:
+- Added more const qualifiers for clarity
+- Reworked PM interface for Managed Entities
+- Added skeleton for MAC Bridge Port Filter Table Data
+- Added low-level handing for:
+  + Traffic Scheduler-G
+  + GEM Port PMHD
+
+V0.0.4 2009.06.05
+common:
+- Added device simulation using DTI (INCLUDE_ONU_DTI_SIMULATION)
+- Sync update with driver
+
+V0.0.3 2009.06.04
+common:
+- Removed STATIC definition (used static instead)
+- PM 15-min history switch is now strictly aligned at 15-min boundary
+- Replaced internal bounds check macro with assert macro
+
+V0.0.2 2009.05.30
+common:
+New file(s) added:
+  + onu_omci_omci.c
+  + onu_omci_managed_entity.c
+  + onu_omci_attribute.c
+  + onu_omci_self_desc.h
+  + onu_omci_dti.c .h
+- Fixed new headers
+- Renamed _MeAttribute_t to _MeAttr_t in onu_omci_me.h (in order to remove
+conflict with onu_omci_attribute.h)
+- Added simulation for OMCI Self description managed entity in the MIB
+- Updated Linux build
+- Added additional information for all Managed Entities (for OMCI self desc)
+
+Vx.x.zy 2009.05.15
+common:
+- Low level handling (partial) for:
+  + GAL Ethernet Profile
+  + GEM Interworking TP
+  + GEM Port PMHD
+  + MAC Bridge Service Profile
+  + PPTP Ethernet UNI
+  + Priority Queue-G
+  + T-CONT
+- Added API for FEC PMHD Managed Entity
+- Added more flexibility to the PM architecture
+- Added enums with attributes numbers for each Managed Entity
+
+Vx.x.zx 2009.05.08
+common:
+- New file(s) added:
+  + onu_omci_dot1p_rate_limiter.c
+  + onu_omci_equipment_extension_package.c
+  + onu_omci_ethernet_ds_pmhd.c
+  + onu_omci_ethernet_pmhd.c
+  + onu_omci_ethernet_pmhd2.c
+  + onu_omci_ethernet_pmhd3.c
+  + onu_omci_ethernet_us_pmhd.c
+  + onu_omci_extended_vlan_config_data.c
+  + onu_omci_gal_ethernet_pmhd.c
+  + onu_omci_large_string.c
+  + onu_omci_mac_bridge_config_data.c
+  + onu_omci_mac_bridge_pmhd.c
+  + onu_omci_mac_bridge_port_bridge_table_data.c
+  + onu_omci_mac_bridge_port_bridge_designation_data.c
+  + onu_omci_mac_bridge_port_filter_preassign_table.c
+  + onu_omci_mac_bridge_port_pmhd.c
+  + onu_omci_multicast_gem_interworking_tp.c
+  + onu_omci_ont_power_shedding.c
+  + onu_omci_ont_remote_debug.c
+  + onu_omci_traffic_descriptor.c
+  + onu_omci_vlan_tagging_filter_data.c
+  + onu_omci_vlan_tagging_operation_config_data.c
+- Various fixes for all Managed Entities
+
+Vx.x.yz 2009.04.28
+common:
+- New file(s) added:
+  + onu_omci_gem_port_pmhd_api.c
+  + onu_omci_fec_pmhd.c
+  + onu_omci_threshold_data1.c
+  + onu_omci_threshold_data2.c
+- New API function(s) added:
+  + IFX_ONU_OMCI_GetPortPmhs_AttributesGet
+  + IFX_ONU_OMCI_SwImage_AttributesGet
+  + IFX_ONU_OMCI_Tcont_AttributesGet
+  + IFX_ONU_OMCI_PmHistorySwitch
+- New configuration option(s) added:
+  + INCLUDE_MANAGED_ENTITIES_API
+  + INCLUDE_PM
+- Implemented PM Functionality (including TCA)
+- API functions to get all attributes of the Managed Entity (get a snapshot)
+- Using "offsetof" for Managed Entities attributes offset counting
+  (therefore no need to pack managed entity structures)
+- Fixed doxygen references (only driver references are left unresolved)
+- Introduced IFX_ONU_OMCI_Config_t to support loading of config file
+  (/etc/config/gpon)
+- Updated Get Current Data action handling (regarding PM changes)
+- Updated Sync Time action handing (regarding PM changes)
+- Added Alarm table print in detailed OMCI message dump
+
+Vx.x.yy 2009.04.17
+common:
+- New file(s) added:
+  + onu_omci_gal_ethernet_profile.c
+  + onu_omci_dot1p_mapper.c
+  + onu_omci_mac_bridge_port_config_data.c
+  + onu_omci_mac_bridge_service_profile.c
+  + onu_omci_traffic_scheduler_g.c
+  + onu_omci_timeout.c .h
+  + onu_omci_msg_dump.c .h
+  + onu_omci_gem_port_pmhd.c
+- New function(s) added:
+  + CLI_IFX_ONU_OMCI_ManagedEntityDump
+  + IFX_ONU_OMCI_ManagedEntityListGet
+  + IFX_ONU_OMCI_ManagedEntityCountGet
+  + IFX_ONU_OMCI_ManagedEntityAlarmBitmapGet
+  + IFX_ONU_OMCI_ManagedEntityAttributeDataGet
+  + IFX_ONU_OMCI_ManagedEntityAttributePropertiesGet
+  + IFX_ONU_OMCI_ManagedEntityAttributeSizeGet
+  + IFX_ONU_OMCI_ManagedEntityPropertiesGet
+- Added OS debug module
+- Added PM debug module
+- Renamed onu_omci_gal_ethernet_performance_pmhd.h to
+  onu_omci_gal_ethernet_pmhd.h
+- Updated configure.in and Makefile.am
+- Updated MibDump command output
+- GetNext message handling
+- Read-write lock for MIB
+- Added locks for alarms copy, attributes copy, mib copy
+- Implemented timeout handling thread and related routines
+- Adopted timeout for the following actions: SW Dl, Get Next, MIB Upload,
+  Get All Alarms
+- Updated OMCI Init/Shutdown sequence
+- Sync time ONT-G message handling
+- Implemented PM 15-min timeout handling
+- Implemented simple ONT reboot handler
+- Implemented Get Current Data action handling
+- Replaced own OS reboot wrapper with IFXOS reboot routine
+- Added volatile attributes support (i.e. ONT2-G SysUpTime)
+- Added ARC support; Added ARC support to the Get All Alarms message
+- Updated doxygen tags
+
+Vx.x.yy 2009.04.XX
+common:
+- New file(s) added:
+  + onu_omci_os.h
+  + os/onu_omci_linux.c .h
+  + os/onu_omci_win32.c .h
+  + tests/test_sw_download_err.sh
+- Huge SW DL implementation changes
+- Added new ME headers
+- Added bootscript
+
+V0.0.2 - 2009.03.26
+common:
+- fixed src/Makefile.am & configure.in
+
+Vx.x.yx - 2009.03.YX
+common:
+- New file(s) added:
+  + me/onu_omci_sw_image_api.c .h
+  + omci_types.h
+- New function(s) added:
+  + IFX_ONU_OMCI_LockInit
+  + IFX_ONU_OMCI_LockDelete
+  + IFX_ONU_OMCI_LockGet
+  + IFX_ONU_OMCI_LockRelease
+- Input check for API functions (+ in-out printouts)
+- Send Alarm message in IFX_OMCI_ONU_MeAlarmSet/Clear
+- IFX_OMCI_MECLASS_AttrSet/Get -> SetHandler/GetHandler
+- Error checks in ME Init functions (ANI-G, ONT-G, T-CONT)
+- OMCI_ONU -> ONU_OMCI
+- Locks for IFX_ONU_OMCI_MeAttrRead, IFX_ONU_OMCI_MeAttrWrite,
+  IFX_ONU_OMCI_MeAlarmSet, IFX_ONU_OMCI_MeAlarmGet
+- IFX_ONU_OMCI_MIB_MeFind retuns IFX_ONU_OMCI_ERR_INVALID_ME is ME was not found
+- %hhu modifier for scanf in swig2cli.xsl (doesn't work on windows!!)
+  because %bu didn't work
+- headers were updated for ont data, ont-g, ont2-g, sw-image, tcont, uni-g
+- Implemented SW download related actions handling
+- Added API for SW image ME
+
+Vx.x.xz - 2009.03.XZ
+common:
+- New file(s) added:
+  + me/omci_onu_tcont_api.c .h
+  + build_linux/build.sh
+  + build_linux/build_mips.sh
+  + tests/test_alarms.sh
+  + tests/test_api.sh
+  + tests/test_create.sh
+  + tests/test_delete.sh
+  + tests/test_errors.sh
+  + tests/test_get.sh
+  + tests/test_mib.sh
+  + tests/test_set.sh
+  + configure.in
+  + Makefile.am
+  + src/Makefile.am
+- Autotools are used to build project
+- Added the following CLI commands: meac, meag, meas, tcpg, tcaig, tcais,
+  tcmig, oms, omr, md
+
+Vx.x.xy - 2009.03.XX
+common:
+- New file(s) added:
+  + omci_onu_pon_pptp.c .h
+  + omci_onu_pptp_ethernet_uni.c .h
+  + omci_onu_fifo.c .h
+  + omci_onu_daemon.c .h
+  + omci_onu_cli.c .h
+  + omci_onu_cli_console.c .h
+  + omci_onu_cli_access.c
+  + omci_onu_cli_pipe.c
+- Creation of required ME upon MIB create/reset (integrated ONU)
+- Added lots of const qualifiers (for clarity)
+- Added (ported) CLI + updated related autogen scripts
+- Created simple OMCI daemon
+- Improved debug module; it allows setting debug levels for each module
+- Received messages are now stored in fifo and handled in separated thread
+  (CoreThreadMain)
+
+Vx.x.xx - 2009.02.YX
+common:
+- New file(s) added:
+  + omci_onu_cardholder.c .h
+  + omci_onu_circuit_pack.c .h
+  + omci_onu_priority_queue_g.c .h
+  + omci_onu_gem_port_network_ctp.c .h
+  + omci_onu_gem_interworking_tp.c .h
+  + omci_onu_config.h
+- MIB sequence number increase for Set action handling
+- Removed ONU_OMCI_ActionHandle
+- Create & Delete action handlers + Tests
+- Naming changes (ONU_OMCI -> IFX_OMCI_ONU, onu_omci -> omci_onu)
+- Added additional messages structures
+- Huge CORE improvements (MIB layout)
+
+Vx.x.z - 2009.02.XZ
+common:
+- New file(s) added:
+  + onu_omci_test_alarms.c
+  + onu_omci_test_errors.c
+  + onu_omci_test_get.c
+  + onu_omci_test_mib.c
+  + onu_omci_test_set.c
+- Implemented MIB Upload handling
+- Implemented MIB Reset handling
+- Implemented Get All Alarms handling
+- Optional attributes have been excluded from MEs
+- Introduced terminate handling for ME instances
+- Added lots of dummy functions for MEs
+- New typedefs for attributes Get/Set handlers
+
+Vx.x.y - 2009.02.XY
+common:
+- New file(s) added:
+  + onu_omci_api.c .h
+  + onu_omci_me_def.c .h
+  + onu_omci_me_handlers.c .h
+- New definition(s) added:
+  + ONU_OMCI_ALARM_TBL_SIZE
+  + ONU_OMCI_ATTRIBUTES_COUNT
+  + ONU_OMCI_ACTIONS_COUNT
+  + OMCI_MSG_TYPE_*
+  + ONU_OMCI_ERROR_CHECK,
+  + ONU_OMCI_PTR_CHECK,
+  + ONU_OMCI_MALLOC_CHECK
+  + ONU_OMCI_NTOH
+  + ONU_OMCI_HTON
+- Indention & naming changes (All prefixes are set to ONU_OMCI_)
+- Introduced ONU_OMCI_Error_t & Added more error handling
+- Response creation was moved from ONU_OMCI_MsgHandle (introduced pRsp)
+- Get handler
+- Set handler
+- ME syntax fix (0 -> IFX_NULL; 0 -> ME_ATTR_NONE)
+- Added more Messages structures
+- Removed typedefs ONU_OMCI_AttrMask_t, ONU_OMCI_MeClassId_t,
+  ONU_OMCI_MeInstanceId_t
+- Documentation related updates
+- Function pointers are now typedef'ed without *
+
+Vx.x.x - 2009.02.XX
+common:
+- OMCI Message Handler base part
+- MIB Create/Destroy routines
+- ME Create/Delete/Find routines
+- ONT-G, ONT data, ONT2-G, OLT-G, SW image, T-CONT, ANI-G dummies
+

@@ -1,0 +1,30 @@
+/******************************************************************************
+
+                              Copyright (c) 2009
+                            Lantiq Deutschland GmbH
+                     Am Campeon 3; 85579 Neubiberg, Germany
+
+  For licensing information, see the file 'LICENSE' in the root folder of
+  this software module.
+******************************************************************************/
+
+HOW TO PREPARE COMPILATION
+--------------------------
+
+Provide your own LINUX build environment project setup:
+- your own LINUX kernel include path
+
+HOW TO COMPILE
+--------------
+execute the following commands on a shell in your build directory:
+
+CONFIGURE for PPC:
+------------------
+$ <your package dir>/configure --build=i686-pc-linux --host=ppc_8xx\
+							   --enable-kernelincl=/your/own/linux/include/path
+
+
+
+make
+
+

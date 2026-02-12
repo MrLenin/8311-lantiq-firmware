@@ -1,0 +1,79 @@
+#!/bin/sh
+
+echo "Started ONU OMCI SW Image selection"
+
+# print environment variables
+echo "Read the following values:"
+echo "   activate_image=$activate_image"
+echo "   committed_image=$committed_image"
+echo "   image0_is_valid=$image0_is_valid"
+echo "   image1_is_valid=$image1_is_valid"
+
+# select image to load
+if test $activate_image = -1 ; then
+   echo "Select committed image"
+   load_image=$committed_image
+else
+   echo "Select activated image"
+   load_image=$activate_image
+
+   echo "Set activate_image to -1"
+   setenv activate_image -1
+   saveenv
+fi
+
+# select image address and check for errors
+if test $load_image = 0 ; then
+   if test $image0_is_valid = 0 ; then
+      echo "ERROR: Try to load invalid image $load_image"
+      # XXX we can try to load (commit) second image (#1)
+
+      echo "Reboot..."
+
+      # wait till message is printed
+      sleep 1
+      reset
+   fi
+
+   echo "Update bootargs"
+   run addimage0_mtdparts
+
+   image_addr=$image0_addr
+elif test $load_image = 1 ; then
+   if test $image1_is_valid = 0 ; then
+      echo "ERROR: Try to load invalid image $load_image"
+      # XXX we can try to load (commit) second image (#0)
+
+      echo "Reboot..."
+
+      # wait till message is printed
+      sleep 1
+      reset
+   fi
+
+   echo "Update bootargs"
+   run addimage1_mtdparts
+
+   image_addr=$image1_addr
+else
+   echo "ERROR: Try to load image $load_image"
+   # corruption of the environment
+
+   echo "Reboot..."
+
+   # wait till message is printed
+   sleep 1
+   reset
+fi
+
+echo "Image $load_image at addr $image_addr will be booted..."
+
+bootm $image_addr
+
+# if we are here the image is invalid 
+# XXX make image invalid
+
+# XXX there can be infinite loop
+sleep 1
+reset
+

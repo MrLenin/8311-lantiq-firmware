@@ -1,0 +1,93 @@
+/* include/omci_api_config.h.in.  Generated from configure.in by autoheader.  */
+
+
+#ifndef _omci_api_config_h
+#define _omci_api_config_h
+   
+
+
+/* Define to 1 if you have the <getopt.h> header file. */
+#undef HAVE_GETOPT_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if the system has the type `long long int'. */
+#undef HAVE_LONG_LONG_INT
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Enable driver simulation */
+#undef INCLUDE_DRIVER_SIMULATION
+
+/* Enable dmalloc */
+#undef INCLUDE_OMCI_API_DMALLOC
+
+/* Enable MCC support */
+#undef INCLUDE_OMCI_API_MCC
+
+/* Enable VoIP support */
+#undef INCLUDE_OMCI_API_VOIP
+
+/* Enable remote ONU */
+#undef INCLUDE_REMOTE_ONU
+
+/* Enable Falcon software image support */
+#undef INCLUDE_SW_IMAGE_SUPPORT
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
+
+/* Disable debug printouts */
+#undef OMCI_API_DEBUG_DISABLE
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
+
+
+#endif
+   
+

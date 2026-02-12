@@ -1,0 +1,289 @@
+Document file - DO NOT EDIT
+
+<BEGIN> BUILD_RULE_archive
+
+<END>
+
+<BEGIN> BUILD_RULE_lib_ifxos.out
+
+<END>
+
+<BEGIN> BUILD_RULE_lib_ifxos_xapi.out
+
+<END>
+
+<BEGIN> BUILD_RULE_objects
+
+<END>
+
+<BEGIN> BUILD__CURRENT
+xapi
+<END>
+
+<BEGIN> BUILD__LIST
+xapi
+<END>
+
+<BEGIN> BUILD_xapi_BUILDRULE
+archive
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_AR
+arppc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_ARCHIVE
+$(PRJ_DIR)/xapi/lib_ifxos.a
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_AS
+ccppc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_CC
+ccppc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_CFLAGS
+-g \
+	-mcpu=860 \
+	-nostdinc \
+	-DRW_MULTI_THREAD \
+	-D_REENTRANT \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860 \
+	-DXAPI \
+	-DTARG_OS_NONE \
+	-DIFXOS_USE_DEV_IO=1 \
+	-Wall \
+	-Wshadow \
+	-Wpointer-arith \
+	-Waggregate-return \
+	-Wredundant-decls \
+	-D_MPC860_ \
+	-D__PROTOTYPE_5_0 \
+	-I$(PRJ_DIR)/../src/include \
+	-I$(PRJ_DIR)/../../../comacsd_driver/xapi
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_CFLAGS_AS
+-g \
+	-mcpu=860 \
+	-ansi \
+	-nostdinc \
+	-fvolatile \
+	-fno-builtin \
+	-fno-for-scope \
+	-P \
+	-x \
+	assembler-with-cpp \
+	-I. \
+	-I$(WIND_BASE)/target/h \
+	-DCPU=PPC860
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_CPP
+ccppc -E -P -xc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_LD
+ldppc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_LDDEPS
+
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_LDFLAGS
+-X -N
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_LD_PARTIAL_FLAGS
+-X -r
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_MAKEFLAGS
+-j4 -ws
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_NM
+nmppc
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_OPTION_DEFINE_MACRO
+-D
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_OPTION_INCLUDE_DIR
+-I
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_POST_BUILD_RULE
+
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_PRJ_LIBS
+
+<END>
+
+<BEGIN> BUILD_xapi_MACRO_SIZE
+sizeppc
+<END>
+
+<BEGIN> BUILD_xapi_RO_DEPEND_PATH
+{$(WIND_BASE)/target/h/} {$(WIND_BASE)/target/src/} {$(WIND_BASE)/target/config/}
+<END>
+
+<BEGIN> BUILD_xapi_TC
+::tc_PPC860gnu
+<END>
+
+<BEGIN> CORE_INFO_TYPE
+::prj_vxApp
+<END>
+
+<BEGIN> CORE_INFO_VERSION
+2.0
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_fifo.c_objects
+ifx_fifo.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/ifx_fifo.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_board_config.c_objects
+lib_board_config.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_board_config.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_getopt.c_objects
+lib_getopt.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_getopt.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_ini_access.c_objects
+lib_ini_access.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/common/lib_ini_access.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/dev_io/ifxos_device_io.c_objects
+ifxos_device_io.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/dev_io/ifxos_device_io.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_event.c_objects
+ifxos_xapi_event.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_event.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_lock.c_objects
+ifxos_xapi_lock.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_lock.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_memory_alloc.c_objects
+ifxos_xapi_memory_alloc.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_memory_alloc.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_mutex.c_objects
+ifxos_xapi_mutex.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_mutex.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_select.c_objects
+ifxos_xapi_select.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_select.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_thread.c_objects
+ifxos_xapi_thread.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_thread.c_tool
+C/C++ compiler
+<END>
+
+
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_time.c_objects
+ifxos_xapi_time.o
+<END>
+
+<BEGIN> FILE_$(PRJ_DIR)/../src/xapi/ifxos_xapi_time.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> FILE_V:/comacsd_lib/lib_ifxos/src/xapi/ifxos_xapi_thread.c_objects
+ifxos_xapi_thread.o
+<END>
+
+<BEGIN> FILE_V:/comacsd_lib/lib_ifxos/src/xapi/ifxos_xapi_thread.c_tool
+C/C++ compiler
+<END>
+
+<BEGIN> PROJECT_FILES
+$(PRJ_DIR)/../src/common/ifx_fifo.c \
+	$(PRJ_DIR)/../src/dev_io/ifxos_device_io.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_thread.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_time.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_lock.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_event.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_memory_alloc.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_select.c \
+	$(PRJ_DIR)/../src/xapi/ifxos_xapi_mutex.c
+<END>
+
+<BEGIN> userComments
+IFX OS Adaptation Layer
+<END>
+

@@ -1,0 +1,620 @@
+NEXT VERSION
+
+v4.5.0 2013.03.08
+
+common:
+- GPONSW-1101: Enable incremental Extended VLAN handling
+  + enable ext_vlan_incremental_enable feature by default on LAN port table and
+  US GEM port table
+- GPONSW-1077: Bridge port counter reset function missing
+- GPONSW-1071: GEM Port counter missing for transmitted frames
+  + fix the reset mask usage
+
+bug fix(es):
+- GPONSW-1081: BBF-247 issue 2 test fail
+  + added rule 1.24
+- GPONSW-1075: IPv6 ping fixed by means of enabling ICMP exceptions at LCT
+  + IPv6 ping fixed by means of enabling ICMP exceptions at LCT
+  
+v4.4.1 2012.12.12
+
+- GPONSW-1037: add BC and MC counter
+- GPONSW-1039: OD-247: 6.4.2 scramble tests are failing
+  + fixed usage of wrong reference for tp_type 5 / interworking 
+
+v4.4.0 2012.11.20
+
+common:
+- GPONSW-978: Exception packets handling adaptation to improved exception header format
+  + exception header now consists of 8 instead of 4 bytes
+  + received VLAN now included in exception header
+  + facilitates IGMP handling
+- GPONSW-932: OMCI: Default handling for PIR and PBS in Traffic Descriptor
+
+bug fix(es):
+- enable the shaper for upstream queues
+- make sure that the simple firmware policer is only used for inbound traffic
+- GPONSW-839: configure exception meters
+  + add ANI exception meter (A2x)
+- GPONSW-854: meter - ressource leak fixed
+- GPONSW-855: traffic descriptor
+  update all associated meter in case that the parameters of ME are changed by the OLT
+- GPONSW-856: Managed Entity 7@0 creation error -1
+  + missing IFXOS_FClose() added within omci_api_falcon_sw_image_is_active() call
+- GPONSW-925: [BBF] 6.3.1 - OMCI scrambling issue
+   + After configuring MC bridge port no OMCI communication is possible.
+   + Fix mapper range
+- GPONSW-933: pmapper not removed after MIB reset
+- GPONSW-937: GEM IWTP Driver request was not executed
+  + fix the operational state handling of the GEM ITP ME
+  + take into account that the access to the tables might fail
+- GPONSW-938: extVlan: missing rule
+  + added rule 1.18
+  + some bugfixes in 2.x (not related to the original issue)
+- GPONSW-954: fix AllocID 255 handling
+  + delete the TCONT if it was configured before
+
+v4.3.0 2012.08.10
+
+common:
+- GPONSW-694: FID programming
+  LAN IGMP/MLD exceptions setup removed. Added separate profiles for DS and US ANI side
+  IGMP/MLD exceptions.
+- GPONSW-772: Token Bucket Configuration of Scheduler ME in Conflict with Priority Queues
+  + assign one TBS per US queue, not per Scheduler
+  + use 'Traffic management pointer for upstream' GEM port NW CTP attribute to locate associated TBS
+- GPONSW-839: configure exception meters for UNI & IGMP
+- GPONSW-842: upstream queues connected to T-CONT directly
+  + add new api function omci_api_tcont_create()
+  + calculate the reserved sbid in case that the queue is connected to the TCONT
+- GPONSW-849: BBF 6.1.23 failed
+  + fix the bit position during read from the bit stream
+
+v4.2.0 2012.07.30
+
+common:
+- set SW image version to "N/A" if not available from the u-boot
+- GPONSW-745: OMCI: Multicast VLAN handling
+bug fix(es):
+- GPONSW-752: BBF 6.3.6 failed - IGMP frame correctly received but no streamA frame received
+- GPONSW-763: OMCI: Priority Queue Drop Precedence
+- GPONSW-760: Downstream MTU not modified by OMCI
+- GPONSW-766: OMCI - Downstream Priority Queue selection by GEM port
+  + added omci_api_gem_port_ds_prio_selection_modify()
+  + extending omci_api_gem_port_network_ctp_update() by support of parameter ds_priority_queue_ptr
+  + added dummy parameter ds_traffic_descriptor_profile_ptr
+  + added additional check to ensure that the queue is initialized
+- GPONSW-768: Setting ONU Ethernet Mode from OLT
+- GPONSW-773: TMU inverse weight calculation in driver
+- GPONSW-798: BBF 6.3.3 - decoding of VLAN tags improved
+- GPONSW-799: BBF 6.3.6
+  + set the correct default values during GEM PORT delete
+  + use VID only (ignore PCP and DEI)
+  + don't forward IGMP messages upstream if no action was taken
+- GPONSW-810: BBF 6.3.8 - added SW workaround to limit the IGMP rate towards the host
+- GPONSW-814: BBF 6.3.12 - fixed the IGMPV2 checks, discard IGMP packages if no action is taken
+- GPONSW-827: download - not the complete version information is stored in uboot env
+  store full image version to u-boot (32 characters from uImage)
+  return shortened (14 chars) version to OMCI stack
+
+v4.1.2 2012.06.27
+
+bug fix(es):
+  + GPONSW-751: BBF 6.3.3 failed - IGMPv2 - Error on treatment of Multicast flows
+
+v4.1.1 2012.06.22
+
+bug fix(es):
+  + GPONSW-742: Inverse Weight calculation inaccurate
+
+v4.1.0 2012.06.15
+
+common:
+- GPONSW-626: Disable Egress Ports by default
+- GPONSW-630: IGMP Dynamic Access Control List
+- GPONSW-655: UNI ingress policing
+- GPONSW-693: IGMP forwarding on IP multicast address
+- GPONSW-700: ME Ethernet Performance Monitoring History
+- GPONSW-729: Remove ONU_GPE_METER_TABLE access
+- new file(s) added:
+  + omci_api_multicast_subscr_monitor.c
+  + omci_api_multicast_subscr_monitor.h
+  + omci_api_ethernet_pmhd2.c
+  + omci_api_ethernet_pmhd2.h
+  + omci_api_ethernet_pmhd3.c
+  + omci_api_ethernet_pmhd3.h
+- ME implementation:
+  + Multicast Subscriber Monitor implementation added
+  + Ethernet PMHD implementation updated
+  + Ethernet PMHD 2 implementation added
+  + Ethernet PMHD 3 implementation added
+  + Ethernet Frame PMHD US implementation updated
+  + Ethernet Frame PMHD DS implementation updated
+  + GAL Ethernet PMHD implementation updated
+bug fix(es):
+- GPONSW-677: VoIP / SIP thread timeout increased to 500 ms
+- GPONSW-720:
+  If priority bit is set (!=0) during vlan translation the vlan tagging
+  filter will drop the data. (HDT-31562)
+- GPONSW-733: scheduler level handling added
+- GPONSW-735: explicitely set AES encryption to false (previously done in driver)
+
+v4.0.3 2012.05.08
+
+bug fix(es):
+- fix well known MC entry handling
+  created with the first BP
+  deleted when the bridge is removed
+- added correct port map index to the MC entries
+- GPONSW-680: can't find policer index message fixed
+- set default egress bridge port to 127 to make analysis easier
+
+v4.0.2 2012.04.27
+
+common:
+- add attempts handling for remote device open
+- configuration option(s) added:
+  + --enable-mcc (INCLUDE_OMCI_API_MCC)
+  + --enable-omci-dmalloc (INCLUDE_OMCI_API_DMALLOC)
+- added LCT initialization under omci_api_start()
+- ME implementation:
+  + GPONSW-325: OMCI ME: RTP Profile Data: DSCP mark handling added
+  + GPONSW-506: OMCI: MAC filter table implementation
+  + GPONSW-315: implement SIP call initiation performance monitoring history data ME
+  + GPONSW-551: 16 Bridge ports per bridge - OMCI
+  + "MAC Bridge Port Config Data": make sure that BP0..3 are always
+    connected to UNI0..3 within BRIDGE_TABLE
+- default remote IP address selection added
+- move RPC handling to the GPON RPC
+- MCC implementation:
+  + added US IGMP rate limiters support
+- MAC&FID forwarding:
+  + forwarding method changed to MAC&FID
+bug fix(es):
+  + TAPI stream socket close handling fixed.
+  + fixed win32 projects
+  + update swaplib
+  + GPONSW-521: SIP client gets deregistered in 120 sec.
+    SIP re-registration support added. "SIP Agent config data" ME "SIP reg exp time"
+    attribute handling added.
+  + fixed "MAC Bridge Port Filter table data" ME destroy handler.
+  + GPONSW-522: No dial tone after connecting to SIP server.
+    Dial/ringback/busy tones handling added.
+  + GPONSW-497: Ext VLAN filtering inner/outer mixed up and treatment is wrong
+  + GPONSW-552: VLAN Tagging Filter sets wrong TCI mask
+    Fixed wrong TCI mask for several fwd op codes
+  + fixed almost all endian issues (updated swaplib, more data swapped)
+  + GPONSW-555: OMCI ANI-G optical power values.
+    Optical signal level and TX signal level handling added as specified.
+  + GPONSW-497: Ext VLAN filtering inner/outer mixed up and treatment is wrong
+    Update innter/outer_not_generate fields setup
+  + fixed table size in table_read() and table_write()
+  + GPONSW-569: VLAN Tagging Filter set wrong action bits
+  + free allocated context in omci_api_shutdown
+  + 97% CPU usage: TAPI event thread handling fixed 
+
+v4.0.1 2012.01.26
+- fix voice platform
+- don't configure lan ports in case of remote ONU
+
+v4.0.0 2012.01.26
+
+- add timers support
+- fix doxygen errors
+- don't use removed policer table
+bug fix(es):
+  + Backout: Bridge direction check removed for a bridge port with a connected
+    IP Host ME.
+  + GPONSW-456: use flooding_bridge_port_index instead of
+  egress_bridge_port_index
+  + GPONSW-456: fix omci_api_bridge_get
+  + Ext VLAN Config Data ME: input, output assignment fixed.
+- ME implementation:
+  + RTP PMHD: implementation added (GPONSW-313)
+  + GPONSW-322: OMCI ME: Call Control PMHD
+- update RPC connection, usage of gponrpc library
+
+v3.0.8 2011.12.06 (Saint Nicholas edition)
+
+bug fix(es):
+  + fix tcpid update in ext-vlan ME, overwrite always the 4th entry
+  + Bridge direction check removed for a bridge port with a connected
+    IP Host ME.
+  + GPONSW-317: fix 'GOI parameters store' script path
+  + GPONSW-416: Reduce high CPU load
+  + fixed RTP min/max port attribute handling
+  + fixed realm settings in case of disabled validation scheme
+  + GPONSW-429: remove unneeded connection to "VLAN tag filter data" ME within
+    "MC Subscr Config Info" ME.
+  + fix Interwork TP pointer handling in Pmapper ME
+  + fix warnings
+- ME implementation:
+  + SIP user data: add user registration
+
+v3.0.7 2011.11.22
+
+- fix mac filter preassing issue that breaks br-lct
+- TCONT-ME:
+  + scan really all tconts
+  + use really the first free tcont
+  + add really the mapping for new entries
+  + use only the reg_egress_port for data
+  + don't touch pre_egress_port - it might be used by OMCI data path
+
+v3.0.6 2011.11.12
+
+- GPONSW-360: wait for exc interface to become 'up'
+- MCC: add read-modify-write for setting LAN/ANI exceptions
+
+v3.0.5 2011.11.10
+
+- GPONSW-361: eliminate usage of SW_GPIX
+- GPONSW-358 - Dasan OLT V3.05 No traffic
+  + add correct handling of the pmapper ME - give the UNI bridge ports
+  + set the bridge direction attribute in case of pmapper type
+  + shared pmapper: add multiple bridge ports to the ds gem port table
+  + shared pmapper: don't add entry with gpix 255 - it's reserved for ip host
+  + ds gem port table: don't add duplicated entries
+  + ds gem port table: avoid overflows
+
+v3.0.4 2011.10.28
+
+- GPONSW-369: fix max probability calculation
+- GPONSW-361: add GPE capability support
+
+v3.0.3 2011.10.21
+
+v3.0.2 2011.10.16
+
+common:
+- omci_api_gem_port_loop_modify(): fix handling of DS/US GEM port tables
+- new file(s) added:
+  + omci_api_usock.c
+  + omci_api_usock.h
+  + omci_usock_server.c
+  + omci_usock_server.h
+  + omci_api_rtp_pmhd.c
+  + omci_api_rtp_pmhd.h
+  + omci_api_sip_call_init_pmhd.c
+  + omci_api_sip_call_init_pmhd.h
+  + omci_api_sip_agent_pmhd.c
+  + omci_api_sip_agent_pmhd.h
+  + omci_api_mcc.c
+  + omci_api_mcc.h
+  + omci_api_mcc_common.h
+  + omci_api_multicast_subscr_config_info.c
+  + omci_api_multicast_subscr_config_info.h
+- ME implementation:
+  + fixed the case that multiple different bridge ports connnected to one Multicast GEM port
+  + PPTP POTS UNI: hook status handling added
+  + RTP PMHD: implementation added
+  + SIP call initiation PMHD: dummy implementation added
+  + SIP agent PMHD: implementation added
+  + GPONSW-327: fix bit positions of MAC bridge port bridge table
+  + VoIP Voice CTP: service profile handling added
+  + VoIP Voice CTP: RTP profile handling added
+  + Multicast Subscriber Config Info: implementation added
+- API function(s) added:
+  + omci_api_usock_msg_send()
+  + omci_api_scmd_run()
+  + omci_api_voip_call_answer()
+- VoIP:
+  + SIP password support added (GPONSW-301)
+  + VAD switched OFF (GPONSW-302)
+  + Added additional IP address argument for OMCI API user update (GPONSW-319)
+  + omci_api_voip_call_make(): allow to make a call even with ON-hook.
+  + realm handling added.
+  + remove SIP agent mapping upon destroy
+  + fxs <-> user mapping extended
+- omci_usock_serve: WHAT string added
+- GPONSW-334: use new types for FIO_GPE_SCHEDULER_YYY
+- GPONSW-336: add call to 'save_goi' upon SW image update
+- GPONSW-327: enable aging
+
+v3.0.1 2011.08.31
+
+- ME implementation:
+  + ONU dynamic power management control" implementation added
+
+v3.0.0 2011.08.18
+
+- common:
+  + DSCP profiles handling made common
+  + warnings fixed
+- ME implementation:
+  + "Extended VLAN Configuration Data": implementation added
+  + "MAC Bridge Port Configuration Data": MC GEM ports handling added,
+    learning disabled on the unidirectional GEM ports (GPONSW-223)
+  + "GEM Port Network CTP PMHD": updated
+  + "Dot1 rate limiter": updated
+  + "PPTP POTS UNI": admin state handling added
+  + "ONU Power Shedding": removed (done purely in the OMCI ONU)
+  + "PPTP Ethernet UNI": reworked 'pause time' and 'bridged or ip ind' checks
+- VoIP:
+  + ON/OFF hook handling and ringing support added
+  + DTMF dialing support added
+
+v2.0.1 2011.05.25
+
+- ME implementation:
+  + "MAC Bridge Port Filter Preassign Table" updated
+  + "MAC Bridge Port Bridge Table Data" updated
+- GOI alarms handling added:
+  + OPTIC_IRQ_TEMPALARM_YELLOW_SET:
+  + OPTIC_IRQ_TEMPALARM_YELLOW_CLEAR:
+  + OPTIC_IRQ_TEMPALARM_RED_SET:
+  + OPTIC_IRQ_TEMPALARM_RED_CLEAR:
+
+v2.0.0 2011.04.15
+
+- voip: 1st draft implementation ready
+
+v1.0.5 2011.02.25
+
+- don't link as static binary
+- voip: media start/stop added, sip agent creation added
+- voip: sip_call_make() added external thread registration
+- voip: sip initialization added, fxs init temporary commented
+- add small debugging to SIP MEs
+
+v1.0.4 2011.02.19
+- remove OMCI UDP simulation
+- new file(s) adde:
+  + omci_api_voice.c
+  + omci_api_voice.h
+
+v1.0.3 2011.01.28
+
+v1.0.2 2011.01.07
+
+- update to driver interface
+
+v1.0.1 2010.11.30
+- update to driver interface
+
+v1.0.0 2010.10.29
+- variables renaming started
+- Source code re-factoring (automated): functions renamed globally
+
+v0.1.1 2010.08.02
+- Reworked win32 projects
+
+v0.1.0 2010.07.23
+- rename project to OMCI API
+- move private headers to src directory
+- removed OMCI_API_ prefixes for internal routines
+
+v0.0.25 2010.03.26
+- driver update, disabled some GOI stuff under construction
+
+v0.0.24 2010.02.25
+- mercurial adapations
+
+v0.0.23 2009.12.29
+common:
+- Fixed some lint errors
+- --enable-sw-simulation -> --disable-falcon-sw-image-support
+- Added WITH_SW_SUPPORT (yes,no) switch to AL makefile
+
+v0.0.22 2009.12.18
+common:
+- Fixed VLAN tagging filter data array bounds check (klocwork)
+- %d -> %u for debug printouts
+- nGEM_BlockLength -> nGemBlockLength; nGEM_PortId -> nGemPortId;
+nGEM_PayloadSizeMax -> nGemPayloadSizeMax; nTCONT_Ptr -> nTcontPtr
+
+v0.0.21 2009.12.11
+common:
+- Updated copyright headers
+- Added possible fixes for klocwork issues
+- Removed resource change implementation
+- Updated Mapper ID types
+- Added HW programming for the following managed entities:
+  + VLAN tagging filter data
+  + VLAN tagging operation configuration
+  + MAC Bridge Port Filter Preassign Data
+  + Priority Queue-G
+  + OLT-G
+
+v0.0.20 2009.12.04
+common:
+- Partly updated FEC PMHD (counters reset handling should be added)
+- Partly updated GEM Port PMHD (counters reset handling should be added)
+- Updated GEM Port PMHD & FEC PMHD interface
+- Updated standard definitions
+- Disabled support of unions swapping in swaplib (to make GPE_tablEntry_t
+interface simpler)
+- Updated usage of driver's tables regarding new interface
+- Mapper:
+  + Added ONU_Mapper_Reset -> ONU_Mapper_Shutdown
+  + Added ONU_Mapper_Reset which does mapper shutdown & init (reinit)
+
+v0.0.19 2009.11.27
+common:
+- Updated T-CONT implementation (used FIO_GPE_TCONT_DELETE)
+- Wiped out (#if 0 ... #endif) PMHD MEs implementation
+- Wiped out interaction with driver's tables via FIO_GPE_TABLE_ENTRY_SET (need
+to approve interface)
+- Removed usage of different device descriptors for different functions
+- Updated events implementation (+new callback for OMCI messages)
+
+v0.0.18 2009.11.20
+common:
+- Updated Code::Blocks project files
+- Added implementation for 802.1p mapper service profile "DSCP to P-bit mapping"
+- Added callback for fatal errors; Added error notify for:
+  + T-CONT
+  + GEM Port network CTP
+  + GEM ITP
+  + Traffic Scheduler-G
+  + MAC Bridge service profile
+  + MAC Bridge port config data
+
+- Updated errors handling (with GOTOs) for:
+  + ANI-G
+  + T-CONT
+  + GAL Ethernet profile
+  + GEM Port network CTP
+  + PPTP Ethernet UNI
+
+  ? GEM ITP
+  ? MAC Bridge service profile
+  ? MAC Bridge port config data
+
+v0.0.17 2009.11.13
+common:
+- Fixed klocwork issue
+- Updated MAC Bridge Service Profile implementation
+- Extended Mapper interface with Index and ID array retrieving function
+- Implemented Traffic Scheduler-G
+- Implemented 802.1p mapper service profile (without DSCP to P-bit mapping)
+- Updated MAC Bridge Port Configuration Data implementation
+- Added internal functions for update/create/destroy MAC Bridge and MAC Bridge Port
+
+v0.0.16 2009.11.6
+common:
+- Updated PPTP Ethernet UNI implementation
+- Extended Mapper Id and Index type
+- Updated GAL Ethernet profile implementation
+- Implemented GEM Interworking TP
+- Implemented GEM port network CTP without support for
+  US Traffic Descriptor == NULL (will be implemented after completion of
+  Traffic Descriptor)
+- Mapper returns ONU_NOT_FOUND when it fails to find index/id
+- Updated ME routines printouts
+
+v0.0.15 2009.10.30
+common:
+- Implemented ANI-G low level handling
+- Implemented T-CONT low level handling
+- Implemented Traffic scheduler-G
+- Implemented GAL Ethernet profile
+- Added --enable-debug-prints to configure to enable/disable AL printouts
+- Added ID to Index Mapper implementation
+
+v0.0.14 2009.10.23
+common:
+- Added event handling skeleton
+- INCLUDE_ONU_DEVIO_SIMULATION -> INCLUDE_DRIVER_SIMULATION
+- INCLUDE_OLT_UDP_SIMULATION -> INCLUDE_OMCI_UDP_SIMULATION
+- OltSimInit -> OmciSimInit
+- OltSimShutdown -> OmciSimShutdown
+- Added device FD argument to the ONU_DevCtl
+- Added ONU_DevEventWait routine
+- Fixed DTI simulation support
+- Fixed swaplib compilation problems
+- Fixed winsock & DEVIO simulation conflict (for _IO, etc) in
+onu_gpon_al_dti.c
+- XXX_Init -> XXX_Create; XXX_Deinit -> XXX_Destroy
+- Added mapper interface
+
+v0.0.13 2009.10.16
+common:
+- Updated SW DL routines (removed delays)
+- Fixed klocwork issue
+- Updated implementation of the following MEs:
+  + ANI-G
+  + T-CONT
+  + Traffic scheduler-G
+  + GEM Port Network CTP
+
+v0.0.12 2009.09.25
+common:
+- Removed IFX_ prefixes from types
+- Reworked SW image handling split-off
+- IFX_return_t -> ONU_return_t
+- Added .indent.pro & indented
+- Updated lint configuration
+
+v0.0.11 2009.09.18
+common:
+- Integrated OMCI receive/send ioctls
+- Removed GPON_AL prefix
+- Moved FALCON specific SW image handling to onu_gpon_al_sw_image_falcon.c
+(.h)
+- Using EXTERN_C_{BEGIN,END} instead of 'extern "C" { }'
+
+v0.0.10 2009.09.02
+common:
+- Added interface for Multicast Operations Profile ME
+- Updated interface for Entry Get action of  MAC Bridge Port Bridge Table Data
+  ME
+- Removed Entry Get action interface for Multicast GEM Interworking TP, MAC
+  Bridge Port Filter Table Data and Extended VLAN Configuration Data MEs
+
+v0.0.9 2009.08.21
+common:
+- Added software image related implementation
+- Added ONU reboot routine (ONU_OMCI_OnuReboot)
+
+v0.0.8 2009.08.14
+common:
+- Added interface functions for Software Image ME
+- Improved doxygen comments to enable valid doxygen based documentation
+  generation
+
+v0.0.7 2009.08.07
+common:
+- Implemented the HW Resources Change Control Task
+  (ONU_GPON_AL_RESOURCE_CHANGE_CONTROL_ENABLE definition enables the
+  implementation and interface)
+- Formatted the source code according to the 80 characters line limitation
+
+v0.0.6 2009.07.28
+common:
+- Added _Init() and _Deinit() function for each ME with priority level 4-5 and
+  autonomously created by ONT
+- Added _Deinit() function and extended _Update() function with initialization
+  functionality for each ME with priority level 4-5 and created by OLT
+- Updated GPON AL implementation and interface for MEs with priority level 4-5
+  according to GPON-Modem Draft Rev 0.0.1:
+  + MAC Bridge PMHD
+  + MAC Bridge Port Designation Data
+  + MAC Bridge Port Filter Table Data
+  + MAC Bridge Port PMHD
+  + Multicast GEM Interworking TP
+  + GAL Ethernet PMHD
+  + MAC Bridge Port Filter Preassign Table
+  + VLAN Tagging Filter Data
+  + VLAN Tagging Operation Configuration Data
+  + Extended VLAN Tagging Operation Configuration data
+  + Dot1 Rate Limiter
+  + Ethernet PMHD
+  + Ethernet PMHD 2
+  + Ethernet PMHD 3
+  + Priority Queue-G
+- Added GPON AL implementation and interface for the following MEs:
+  + Equipment Extension Package
+  + Ethernet Frame PMHD Downstream
+  + Ethernet Frame PMHD Upstream
+  + MAC Bridge Port Bridge Table Data
+  + ONT Power Shedding
+  + Traffic Descriptor
+
+v0.0.5 2009.07.24
+common:
+- Added lint support
+- Added _Init() and _Deinit() function for each ME with priority level 1-3 and
+  autonomously created by ONT
+- Added _Deinit() function and extended _Update() function with initialization
+  functionality for each ME with priority level 1-3 and created by OLT
+- Updated GPON AL implementation and interface for MEs with priority level 1-3
+  according to GPON-Modem Draft Rev 0.0.1
+
+v0.0.4 2009.07.17
+common:
+- Aligned with driver
+- Removed IFX prefix
+
+v0.0.3 2009.07.10
+common:
+- Added more Managed Entities
+- Changed API (removed dedicated attributes set)
+
+V0.0.2 2009.06.26
+common:
+- Added OLT UDP simulation
+
+V0.0.1 2009.06.18
+common:
+- Initial version

@@ -1,0 +1,25 @@
+NEXT VERSION
+
+v0.7.0 - - 2011.11.xx
+- sync with the onu_drv net interface changes
+- "exc" interfaces added
+- "lan" interface replaced with "lct0..3" interfaces
+- onu_netdev_if_set_mac_address() handling added for lct0..3
+- probe only available LAN ports for LCT i/f
+
+v0.5.1 - - 2010.12.02
+- fix running out of memory, added missing dev_kfree_skb
+
+v0.5.0 - 2010.06.23
+- enabled net_device_ops handling for kernel 2.6.30 to avoid warnings
+- fixed net_device_ops usage
+
+v0.4.9 - 2010.02.25
+- added LAN Rx enable 
+- netdev is not handeld within the ONU driver / collision with GPON
+
+v0.4.8 - 2010.02.16
+- fixed queue offset
+
+v0.4.7 - 2010.01.08
+- intial version (dedicated FPGA version)

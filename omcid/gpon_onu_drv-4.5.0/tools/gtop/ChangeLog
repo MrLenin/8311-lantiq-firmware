@@ -1,0 +1,50 @@
+NEXT VERSION
+
+- cleanup naming & file locations, replaced onu_top by gtop 
+- restore terminal settings on SIGSEGV
+- fix segmentation fault in dump_get
+- fix warnings
+
+v1.0.7 2011.12.07
+- don't show proc counters if built without procfs support
+
+v1.0.6 2011.11.15
+- bring back 'Upstream flow' page ('u')
+- change FW Perfmeter shortcut to 'x'
+
+v1.0.5 2011.11.09
+- fix warnings
+
+v1.0.4 2011.09.23
+- version WHAT string handling added
+
+v1.0.3 2011.01.03
+- added PLOAM state to the GTC counter page
+- re-work GPE counter page
+
+v0.0.3 2009.12.29
+- Fixed flicker with windows telnet
+
+v0.0.2 2009.12.25
+- Added support for OCTRLG, OCTRLL, FSQM, IQM, ICTRLG, ICTRLL, STATUS dumps
+- Added lines wrapping in the main window output (+removed bounds check for
+  ARROW_DOWN & PG_DOWN scrolling)
+- Added `batch mode`
+- Added filtering
+- Added handling for ONU_SIMULATION (in order to test onu_top on host)
+- Fixed help screen output
+- Added test implementation (an example) for gpe_counter.c
+- Added position indication
+- Added terminal window resize handling
+- Added support for Home and End keys (PuTTY only)
+- Fixed support for End key (last line to show was wrong counted)
+- Fixed display blink on key press (added noecho mode to termios setup
+  + don't redraw display if next position is the same as previous)
+- Fixed wrong Page Down page size (so Page Down after End doesn't work
+  anymore)
+- Added Alloc-ID retrieving to the GPE example
+- Added configuration retrieving (GTC, GPE, GOI, LAN)
+- Added status retrieving (GTC, GOI, LAN ports)
+
+v0.0.1 2009.09.18
+- Initial release

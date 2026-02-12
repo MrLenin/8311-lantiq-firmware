@@ -1,0 +1,30 @@
+ISSUES
+======
+
+* me_alarm_set should set TCA for PM ME
+
+* Add 5-byte counters support to PM
+
+* Remove DLIST and use 'struct list' instead. There is small overhead (lock)
+  but it should not be an issue
+
+* Use 'struct list' in MIB instead of directly dealing with ->next
+
+* OMCI handlers (set, get, etc) should use me_data_read/write as much as
+  possible to narrow down dealing with the ME handlers (and other 'auto' stuff
+  like AVC, etc)
+
+* There may be an issue when we executing MIB reset: GemInterworkingTp
+  terminate handler may not find associated GemPortNetworkCtp (suppose it
+  will be deleted first) and therefore will not be cleared correctly.
+  Solution: store a copy of the GemPortId in the GemPortNetworkCtp or make
+  smart MIB resetting mechanism with deletion priority?
+  Also need to update all GemInterworkingTp's when the associated 
+  GemPortNetworkCtp is changed.
+  Another solution is to care about initialize/shutdown seqence of ME classes
+
+* No way to read image data in case of SW simulation because image is
+  removed (GPON AL doesn't make anything). Copy image in the GPON AL?
+
+* It seems that there is an issue in the SW DL in case of DL sections lost.
+  It's ether OLT or ONT problem, need further clarification.

@@ -1,0 +1,7 @@
+
+- IRQ integration
+- dispatch IRQ data to FIFO's of open instance
+- disable IRQ during dispatching
+- add LED handling (for FPGA)
+
+- more uesfull info to /proc

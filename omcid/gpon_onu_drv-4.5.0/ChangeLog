@@ -1,0 +1,810 @@
+NEXT VERSION
+
+v4.5.0 2013.03.08
+
+common:
+- GPONSW-1144: OMCI: Counter read and reset
+  + fixed the gpe_bridge_port_counter_threshold_get function
+- GPONSW-1142: TBM Crawler default settings affected TBM function for
+low packet arrival rates.
+  + initialize TBM crawler period to 12 on A2x.
+  + Change minimum meter rate to from 8 kB/s to 3 bytes/s
+- GPONSW-1141: enable hardware support for OMCI downstream channel
+- GPONSW-1122: Functions gpe_tagging_filter_set and gpe_ext_vlan_set have been
+  enhanced to clear those VLAN table/VLAN Rule Table entries which are located
+  behind the end of the list, but still within the same memory line.
+- GPONSW-1102: Option to use only layer 2 for metering
+  + SCE constant index=17 initialization added (default 0x0)
+  + FIO_GPE_SCE_CONSTANTS_SET/GET ioctl extended with "meter_l2_only_enable" parameter
+- GPONSW-1080: add global reset for PM counter
+  + added ioctl FIO_ONU_COUNTERS_RESET
+- GPONSW-1077: Bridge port counter reset function missing
+  + removed ioctl FIO_GPE_BRIDGE_PORT_CNT_GET
+  + added ioctls
+  + FIO_GPE_BRIDGE_PORT_COUNTER_GET
+  + FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_SET
+  + FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_GET
+  + FIO_GPE_BRIDGE_PORT_TCA_GET
+  + FIO_GPE_BRIDGE_PORT_COUNTER_RESET
+  + add dedicated events ONU_EVENT_BRIDGE_TCA & ONU_EVENT_BRIDGE_PORT_TCA
+  + make the counter 64bit
+  + update CLI
+- GPONSW-1071: The counter "Transmitted Frames per GEM Port" has
+  been made accessible and the reset mask has been fixed.
+- GPONSW-1070: allow smaller TCONT allocation size
+- GPONSW-1055: (related to GPONSYS-199) Exception in case of match with one of 8 Ethertypes
+  + FIO_GPE_PARSER_CFG_SET/GET ioctls handling extended to use ONU_GPE_ETHERTYPE_EXCEPTION_TABLE
+  + ONU_GPE_CONST_ETHTYPE_SPEC_TAG definition changed to ONU_GPE_CONST_UNUSED0
+  + FIO_GPE_SCE_CONSTANTS_SET/GET ioctls parameter "ethertype_spec_tag" renamed to "unused0"
+- GPONSW-1053: include MAC_PISR / EIM_ISR in EIM Dump
+- GPONSW-1024, GPONSW-1050: Watchdog for traffic stucks
+  + upstream stuck detection on TOOLONG bit in MAC (on A22 only)
+  + downstream on TXFIFOFULL and EPFILLED
+  + restart GPHY link upon US error rates based on SSD and MACERR
+- Ploam message dump for enhanced debug information
+  + add dump for ploam messages
+  + add PLOAM downstream message simulation
+- GPONSW-1007: Add missing Sync Time OMCI message handling
+  + add sync time supervision
+  + onu_sync_time_set() poll condition fixed
+  + reset counters in FIO_ONU_SYNC_TIME_SET and start new 15-min interval
+
+bug fix(es):
+- GPONSW-1094: GTOP BridgePort counter are not mapped to correct counter address
+  + gtop compile warnings fixed
+- GPONSW-1091: Meter parameter calculation corrected, as the meter was not working properly
+  + Change minimum meter rate to from 8 kB/s to 3 bytes/s
+- GPONSW-1068: PHY egress loop and mac loop is not working if link is down.
+  + The link status is now forced up by software and link state changes are ignored
+  as long the loop is switched on.
+  + By forcing the link up, the link LED is also on.
+  + Disabling the LAN port also resets and deactivates the loop
+  + The loop is only working when the LAN port is enabled
+- GPONSW-1056: LAN port disable now deactivates GPHY
+- GPONSW-1041: Software image download failed
+  + do not remove fragmented meta data from the Link FIFO
+  + refacture the LINK access code to make it more robust
+  + prepare for extended baseline support
+  + fix the max buffer size
+  + add more debug information
+
+v4.4.1 2012.12.12
+
+common:
+- GPONSW-1046: enable OMCI queue by default
+  The OMCI queue should be enabled by default in the FW Enqueue Table.
+  Reason: ALU OLT expects SSH channel on OMCI T-cont.
+  This channel operates via FW and IP Host and therefore needs FW enqueueing.
+- GPONSW-1042: Laser Tx needs to be safely shut off in state O7 (also if BERT is enabled)
+  + switch on after leaving O7 (any state)
+- GPONSW-1041: Software image download failed
+  + poll the Link interface longer to avoid fragmented meta data
+- GPONSW-1040: PLOAM downstream message - Disable all upstream transmission
+  through Disable Serial Number
+- GPONSW-1037: add BC / MC counter
+- GPONSW-1033: The pseudo-random generator is systematically seeded in the same
+  way after boot up. If several boards boot up simultaneously and are connected
+  to the same OLT port, it can happen that the random delay of the serial number
+  response is identical for several boards.
+  + replace pseudo random generator values by CPU count
+  + this gives us better & faster randomized values
+- GPONSW-1027: gtop: replace SCHEDULER by SBIN (scheduler block input)
+- GPONSW-1018: FE4 mode doesn't work as expected
+- GPONSW-1015: set GPHY in reset before downloading firmware
+- GPONSW-1009, GPONSW-1030: Unused egress queues are cleared:
+  + Protection has been added for TMU low-level access.
+  + Protection has been added for OCTRLC operations.
+  + A garbage collection function has been added to drain the remaining contents 
+    from disabled queues, thus freeing up buffer space.
+  + The ANI egress ports are not disabled in order to allow for garbage collection.
+  + On the UNI side, queues are cleaned up before the egress port is disabled.
+- GPONSW-911: Ingress Queue ppstream packet insertion into UNI Ports
+
+bug fix(es):
+- GPONSW-1013: Switching LAN modes did not always work as GPHY reboot did not complete. 
+  This has now been fixed.
+
+v4.4.0 2012.11.20
+
+common:
+- remove ANI & LAN exception table, replaced by exception table
+
+bug fix(es):
+- GPONSW-1008: Disable LAN-side egress queues if not used
+- GPONSW-1013: switching lan modes does not always work because GPHY reboot 
+  not yet completed
+- GPONSW-978: Exception packets handling adaptation to improved exception header format
+  + exception header now consists of 8 instead of 4 bytes
+  + received VLAN now included in exception header
+  + facilitates IGMP handling
+- GPONSW-969: Chip dependend GPHY firmware loading
+  + Parse firmware version and don't load it on wrong device;
+  + If there is no version information in FW image, load it anyway;
+  + If there is no GPHY firmware in /lib/firmware/ or it has wrong version,
+    try to unconditionally (meaning, don't check version) load firmware from
+    /lib/firmware/a1x/ or /lib/firmware/a2x/ depending on device.
+- GPONSW-1010: OMCI queue buffer reservation
+  + add default reservation values for extended OMCI message size
+- GPONSW-1009: Clear unused egress queues
+  + add protection for tmu low level access
+  + note: the read/modify/write routines still not thread safe
+  + add protection for octrlc operations
+  + add garbage collection thread
+- GPONSW-1001: OMCI Tx channel is stuck after TCONT deassignment during traffic
+  + remove only normal TCONT's
+  + if a TCONT is used by OMCC just delete the REPN value
+  + fix TCONT index range checks
+- set default crawler period to 10
+- set the IQM prescaler to 4
+- change the default shaper values - fix the 6.2.13 test case with enabled upstream shaper
+- remove OMCI CRC check, the OMCI stack should detect retransmission
+- GPONSW-391: PLOAM Message reception for PON ID
+  + fixed copy routine kernel to user space
+  + fixed alignment of gtc_pon_id structure
+  + fixed elements of structure ploam_dn_pon_i
+  + update CLI
+  + fix array size
+- GPONSW-719: Traffic stuck after disabling shaper
+    Update default values for token bucket shaper
+- GPONSW-839: configure exception meters
+    Add ANI exception meter (A2x)
+- GPONSW-868: GTC upstream broken: sending shortened T-CONTS with random data
+    Instead of diabling the GTC TX framer disable the optical tx interface.
+- GPONSW-864: still PLOAM state O1 after reception of two downstream frames.
+    Poll on regular base in state O1 the SYNC condition.
+- GPONSW-865: PLOAM state O0 after power up without fiber
+    To ensure the safe transition from O0 to O1 state the timer T00 is added.
+    TO0 state is a dummy state to handle the requirement to start the PLOAM state
+    machine with state O1 or state O7.
+    Event was removed, but in this case the ploam_fsm() has to be triggered
+- GPONSW-869: COP workaround for hash table full avoidanc
+- GPONSW-886: GTC was upstream broken. This fix empties Rx TCONT FIFO before
+    going to PLOAM State O2
+- GPONSW-888: Definitions for exceptions have been changed since FW version 4.43.0.0
+    to change priorities for DoS prevention
+- GPONSW-895 bugtfix for hash deletion and FID treatment for TSE version 1 (a1x)
+- GPONSW-897: gtop "GPE DS GEM port": decoding of exception_profile missing
+- GPONSW-901: GMII clock activation
+- GPONSW-920: Race condition between O6 and Offset re-calculation
+- GPONSW-924: LDD Power Save truncates end of burst in extended burst length mode against ALU OLT
+- GPONSW-930: FS4 image rebooted by watchdog
+- GPONSW-934: gtop update
+    + fix fsqm_rcnt dump
+    + fix fsqm_llt dump
+    + add marker for each page when dumping to a file
+    + unification of page names
+    + add "Meter Configuration" page (shortcut: t-e)
+    + add Meter status as well
+    + add GPE counter page
+    + add ds_gem_meter_enable / ds_gem_meter_id
+- GPONSW-954: fix AllocID 255 handling
+    delete the TCONT if it was configured before
+- GPONSW-968: Do not set Tcont ID to 0xff at delete but set used = 0 and use the original id
+    + speed up tcont deletion in octrlg
+    + there is no more delay of 5 ms delay between GTC and octrlg deletion
+- GPONSW-997: The order of parameters for ictrlg_gem_port_set() and get() and 
+  octrlg_gem_port_set() has been fixed.
+
+v4.3.0 2012.08.10
+
+common:
+- update SCE interface to 4.43.0
+- PIR/CIR range documentation added to struct gpe_meter_cfg
+- GPONSW-842: upstream queues connected to T-CONT directly
+  + add new ioctrl() FIO_GPE_TCONT_CREATE to create TCONT related scheduler
+  + the related EPN is enabled as well
+  + in case that the policy is 0 the policy 1 (strict policy) is forced
+
+bug fix(es):
+- GPONSW-173: Remote defect indication (RDI) Software Handling
+  + introduce gtc_refresh_rdi() function to set the RDI upstream bit based
+    on the GTC_DSSTAT_1_SF information
+  + remove gtc_clear_ind5() function
+- GPONSW-694: FID programming
+  + fix the ingress exception handling: use the correct IQM queue #8
+    for downstream forwarding
+  + fixes BBF 6.3.1
+  + remove obsolete SW_GPIX
+- GPONSW-768: make sure to disable egress-port on link down
+  + cleanup and align rxmii_phy_status_update
+  + add lan_egress_port_enable() for simpler calling
+- GPONSW-772: Token Bucket Configuration of Scheduler ME in Conflict with Priority Queues
+  + disable all SBINs, use right masks for SBOT/SBIT
+  + set default shaper values during create, the intention is that the shaper is passing all data
+- GPONSW-820: ONU crash if CLI commands entered too early
+    only a subset of commands (ploam_init, gtc_init, gtc_serial_number_set/get,
+    gtc_cfg_set/get, gtc_power_saving_mode_set/get, lan_gphy_firmware_download,
+    onu_event_enable_set/get, onu_event_fifo) is now allowed to be
+    executed prior to GPE init
+- GPONSW-833: Introduce selection for extended serial number (SN) response
+    the function goi_lts_trigger() has to be used now
+- GPONSW-837: OMCI messages are dropped in case that TCID is repeated
+    consider the CRC instead of the TCID - this is more safe
+- GPONSW-839: Configure exception meters
+    added debugging counter
+
+v4.2.0 2012.07.12
+
+API:
+- ioctl(s) modified:
+  + FIO_GPE_EXT_VLAN_SET: max_vlans parameter added
+  + FIO_GPE_ANI_EXCEPTION_CFG_SET/GET: exception_profile parameter replaced with
+    ds_exception_profile and us_exception_profile
+common:
+- GPONSW-745: OMCI: Multicast VLAN handling
+- GPONSW-762: PCP_DECODING_TABLE default setting
+- GPONSW-768: Setting ONU Ethernet Mode from OLT
+  + added FIO_LAN_PORT_CAPABILITY_CFG_SET/GET ioctls to allow PHY auto
+    negotiation capabilities configuration
+  + marked EEE feature of FIO_LAN_PORT_CAPABILITY_CFG_SET as not supported
+  + added support for lanpe/lanpd
+- GPONSW-787: MIPS API ACL table write must be suppressed in A21, but it must
+  be supported on A12
+- GPONSW-801: CLI/gtop: Table access to MAC_FILTER_TABLE
+bug fix(es):
+- GPONSYS-136: Reset the MAC on link up to avoid traffic stucks
+- GPONSW-559: GTC debug support for allocation loss
+  + added bits description to 'Loss of allocation'
+  + added t-b page with BWM trace details
+- GPONSW-625: fixed LAN_LOOP_CFG_SET loop setting.
+  Phy ingress wrongly set near end loop instead of far end loop. Besides
+  a new auto negotiated was needed to take the settings effect.
+- GPONSW-735: AES encryption enable/disable
+  + don't disable the encryption during gem port add called from OMCI network CTP
+  + re-use the hardware settings instead
+- GPONSW-748: lanpcs CLI-less command fixed
+- GPONSW-758: wrong translation of GPE FW abort reason value to abort string
+- GPONSW-766: OMCI - Downstream Priority Queue selection by GEM port
+  + extending FIO_GPE_EGRESS_QUEUE_PATH_GET ioctrl to return internal configuration values
+  + added debugging support for queue_selection_mode / egress_queue_offset fields
+    of DS GEM PORT table
+- GPONSW-773: TMU inverse weight calculation in driver
+- GPONSW-788: Range checks missing for gpe_egress_queue_cfg_set
+- GPONSW-797: Meter mode GPE_METER_NONE not implemented
+- GPONSW-811: Upstream traffic does not trigger Ethernet activity LED
+- GPONSW-828: dump fsqm_rcnt from gtop not working
+  gtop: added printout when number of lines of dumped file exceeds supported
+  gtop: increased maximum supported lines number for proc files to 25000
+  (was 10000) to fit in FSQM RCNT
+- GPONSW-830: ACL IPv4-SrcAddress filtering does not work
+  aligned param1_mask argument of FIO_GPE_ACL_TABLE_ENTRY_SET with
+  FW table (bitwise instead of nibble mask)
+
+v4.1.2 2012.06.27
+
+- GPONSYS-136: Fix downstream traffic stuck after configuring LAN port by
+  switching the egress port on only after the PHY link is established
+
+v4.1.1 2012.06.22
+
+bug fix(es):
+- GPONSW-391: PLOAM Message reception for PON ID, fixed debugging output in onu tool
+- GPONSW-757: gtop GPE short forward MAC mismatch in fields
+- GPONSW-722: In some cases when switching a LAN port configuration via the driver
+	API FIO_LAN_PORT_CFG_SET while downstream and upstream traffic is running the
+	downstream traffic stuck and is was not possible to start it again even when
+	switching the LAN port off and on. This has been fixed.
+common:
+- GPONSW-744: Include OFSQ in gtop dump
+
+v4.1.0 2012.06.15
+
+API:
+- ioctl(s) added:
+  + FIO_GPE_EGRESS_PORT_ENABLE
+  + FIO_GPE_EGRESS_PORT_DISABLE
+  + FIO_GPE_METER_CREATE
+  + FIO_GPE_METER_DELETE
+  + FIO_GPE_SHORT_FWD_IPV4_MC_PORT_ADD
+  + FIO_GPE_SHORT_FWD_IPV4_MC_PORT_DELETE
+  + FIO_GPE_SHORT_FWD_IPV4_MC_PORT_MODIFY
+  + FIO_GPE_DEBUG_INIT
+- ioctl(s) modified:
+  + FIO_GPE_METER_CFG_SET/GET: enable flag removed
+  + FIO_GPE_CAPABILITY_GET: return the lowest available value for max_eth_uni
+  + FIO_GPE_METER_CFG_SET/GET: discard_red parameter removed
+  + FIO_GPE_SCE_CONSTANTS_SET/GET: max_mtu_size parameter removed
+  + FIO_GPE_SCE_CONSTANTS_SET/GET: ani_exception_meter_id, ani_exception_enable and
+    disable_length_check parameters added
+  + FIO_GPE_SHORT_FWD_IPV4_MC_PORT_MODIFY: key_code field removed
+  + FIO_GPE_SHORT_FWD_MAC_MC_PORT_MODIFY: key_code field removed
+- ioctl(s) removed:
+  + FIO_GPE_TMU_GLOBAL_CFG_SET
+CLI:
+- new command(s) added:
+  + gpe_egress_port_enable
+  + gpe_egress_port_disable
+  + gpe_meter_create
+  + gpe_meter_delete
+  + gpe_debug_init
+- command(s) removed:
+  + gpetgcs/gpe_tmu_global_cfg_set
+common:
+- GPONSW-626: Disable Egress Ports by default
+- GPONSW-659: GPE initialization for FW debugging
+- GPONSW-671: SGMII mode selection error check
+- GPONSW-729: Remove ONU_GPE_METER_TABLE access
+- GPONSW-736: Disable Ethernet length check in firmware
+- Sanity checks added for the SCE Debugger IOCTLs
+- file(s) removed:
+  + drv_onu_ebu.h
+bug fix(es):
+- GPONSW-701: Ethernet LEDs different on ports 0/1 vs ports 2/3
+- GPONSW-709: Do not remove the support of optional header for PE specific download of firmware
+- GPONSW-731: Hierarchical scheduling traffic stuck
+- GPONSW-732: tmu_token_bucket_shaper_link_get() fixed
+- GPONSW-733: scheduler level tracking added, sanity checks added
+- GPONSW-739: lan_port_cfg_get returns incorrect max_frame_size
+- GPONSW-735: Allow to set AES encryption enable/disable in FIO_GPE_GEM_POPT_SET. It was always
+  forced to false
+
+v4.0.3 2012.05.08
+
+API:
+- ioctl() interface change:
+  + move unaligned array to the end of the structure gpe_mac_mc_port
+    used by FIO_GPE_SHORT_FWD_MAC_MC_PORT_ADD / FIO_GPE_SHORT_FWD_MAC_MC_PORT_DELETE
+  + add FIO_GPE_SHORT_FWD_MAC_MC_PORT_MODIFY to add new port map entries
+    in case that the MC entry doesn't exist it will be added
+common:
+- add gtop shortcut: CTRL-B / CTRL-V to toggle between excel and raw mode
+bug fix(es):
+- add MC entry with FIO_GPE_SHORT_FWD_MAC_MC_PORT_ADD, fix one_port_map_indicator
+
+v4.0.2 2012.04.27
+
+CLI:
+- new command(s) added:
+  + gpe_short_fwd_mac_mc_port_add
+  + gpe_short_fwd_mac_mc_port_delete
+API:
+- ioctl(s) extended:
+  + GTC_COUNTER_GET: allocations_total, allocations_lost added
+  + GTC_ALARM_GET: loss_of_allocation added
+  + FIO_GPE_LAN_EXCEPTION_CFG_SET/GET: sync handling with the latest firmware
+  + FIO_GPE_ANI_EXCEPTION_CFG_SET/GET: sync handling with the latest firmware
+  + FIO_GPE_INIT: num_pe field added to "struct gpe_init_data"
+  + FIO_GPE_STATUS_GET: num_pe field added to "struct gpe_status"
+- ioctl(s) added:
+  + FIO_GPE_EXCEPTION_PROFILE_CFG_SET
+  + FIO_GPE_EXCEPTION_PROFILE_CFG_GET
+  + FIO_GPE_SHORT_FWD_MAC_MC_PORT_ADD
+  + FIO_GPE_SHORT_FWD_MAC_MC_PORT_DELETE
+common:
+- new configuration option(s) added
+  + --enable-remote-only-onu
+- add link1 interrupt polling for ONU firmware
+- GPONSW-559: GTC debug support for allocation loss
+- move RPC handling to the GPON RPC
+- onu: add gpe_tcont xml/json wrapper (for GPONSW-536)
+- GPONSW-649: LAN port muiltiplex mode for single RGMII
+- GPONSW-627: Make number of GPE PEs configurable
+- GPONSW-653: Simplified FID handling
+- GPONSW-646: Improve the GPHY slave training by disabling scaling down power
+- MAC&FID forwarding:
+  + DS GEM and LAN port tables initialization added
+bug fix(es):
+- fix DEVIO _IOC defines
+- onu_gtc_ds_handle(): clear downstr_gtc_dsistat_1 with respect to
+  downstr_gtc_dsimask_1
+- fix wrong gtop counters with remote ONU
+- GPONSW-559: GTC debug support for allocation loss
+  add 't-a' page for GTC alarms and 't-c' page for GTC counters
+- GPONSW-558: API for adapting PLOAM O1/O2 timeout values
+- GPONSW-576: No ping possible after change of MAC address
+- GPONSW-584: MAC bridge port bridge table data ME returns Age=0
+  return Age=4095 when aging disabled
+  return Age=1 + <HW age> otherwise
+- GPONSW-602: some PHY settings are only written directly and not updated after
+  "lan port disable/enable" sequence
+- fix return of lan_phy_fe_loop_enable_set()
+- lan_phy_mode_control_set(): really write "mode control register" for specific
+  settings of speed and duplex and fix definition and setting of relevant bits
+- only allow real Lantiq-OID to identify Lantiq PHY, not 0xFFFFFC (from an inactive PHY)
+- fix endianess issue in phy_oui_get()
+- don't accept WOL settings for external PHYs
+- FIO_GPE_TABLE_ENTRY_SEARCH ioctl mapping fixed
+- GPONSW-497: add vlan information
+  fix XML/JSON table entries dump for indexes >=256
+- GPONSW-620: lan_port_disable/enable could conflict with the backround status polling
+- Fixed enabling of GPE meters
+- GPONSW-637: Maximum frame size setting breaks link and does not work
+
+v4.0.1 2012.02.10
+
+API:
+- ioctl(s) removed:
+  + FIO_GPE_ACTIVITY_GET
+  + FIO_GPE_NAPT_ADD
+  + FIO_GPE_NAPT_DELETE
+common:
+- GPONSW-515: Add XML GEM port dump wrapper
+- GPONSW-466: restore table id & instance when return with
+  GPE_STATUS_COP_ENTRY_NOT_FOUND
+- update SCE interface to 4.7.0
+- update SCE interface to 4.12.1
+- update SCE interface to 4.13.1
+- GPONSW-476: don't print invalid (valid == 0) entries in JSON/XML wrappers
+- Automatically convert xls to csv when update SCE with update_sce.py
+- GPONSW-501: Decode the packet drop reason from the firmware status
+  information
+- Integrated new PE mailbox sync mechanism via signals
+- add link1 interrupt for OMCI message handling
+bug fix(es):
+- MAC Filter table init fixed
+- Workaround for GPHY 1.4: fix "GPHY fails to train up with some link partners
+  in 1000BASE-T mode"
+- send always the extended serial number pattern
+- GPONSW-505: Laser shall be off during guard time
+- rename api routines to match ioctls
+- add endianness handling to GPE tables (not tested)
+- onu_iocmd_local: don't print GPE_STATUS_NOT_AVAILABLE errors
+  from FIO_GPE_GEM_PORT_GET
+- fix gtop segmentation fault on proc pages
+- GPONSW-524: boot problem - kernel 3.1.10.
+  fixed early HW access in net_rx_enable()
+- detect endian in drv_onu_gpe_tables.h
+- fix alignment issues in struct gpe_table; remove __ALIGNED32__ (use union)
+
+v3.0.9 2011.12.20
+
+- Load gphy firmware in lower SBS0RAM (below bar0, no reconfiguration needed)
+- gpe_lan_exception_cfg_set/get(): fix for "exception_meter_id" handling
+- flush PLOAM FIFO when enter state 7
+- don't send serial number PLOAM message in state 7
+- send additional serial number message once in state 2 (upstream overhead)
+  and state 3 (assign ONU ID) (otherwise we're loosing the first bwmap request)
+- Updated FWD TSE Micro Program to VERSION: 1.12 (changes from schafran)
+- GPONSW-423: fix wrong address on 'onu scess'
+- SCE: added lock for global group_serviced
+- All unused LL functions placed under INCLUDE_UNUSED_LL_FUNCTIONS
+- GPONSW-461: add doxygen header in sce2resource.py; fix doxygen errors
+bug fix(es):
+- set correct instance for accessing ONU_GPE_METER_TABLE_ID
+  within gpe_meter_cfg_get/set().
+- add more ioctl wrappers for configuration without CLI
+- GPONSW-448: buffer_overflow mapping added.
+- GPONSW-466: make key mandatory for COP tables in gpetg and return error from
+  gpe_table_entry_intresp when COP entry is not found
+- clear structures on various xxx_get() routines
+- GPONSW-466: make key mandatory for COP tables in gpetg and return error from
+  gpe_table_entry_intresp when COP entry is not found
+
+v3.0.8 2011.11.22
+
+API:
+- new ioctl(s) added:
+  + FIO_GPE_SCE_MAC_SET
+  + FIO_GPE_SCE_MAC_GET
+- added extensions for "lct" network interface handling
+- Local CPU MAC address handling added for FIO_GPE_SCE_CONSTANTS_GET/SET
+- Snooping control added for FIO_GPE_EXCEPTION_QUEUE_CFG_GET/SET
+- GPONSW-361: add new fuses format handling
+- GPONSW-388: moved cop debugging under INCLUDE_COP_DEBUG,
+  removed obsolete PE FW simulation, fixed usage of onu_is_initialized,
+  moved many register access calls to the LL part,
+  moved sce_pe_table_entry_read/write to gpe_table.c
+- GPONSW-402: fix gpe_status output
+- gpe_tcont_set(): fix range check for pre_egress_port, 127 is disabled
+- gpe_tcont_set(): add range check for reg_egress_port, 127 is disabled
+- OMCI: use pre_egress_port for default OMCI data flow
+- gtop: add REPN / PEPN values to the alloc-id overview
+
+v3.0.7 2011.11.12
+- Added configure support for the debug tool event logger
+- Adaptations for FW >= 3.27.x with optimized packet mode switching and
+  removed SYNC bit
+- GPONC-274: Limitation Inconsistency in the microcode of FWD COP
+
+v3.0.6 2011.11.10
+
+- GPONSW-361: remove drv_onu_resource_device_psbXXX.h from interface headers
+- fix tof and ton return values on mu_low_power_idle_cfg_get
+- CLI: add gpe_pe_table_get/set for specifying a pe instance for FW debugging
+bug fix(es):
+- GTC counters interval handling fixed
+- UINT64_MAX, UINT32_MAX, UINT16_MAX definitions fixed
+- GTC BIP counter handling fixed: counter accumulation once per BERR
+  interval added.
+
+v3.0.5 2011.10.28
+
+- GPONSW-338: fill PCP en/decoding with default configuration
+- GPONSW-361: add GPE capability support
+
+v3.0.4 2011.10.21
+
+- Fix in arbiter for traffic stuck at 555 MHZ
+- COP low level printouts deactivated
+
+v3.0.3 2011.10.15
+
+API:
+- new ioctl(s) added:
+  + FIO_GPE_TR181_COUNTER_GET
+  + FIO_GTC_LAST_CHANGE_TIME_GET
+  + FIO_GPE_SCE_CONSTANTS_SET
+  + FIO_GPE_SCE_CONSTANTS_GET
+common:
+- check __GNUC__ to confirm C99 extension
+- add valid (V) indication for EQT entries; filter empty lines in gtop
+- GPONSW-310: add FW permeter page
+- GPONSW-335: add gpe_port_index_get, fix gpe_egress_port_get
+- GPONSW-334: remove use_tcont from gpe_scheduler_get/delete input structure
+- GPONSW-337: add support for PHY-less LAN ports
+- GPONSW-277: add preliminary egress queue, egress port, scheduler XML/JSON
+  wrappers
+bug fix(es):
+- fix returned tod_nano_seconds from gpe_tod_sync_get
+- TOD: fix ASC1 support & printouts; use 9600 baud rate for ASC1
+
+v3.0.1 2011.08.31
+
+API:
+- "struct gpe_lan_exception_cfg" extended
+- "struct lan_port_cfg " extended with "lpi_enable"
+common:
+- added support for ONU configuration via options (with disabled CLI)
+- exception packets handling added
+- FIO_GPE_ETHERNET_RECEIVE/SEND ioctls removed
+- "--with-procfs" configuration option added (enabled by default)
+- "--with-sce-dbg" configuration option added (enabled by default)
+- removed printk usage from scebp, scebc, scerp (implemented custom CLI
+  handlers)
+bug fix(es):
+- gpe_lan_exception_cfg_set/get(): fixed table index
+
+v3.0.0 2011.08.05
+
+common:
+- corrected formulas for tmu_tbs_srm_conversion() and tmu_tbs_rate_conversion()
+  functions to avoid uint32_t range exceeding while value calculation
+- changed interface from meter_set/get to meter_cfg_set/get
+- added interface meter_status_get
+- Fix in arbiter for traffic stuck at 555 MHZ
+- OMCI dump includes message priorities
+- reset the laser delay to a pre-defined value
+- add LAN_FLOW_CONTROL_MODE_NONE
+- if at least one of the 4 lan ports is up - enable the host lan port
+bug fix(es):
+- GPONSW-243: wrong range check within gpe_token_bucket_shaper_create.
+  Range check fixed.
+- ssb_data_read: fix handling for a spread pdu body
+- fixed COP error code mapping
+- GPONSW-243: wrong range check within gpe_token_bucket_shaper_create.
+  Range check fixed.
+- fixed tmu_token_bucket_shaper_cfg_get. The parameters pir, pbs and cir,
+  cbs were written into the wrong registers of the TMU.
+- fixed GTC register dump
+- add BWmap dump
+- if at least one of the 4 lan ports is up - enable the host lan port
+- enable the netdev rx interrupt if the PLOAM5 is reached already in open function
+- Ethernet Activity LEDs swapped, Activity LED blinking without cable plugged in.
+  Link state analysis added.
+
+v2.0.1 2011.05.25
+
+CLI:
+- command(s) extended:
+  + lanpcs/lanpcg: max_frame_size added
+common:
+- new even(s) added:
+  + ONU_EVENT_15MIN_INTERVAL_END
+- Added a reboot and initialization of the TMU in gpe_init
+- OCTRLG/ICTRLG counters handling fixed
+- Common counters wrap-around handling fixed
+- max_frame_size parameter added to "struct lan_port_cfg"
+- corrected formulas for priority queue fields "Packet drop max_p"
+- Aging process trigger added
+- FIO_GPE_AGING_TIME_SET/GET calculations fixed
+- struct gtc_status:gtc_ds_delay handling added
+- multiple PE firmware binaries support added
+
+v2.0.0 2011.04.15
+
+CLI:
+- new command(s) added:
+  + mmddr/mmddw
+common:
+- new ioctl(s) added:
+  + FIO_MMD_DATA_READ
+  + FIO_MMD_DATA_WRITE
+- WOL handling extended
+- interface for the netdev driver reworked
+- new configuration option(s) added
+  + --with-lan-raw (to be removed in the FS2)
+- Always calibrate tx buffer if gtc_tx_enable is done & during O6 - O5 state change
+- Superfluous parameter to the command "onu gpetg".
+  "gpetg" CLI command handling improved, "data" field now is optional and will
+  be handled only in case of data_count!=0.
+- Added a check for the seq_printf call to reprint the lines on the page
+  boundaries
+- Replace flood_map by uuc_flood_disable in bridge port table
+- Auto-negotiation support added for RXMII modes
+- "tmu_global_packets_max" field removed from the "struct gpe_shared_buffer_cfg"
+- "tmu_egress_queue_table_init()" color settings fixed
+
+v1.0.7 2011.02.25
+- Improved COP loader
+- fix for unresolved "uevent_sock" in kernel 2.6.35 and add broadcast_uevent for older kernel
+- xMII port mapping changed
+- GPE_PDU_TYPE_CMD corrected, FIO_GPE_AGE_GET and GPE_SCE_CMD_AGING added
+- add i/octrlg_table_dump
+
+v1.0.6 2011.02.19
+common:
+- new ioctl(s) added:
+  + FIO_LAN_GPHY_FIRMWARE_DOWNLOAD
+- new configuration option(s) added:
+  + "with-cli-dump"/INCLUDE_CLI_DUMP_SUPPORT
+- new file(s) added:
+  + drv_onu_cli_dump.c
+  + drv_onu_cli_dump.h
+  + drv_onu_cli_dump_misc.c
+  + drv_onu_cli_dump_misc.h
+- ONU_EVENT_IOCTL_TRACE event handling added
+CLI:
+- new command(s) added:
+  + "gpeepg/gpe_egress_port_get"
+  + "gpeepd/gpe_egress_port_delete"
+  + "langfd/lan_gphy_firmware_download"
+
+v1.0.5 2011.01.28
+
+- new ioctl(s) added:
+  + FIO_GPE_COP_TRACING_ENABLE_SET
+CLI:
+- new command(s) added:
+  + "gpectes/gpe_cop_tracing_enable_set"
+- check for modules initialization before accessing them, avoid early crash
+  of Ethernet driver
+
+v1.0.4 2011.01.07
+CLI:
+- new command(s) added:
+  + "onuccs/onu_counters_cfg_set"
+  + "onuccg/onu_counters_cfg_get"
+common:
+- ioctl(s) implementation added:
+  + FIO_ONU_SYNC_TIME_SET
+  + FIO_ONU_SYNC_TIME_GET
+  + FIO_ONU_COUNTERS_CFG_SET
+  + FIO_ONU_COUNTERS_CFG_GET
+- moved ploam initialization from module load to a new
+  mandatory interface FIO_PLOAM_INIT.
+
+v1.0.3 2010.12.16
+- ioctl(s) removed:
+  + FIO_LAN_STATUS_GET
+  + FIO_GPE_LAN_COUNTER_GET
+  + FIO_GPE_LAN_COUNTER_THRESHOLD_SET
+  + FIO_GPE_LAN_COUNTER_THRESHOLD_GET
+  + FIO_GPE_LAN_TCA_GET
+  + FIO_GPE_LAN_COUNTER_RESET
+- new ioctl(s) added:
+  + FIO_LAN_COUNTER_THRESHOLD_SET
+  + FIO_LAN_COUNTER_THRESHOLD_GET
+  + FIO_LAN_TCA_GET
+- TMU counters handling added
+- VUNI EPN numbers fixed
+
+v1.0.2 2010.11.30
+- new file(s) added:
+  + drv_onu_lan_api_intern.h
+- implementation added:
+  + mdio_enable()
+  + mdio_disable()
+  + lan_port_status_get()
+  + lan_port_enable()
+  + lan_port_disable()
+
+v1.0.1 2010.11.22
+
+common:
+- new ioctl(s) added:
+  + FIO_GPE_ACTIVITY_GET
+  + FIO_GPE_BRIDGE_PORT_CFG_GET
+  + FIO_GPE_BRIDGE_PORT_CFG_SET
+  + FIO_GPE_EXT_VLAN_GET
+  + FIO_GPE_EXT_VLAN_SET
+  + FIO_GPE_FID_ADD
+  + FIO_GPE_FID_DELETE
+  + FIO_GPE_FID_GET
+  + FIO_GPE_FID_SET
+  + FIO_GPE_FID_READ
+  + FIO_GPE_FID_WRITE
+  + FIO_GPE_IPV6_MC_ENTRY_ADD
+  + FIO_GPE_IPV6_MC_ENTRY_DELETE
+  + FIO_GPE_IPV6_MC_ENTRY_GET
+  + FIO_GPE_IPV6_MC_ENTRY_SET
+  + FIO_GPE_IPV6_MC_ENTRY_READ
+  + FIO_GPE_IPV6_MC_ENTRY_WRITE
+  + FIO_GPE_IPV6_UC_ENTRY_ADD
+  + FIO_GPE_IPV6_UC_ENTRY_DELETE
+  + FIO_GPE_IPV6_UC_ENTRY_GET
+  + FIO_GPE_IPV6_UC_ENTRY_SET
+  + FIO_GPE_IPV6_UC_ENTRY_READ
+  + FIO_GPE_IPV6_UC_ENTRY_WRITE
+  + FIO_GPE_NAPT_ADD
+  + FIO_GPE_NAPT_DELETE
+  + FIO_GPE_NAPT_GET
+  + FIO_GPE_NAPT_SET
+  + FIO_GPE_NAPT_READ
+  + FIO_GPE_NAPT_WRITE
+  + FIO_GPE_POLICER_GET
+  + FIO_GPE_POLICER_SET
+  + FIO_GPE_TAGGING_FILTER_GET
+  + FIO_GPE_TAGGING_FILTER_SET
+  + FIO_GPE_BRIDGE_COUNTER_GET
+  + FIO_GPE_BRIDGE_THRESHOLD_SET
+  + FIO_GPE_BRIDGE_THRESHOLD_GET
+  + FIO_GPE_BRIDGE_TCA_GET
+  + FIO_GPE_BRIDGE_COUNTER_RESET
+
+- implementation added:
+  + lan_cfg_set()
+  + lan_cfg_get()
+  + lan_port_cfg_set()
+  + lan_port_cfg_get()
+  + lan_loop_cfg_set()
+  + lan_loop_cfg_get()
+- new file(s) added:
+  + drv_onu_reg_sxgmii.h
+  + drv_onu_gpe_tables_interface.h
+  + drv_onu_gpe_tables_api.h
+
+v1.0.0 - 2010.10.29
+CLI:
+- onuvg -> vig
+- vig 'version' argument changed to 'onu_version'
+- "nReturn" replaced globally to "errorcode"
+- new command(s) added:
+  + "gpellme"/"gpe_low_level_modules_enable"
+- parameters renaming
+  + "gpei"
+  + "gpecs"/"gpecg"
+- new parameters added for cmd(s):
+  + "gpei"
+- "gpeor"/"GPE_OMCI_Receive" removed
+- Long commands names changed globally after automated renaming
+- existing cmd(s) removed:
+  + "gpesg"/"gpe_scheduler_get"
+  + "gpeepg"/"gpe_egress_port_get"
+IOCTL:
+- new ioctl(s) added:
+  + FIO_GPE_LOW_LEVEL_MODULES_ENABLE
+- existing ioctl(s) removed:
+  + FIO_GPE_OMCI_RECEIVE
+  + FIO_GPE_SCHEDULER_ADD
+- renaming:
+  + FIO_GPE_EGRESS_QUEUE_ADD -> FIO_GPE_EGRESS_QUEUE_CREATE
+  + FIO_GPE_SCHEDULER_ADD -> FIO_GPE_SCHEDULER_CREATE
+common:
+- force state O0 in case of BWMAP trace trigger
+- add token bucket meter
+- LL modules activation sequence re-worked, CLKEN/ACT added
+- source code re-factoring:
+ + IQM module
+ + SSB module
+ + SYS module
+- global renaming of SDMAx to ICTRLx, FDMAx to OCTRLx
+- all function names changed to lower case
+- refactored onu_top
+- several klocwork fixes
+- gpe_scheduler_add implementation added
+- SCE debug interface implementation integrated from the "gpon-uboot" package
+- gpe_egress_port_get() removed
+- gpe_egress_port_cfg_get/set() extended
+- Falcon SoC interrupt handling added
+
+v0.5.2 - 2010.06.xx
+- added TMU init routines
+
+v0.5.1 - 2010.06.11
+- implemented GTC_BwmtXXX functions
+- GTC trace added
+- fixed bDsFecEnable in GTC_StatusGet()
+
+v0.5.0 - 2010.06.09
+- RTL 2.1 / FPGA update
+- ictrlc handling added
