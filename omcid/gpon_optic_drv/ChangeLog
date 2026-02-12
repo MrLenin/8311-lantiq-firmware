@@ -1,0 +1,999 @@
+GPON Optic Driver, NEXT VERSION
+
+v4.5.0 2013.03.08
+
+- GPONSW-1078: Unstable RSSI Mesasurement Results
+  + add an additional average on top of the one shot 10 measurements
+- GPONSW-1063: Disable P1_Delta and P0/P1 gain calibration by default
+  + fixed issues with disabled gain calibration
+- GPONSW-1035: Tx disturber sent during initial optic mode switch
+
+v4.4.1 2012.12.12
+
+- GPONSW-1019: Before a reboot, the 1.0 V DC/DC coefficients are set to their hardware 
+  default values.
+- GPONSW-1031: Debug feature BOSA TX and RX enable was not working.
+  Fixed for FALC-ON V1.3 only
+- GPONSW-1042: Laser Tx needs to be safely shut off in state O7 (also if BERT is enabled)
+  + switch on after leaving O7 (any state)
+  + BERT activation no longer switches the laser on
+  + Adapted status functions to report the correct tx_enable state (two conditions are now evaluated)
+
+v4.4.0 2012.11.20
+
+- GPONSW-1011: Avoid range check for first collected internal temperature values to
+  ensure valid measurement results
+- GPONSW-998: automatic power levelling  based on RSSI
+  + With the new RSSI_autoleveling feature the internal power level is automatically 
+    switched from PL0 to PL1 if a certain upper RSSI threshold power is exceeded,
+    and it is switched back to PL0 values, if the measured RSSI power is lower than 
+    a lower RSSI threshold power.
+- GPONSW-1004: Support of defined biasing below laser threshold in case of low attenuation
+  + In case of low attenuation, P0 detection of OLT transceiver is critical. 
+    The lower the P0 value the better, some Transceivers do not have Rx Power Squelch 
+    and are more susceptible to high P0 levels than others.
+  + On the other hand, the additional Jitter with modulating below threshold would be not 
+    beneficial for high attenuation, since with high attenuation the detection is 
+    noise limited.
+  + It is recommended to use this additional Feature especially together with (automatic) Power Leveling
+    to increase the overall dynamic range.
+- GPONSW-829: fixed APD breakdown voltage calibration reports inaccurate 
+  voltage with low probability
+  + Updated APD regulation algrithm
+- GPONSW-961, GPONSW-899: Improve eye diagram symmetry for FALC-ON V1.3
+- GPONSW-927: 'BIASLOWSAT_CTRL' is dependent on actual temperature now
+- GPONSW-924: LDD Power Save truncates end of burst in extended burst length mode against ALU OLT
+- GPONSW-910: bias and drive DAC currents for A22 corrected
+- GPONSW-908: Selflearning can be disabled via goi_config parameter
+  + In case of a learning threshold configured to be higher than the reset threshold, 
+    the optic driver disables self-learning
+- GPONSW-898: enable tx path before BERT activation if not already enabled
+- GPONSW-868: Provide a function that can enable/disable the transmission 
+  + independent of which OMU/BOSA mode is selected
+- GPONSW-747: RSSI1490 parabolic correction
+
+v4.3.0 2012.08.10
+- GPONSW-833: Introduce selection for extended serial number (SN) response
+
+v4.2.0 2012.07.30
+- Preparation for FALC-ON v1.3
+- GPONSW-747: prepared RSSI1490 parabolic correction
+- GPONSW-778: corrected inconsistent polarity of the modulation and bias current 
+  on startup using now the goi_config values and on bert enable/disable
+- GPONSW-777: wrong scale for modulation current with A21
+- GPONSW-795: FCSI settings for A21 must be corrected  
+- GPONSW-802: Offset current for A2x Laserdriver
+- GPONSW-805: RSSI power value wrong after boot up
+- GPONSW-791: wrong sign of 'Dref0_PL0' in 'otop', 
+  also applied for Dref_PL1 and monitor settings
+
+v4.1.1 2012.06.22
+- APD DCDC is always reliable at 40V 
+- GPONSW-755: [BBF] Reboot during test
+
+v4.1.0 2012.06.15
+- GPONSW-686: Calculation of dark current compensation and leakage currents 
+  in RSSI 1490 differential mode
+- Code cleanup done
+
+v4.0.4 2012.06.04
+- corrected APD DCDC voltage status if DCDC is disabled
+- moved FCSI settings from goi_config to internal constants now
+- fixed wrong P1 offset
+- prepared driver for using pmos, nmos settings for DCDC 
+  configuration but not yet activated
+- added bosa_int_coeff_get to optic API and CLI 
+- fixed Rogue ONU intraburst alarm
+- deactivated accurate RSSI measurement since its affecting temperature measurement
+- temperature measurement more stable now  
+
+v4.0.3 2012.05.08
+
+- Added debug feature for measurement polling interval configuration 
+  goi_mm_interval_cfg_set
+- GPONSW-635: Keep voice pll untouched an leave it up to the voice driver if any 
+- Corrected sign of RSSI1490 single ended measurement
+- Fixed sign handling of RSSI1490 differential measurement
+- LOS and OVL interrupt/status indication (otop and optic function)
+- corrected MPD dark current reporting in uA now
+
+v4.0.2 2012.04.27
+
+- FIO_CAL_ACT_BIAS_CURRENT_GET / FIO_CAL_ACT_MOD_CURRENT_GET returns current = 0
+  in case of deactivated DCDC APD
+- several bias/mod init cycles in routine dualloop before regulation process
+  to avoid "reset" bias/mod
+- power save feature doesn't touch MPD gain_ctrl register
+- optic_ll_mpd_level_search() -> optic_mpd_level_search() to cover level search
+  environment modulary
+- DCDC Core voltage calculation optic_ll_dcdc_core_voltage_get() bugfix
+  (+ 0,0117 V)
+- MPD level search starts in INTRABURST in case of active BERT
+- dual loop internal setting is reset for optic mode change and reset
+- differential RSSI 1490 measurement: special LOS/OVL threshold handling for
+  A12 and A21
+- Plugging/Unplugging fiber sync problem fixed
+- more weight to coarse DAC in level search
+- repeatability of level search improved
+- repeatability and accuracy of RX offset search improved
+- gain correction is done only if offset correction is enabled
+  Note that a gain correction relies on the calibration current (100uA) for the
+  chosen power level. 
+  i.e. gain correction is not done with calmlf 1 0 0 or calmlf 0 1 1. 	
+- GPON-SW 548 fixed:
+  driver init not working: Start currents are not correctly 
+  initialized after "ocalodi"
+- Changed FIO_GOI_STATUS_GET to represent the main status, created new FIO_GOI_EXT_STATUS_GET
+  for extended statistics
+- Removed unused hot plug event for state change per compile switch OPTIC_STATE_HOTPLUG_EVENT
+
+v4.0.1 2012.02.29
+
+- RSSI1490 current measurement uses absolute values of (current-offset)
+- fine current values enhanced by parameter is_positive
+- measurement frequency for mm calibration increased upto 20ms,
+  only 20 measurement values are collected for first average
+- fix DEVIO _IOC defines
+- dual loop calls offset_cancellation even without level search for correction
+  factor recalculation
+- goi_config: TempMonitorThreshold_MPDcorrection changed to 3 K
+- dual loop regulation "update criteria": average even measured in no-update
+  case, because counter forced "update" (to avoid long passive phases) will use
+  this average to check against reset threshold
+- "--enable-remote-only-onu" configuration option added
+- MPD calibration review, feature activated
+- optc_control bugfix: cli command "optic" without parameter handled as
+  "optic help"
+- TX Fifo size set to maximum in goi_config -> 508 bits
+- dual loop learning cleanup (+ table update for each learned Ith/SE value)
+- MM gain factor calibration bugfix (+activation: OPTIC_MM_GAIN_CORRECTION)
+
+v4.0.0 2012.02.14
+
+- cleanup in dual loop: reset of bias/mod for crossing reset threshold
+- range check delay_tx_disable for A11, A12: delay_tx_disable cannot be < 28
+- rx dac offset filter alligned with mpd level search filter
+- goi_status_get() doesn't communicate via packed-structure-elements parameter
+  directly
+- FIO_CAL_CURRENT_OFFSET_GET IOCTL introduced + otop update
+- powersave mode without BFD P0/P1 POWERSAVE_EN bit setting
+  (and active by default)
+- RX offset manipulation supported by IOCTLs FIO_CAL_RX_OFFSET_SET/GET/FIND
+- current_state introduced to simplify state get procedure
+  (buffer[index_buffer])
+- DCDC APD update cleanup (no saturation update if VAPD wasn't updated)
+- software reset clears mpd settings
+- bugfix RSSI 1490 exclussive measurement (+timeout handling enhanced)
+- TX data delay configured by default with 2
+- dying gasp reaction: dcdc apd disabled
+- goi_config: laser_enable_delay changed into 8 bits
+- FCSI predriver check enabled, formula changed - max voltage = 2V
+- goi_config: BD_loadn = BD_loadp = 0x1F, BD_bias_en = 0xF, BD_cm_load = 0x3
+- P0/P1 level measurement sign regulation enhanced - coarse and fine dac never
+  use different signs
+- P1 delta offset substraction not active in offset cancellation
+- MPD saturation of fine level triggers coarse level adaptation
+- Dual loop cleanup (stable criteria uses old and new averages)
+- MPD level search doens't invert gain direction in case of active BERT
+- MPD Offset cancellation started (and never changed) in INTRABURST mode,
+  if BERT us active (inactive BERT: INTERBURST and switch into INTRABURST,
+  if comperator doesn't react)
+- MPD offset cancellation cleanup
+- DCDC Core cleanup: CONF_TEST_ANA/DIG instead of CONF_TEST_ANA/DIG_NOAUTO used
+- Dual loop updates Ibias/Imod for the very first entry (regular temperature)
+- Dual loop update and stable criteria cleanup
+
+v3.0.17 2011.12.20
+
+- "--with-procfs" configuration option added
+- FIO_BERT_CNT_RESET introduced to reset bert counters
+- compile switch OPTIC_DYING_GASP_SHUTDOWN introduced, disables DCDC APD
+- Fix state deadlock and fixed locked interrupt in repeating calibration
+  and thus fixed for kernel warning on /etc/optic/goi_config.sh config_all.
+- BERT synchronize was always setting the sync bit but never toggled back.
+  Now corrected to just toggle the bit shortly
+- hotplug table request deleted, state machine logic moved into worker thread
+- optic_powerlevel_set/get() introduced and exported for calling
+  optic_bosa_powerlevel_set/get() with first device context
+- optic_table_set differs between laserref_table update and init phase
+- VAPD and saturation value are initialized for DCDC APD
+  (refering to configured temp_ref)
+- DCDC APD PWM0 register init value changed from 0xFF into 0xF9, configuring
+  switching frequency to 250MHz/250 = 1MHz
+- FIO_OPTIC_RECONFIG introduced to reset configs and tables and wait for updates
+- Measurement: additional 300uA via FCSI is not working for A11, A12
+
+v3.0.16 2011.12.06
+
+- DCDC APD voltage_error -> regulation_error
+  SW ramp waits until regulation error is below 1V
+- rework goi_init to optimize for boot up speed, fixes multiple hotplug
+  calls to it resulting in instable link on start-up
+
+v3.0.15 2011.12.06
+
+- avoid power measurement, MPD regulation and DC/DC APD Update in case of
+  initially not available temperature
+- Speed up the temperature measurement by factor 10 if it is not yet available
+- fix wrong voltage offset in RSSI 1490 measurement using command
+  cal_measure_rssi_1490_get for ocal (500 mV -> 0 V)
+- update stable criteria in dual loop: cint dependent hardware checks have been
+  done before stable criteria can be measured
+- bugfix new fusing format gaindrivedac interpretation
+  (STATUS_ANALOG_NEW_GAINDRIVEDAC_MASK definition)
+- configuration BFD_SATURATION with bias_max and mod_max (codeword format)
+- OPTIC_FLOAT2INTSHIFT_CURRENT changed 9 -> 8
+- FIO_CAL_TSCALREF_SET/GET introduced
+- coarse level find reduction by 5 (instead of 9) -> fine level ~100
+  (former ~180, sometimes ran into SATURATION)
+- reset internal rogue detection to make the rogue alarms working. The config
+  can select between interburt, intraburst or both alarms, per default switched
+  off. If an alarm occurs the laser is switched off immediately
+- remove annoying signal detect and los interrupt prints and make counters
+  available via procfs: cat /proc/driver/optic/status
+- removed configuration of rogue detection thresholds and
+  introduced overcurrent thresholds in range configuration
+
+v3.0.14 2011.11.22
+
+- Die temperature formula used signed variables which lead to wrong
+  calculation of higher temperatures. Changed now to unsigned integers.
+- Dual loop parameters changed (capture width=5, delay=4)
+- activate offset cancelation for dual loop for temperature jumps
+- Allow active BERT for MPD level search on P0
+- Optimized MPD level find function with filter
+
+v3.0.13 2011.11.12
+
+- fix for dual loop parameter TX_DELAY to 6
+- added configuration of rogue detection thresholds (rogue_bias_thr and
+  rogue_mod_thr)
+- added configure support for the debug tool event logger
+- set chip dependend settings of max bias and and max modulation current
+  to 78 mA and 130 mA respectively
+- reactivate bert self_sync by reset and set the bit again
+
+v3.0.12 2011.11.10
+
+- new dual loop configuration
+
+v3.0.11 2011.10.28
+- general ll cleanup (only direct register access located in optic_ll_~ files)
+- ll functions p_ctrl cleanup: ll_mm, ll_mpd
+- bugfix temperature calculation/measurement
+- bugfix bias calculation: register -> current bias, bias_max used for scaling
+- bugfix signed integer printout (otop)
+- bugfix dual loop learning criteria (only if c_int is increased and
+  learn threshold exceeded)
+
+GPON Optic Driver, version 3.0.10, 2011.10.21
+--------------------------------------------
+- while offset cancellation, az_delay set temporarly to 3
+- bugfix goi_status_get(): return code independent of PLL status
+- startup cleanup for config/table free booting
+- FIO_MM_1490_OPTICAL_POWER_GET introduced
+- bugfix Offset Cancellation: P1 delta calibration uses level-search without
+  internal P1 delta offset subtraction (of old P1 delta value)
+- ll functions p_ctrl cleanup: ll_fcsi, ll_tx, ll_rx, ll_gpio, ll_dcdc_apd,
+  ll_dcdc_core, ll_dcdc_ddr, ll_status, ll_int
+
+GPON Optic Driver, version 3.0.9, 2011.10.14
+--------------------------------------------
+- BFD.P0/P1_DUALLOOP init configuration changed (min_bits_p0=11
+  (goi_config: CID0))
+- CDR/CDRLF configuration update (RX)
+- bugfix FIO_BERT_MODE_SET cli call (command instead of indication)
+- P1 delta offset subtracted from level directly (optic_ll_mpd_dac_cal()) and
+  added to P1 codeword in register writing (optic_ll_mpd_codeword_set())
+  no P1 delta influence in codeword calculation anymore ..
+- bugfix in P1 delta offset correction (optic_ll_mpd_codeword_set(): delta sign)
+- new BOSA Interrupt concept: recogniced interrupts switch corresponding
+  internal interrupt status flag on and disable irq; re-enable, if IRNICR is
+  set while internal interrupt status flag is off
+- FIO_BOSA_ALARM_STATUS_GET, FIO_BOSA_ALARM_STATUS_CLEAR implemented
+- otop page for BOSA interrupts/alarms: "a"
+- DAC1550 support: FIO_GOI_VIDEO_ENABLE/DISABLE/STATUS_GET,
+  FIO_GOI_VIDEO_CFG_SET/GET; access to FCSI VDAC
+- powersave mode configured at end of bosa_init
+
+GPON Optic Driver, version 3.0.8, 2011.10.07
+--------------------------------------------
+- TX.DATA_DELAY.EN_PMD_TX_PD initialized (no powerdown mode)
+  in optic_ll_tx_init()
+- BFD.P0/P1_DUALLOOP init configuration changed (alarm=0x20, min_az=15,
+  min_det_bits=3, min_bits=8 (goi_config: CID), capture_width=3,
+  capture_delay=2, az_delay=0, ib_check=0)
+- TX.DATA_DELAY init configuration update (data_delay=2, intrinsic_delay=0)
+- switch between different CID settings (for calibration, Interburst,
+  Intraburst, dual loop) isn't necessary anymore and was skipped in
+  optic_ll_mpd_loop_set()
+- comfort function for easy bert configuration: FIO_BERT_MODE_SET
+- FIO_CAL_DEBUG_ENABLE/DISABLE updates TIA offset (powerlevel dependent or
+  debug specific values)
+- goi_config enhanced by Polarity_Rx, Polarity_Bias, Polarity_Mod
+  struct optic_goi_cfg enhanced by rx_polarity_regular, bias_polarity_regular,
+  mod_polarity_regular, influence RX.DATA_LO.DATA_LO_INVERSE,
+  RX.DATA_HI.DATA_LO_INVERSE, RX.MONITOR.MONITOR_INVERSE,
+  TX.DATAPATH.DATA_INV, TX.BIASPATH.BIAS_INV + otop, control application update
+- otop enhanced by MPD gain correction factor
+- fusing interpretation update: offset in 2-complement
+- Copyright 2011 update
+
+GPON Optic Driver, version 3.0.7, 2011.09.30
+--------------------------------------------
+- update init configuration of BFD.P0_DUAL_LOOP, BFD.P1_DUAL_LOOP to reduce
+  offset/gain calibration differences between inter/intraburst
+- rx offset correction only at first BOSA activation, added to otop
+- special MPD Offset cancellation configuration deactivated
+- Rogue ONT support (Rogue ONT irq disabled during MPD offset cancellation)
+- optic_ll_mpd_gainctrl_set()/optic_ll_mpd_tia_offset_set() cleanup:
+  powerlevel <-> gainbank
+
+GPON Optic Driver, version 3.0.6, 2011.09.23
+--------------------------------------------
+- new fuse concept supported (detection and interpretation change)
+  changes for tempmm, gaindrivedac, gainbiasdac, tbgp
+  offset/gainddrdcdc not fused anymore but instead offset/gain1v0dcdc
+- DCDC core voltage setting/calculation with fusing information
+- bugfix in DCDC DDR voltage calculation
+- bugfix for reading temperature tables with invalid lines (like blanks)
+- prepare flexible bias/mod max value (will be detected via fusing flag)
+- otop WHAT string added
+
+GPON Optic Driver, version 3.0.5, 2011.09.19
+--------------------------------------------
+- MPD offset cancellation use special configuration (COMPARE_METHOD=1,
+  COMPAREPATTERN=0x4, CID_SIZE=4, IB_CHECK=1)
+- MPD calibration parameter optimization: gain = "0" for powerlevel 0
+- DCDC APD change criteria (>2 digits difference) update
+- tia_gain -> tia_gain_selector
+- rssi_1550_scal_ref,rf_1550_scal_ref added to struct optic_mm_config and
+  struct optic_config_measurement + configuration transfer, otop enhancement
+- meas_power_1550_rssi, meas_power_1550_rf added to struct optic_status and
+  optic_calibrate, power calculation for RSSI 1550 and RF 1550, otop enhancement
+- support of general correction factor tables, used for PTH, MPDresp, RSSI1490,
+  RSSI1550, RF1550 tables,
+  FIO_CAL_MPDCORR_TABLE_SET/GET -> FIO_CAL_CORR_TABLE_SET/GET
+- power correction factor tables for RSSI 1490, RSSI 1550 and RF 1550 added
+- temperature table name cleanup
+
+GPON Optic Driver, version 3.0.4, 2011.09.01
+--------------------------------------------
+- FIO_CAL_MPD_LEVEL_FIND enhancement: not requested level (P0/P1) returns
+  level=-1, COMPERATOR timeout error would be thrown via errorcode
+- dual loop stable criteria enhancement: if abias/amod is out of range
+  (stablethreshold_init) ibias/imod is reset
+- RX offset correction introduced (only called at init phase) - only active
+  in BOSA mode, in OMU mode instead only AFE_CTRL enabled
+- Added support for Optic configuration via options (with disabled CLI)
+
+GPON Optic Driver, version 3.0.3, 2011.08.18
+--------------------------------------------
+- BERT disabled explicitly in bert_init()
+- bugfix changing tia offset (FIO_CAL_MPD_TIA_OFFSET_SET,
+  FIO_CAL_MPD_DBG_TIA_OFFSET_SET)-> update of MPD tia offset level
+  (not part of MPD level search anymore)
+- P1 delta offset subtracted from P1 levels in optic_ll_mpd_dac_cal()
+- digital codeword P0 P1 update after dcal/dcal_ref configuration
+  (FIO_CAL_MPD_DBG_REF_CODEWORD_SET, FIO_CAL_MPD_REF_CODEWORD_SET)
+- MPD levels restored after level-search
+- calibration current (GAIN_CTRL) is set before and is reset after level-search
+  (only calibration current! tia gain selector will not be reset)
+- offset cancellation workaround: TX.BIASPATH burst = enable, GAIN_CTRL
+  cal_curent = close (0) - only for tia offset measurement to increase offset
+  accuracy; P1 delta offset is still measured with TX.BIASPATH burst = disable,
+  GAIN_CTRL cal_curent = open (1)
+
+GPON Optic Driver, version 3.0.2, 2011.08.05
+--------------------------------------------
+- bugfix level calculation in cal_mpd_level_find()
+- cal_debug_enable doesn't take over tia gain selector and
+  MPD calibration current anymore
+- bugfix FIO_BERT_CFG_SET IOCTL (base) number
+- bugfix dual loop, learning (special case: only BIAS or MOD changed)
+- bugfix changing MPD calibration current or tia offset selector
+  (FIO_CAL_MPD_DBG_CAL_CURRENT_SET, FIO_CAL_MPD_CAL_CURRENT_SET,
+   FIO_CAL_MPD_DBG_GAIN_SET, FIO_CAL_MPD_GAIN_SET) -> update of MPD gain control
+  register (not part of MPD level search anymore)
+- dual loop resets integration coefficients to 0 if regulation gets unstable
+- OPTIC_MPD_GAIN_CORRECT, OPTIC_MPD_OFFSET_CANCEL introduced and disabled!
+- StableThreshold_Bias / StableThreshold_Mod interpreted in percent
+- stablethreshold_init introduced to avoid regulation ="stable" detection
+  in case of far regulation at lower or upper edge
+- bugfix regulation-update criteria
+
+GPON Optic Driver, version 3.0.1, 2011.07.28
+--------------------------------------------
+- gain control register keeps in powerlevel/debug mode dependent mode
+- powersave feature enhanced by TX, MPD.GAIN_CTRL, FCSI#7 configuration
+- long term drift (goi_table_laser_ref.csv <-> goi_table_laser_ref_base.csv)
+  module tested
+- bugfix in laser_ref table extrapolation
+- control application laser table writing (+ base table) enhanced by
+  driver (laser table) update - new inter/extrapolation
+- bugfix in control application interpolation routine
+- bugfix parameter exchange for FIO_CAL_MEASURE_RSSI_1490_GET
+
+GPON Optic Driver, version 3.0.0, 2011.07.07
+--------------------------------------------
+- range check in optic_ll_dcdc_apd_voltage_get() inactive - no further warnings
+  about current low DCDC APD voltage
+- optic_ll_mpd_cint_set() calculates automatically saturation
+- optic_ll_mpd_loop_set() supports loop mode for P0 and P1 separatly
+- bugfix DCDC APD init: LATCH_CONTROL_NOAUTO set instead of LATCH_CONTROL
+- optic_ll_mpd_level_search() reacts on BERT status for P0 level analysis
+- update FCSI init settings (#18)
+- measurement calibration (offset, correction factor) bugfix (trigger point)
+- external temperature calculation correction (1200mV difference activated)
+- proc filesystem enhanced by temperature history file ("temperatures")
+- optic_ll_mpd_level_search() enhancement: automatic Intra->Interburst switch
+
+GPON Optic Driver, version 2.0.14, 2011.06.16
+--------------------------------------------
+- cal_mpd_tia_offset_find() bugfix: loopmode corrected in case of BOSA/
+  dual loop
+- goi_config updated: TxDisableDelay = 28, TxFifoSize = 288 to fix IBL problem
+  predriver setting for power level 1 and 2 updated (identical to power level 0)
+- bugfix cal_mpd_dbg_gain_get(), cal_mpd_dbg_cal_current_get():
+  don't return powerlevel dependent value if debug version == 0 (valid value!)
+- DCDC APD init cleanup (DELAY_DEGLITCH = 0x07)
+  start with DIG_REF=0 and LATCH_CONTROL_NOAUTO = 0x21
+  activation of DCDC APD sets CONF_TEST_ANA_NOAUTO 0x78 -> 0x7 and
+  CONF_TEST_DIG_NOAUTO 0x00 -> 0x03 and LATCH_CONTROL_NOAUTO = 0x01
+
+GPON Optic Driver, version 2.0.13, 2011.06.01
+---------------------------------------------
+- bugfix cal_mpd_level_get(), level_select was ignored
+- FIO_BOSA_INT_COEFF_GET introduced (-> otop, status)
+- FIO_BOSA_STABLE_GET introduced (-> otop, status)
+- digital codeword P0/P1 moved from otop monitor to otop status
+- bugfix in stable criteria for BOSA dual loop abias/amod characterization
+- goi_config update
+- otop update
+
+GPON Optic Driver, version 2.0.12, 2011.05.30
+---------------------------------------------
+- BFD.GAIN_CTRL reset after each calculation to zero (in offset cancellation,
+  coarse/fine-ratio, mpd calibration)
+- bosa loop mode (open loop / dual loop) configured via bosa_tx_config
+ (-> goi_config)
+- FIO_BOSA_DUALLOOP_ENABLE/~_DISABLE/~_STATUS_GET deleted and
+  FIO_BOSA_LOOPMODE_SET/~_GET introduced for bosa loop mode configuration
+- optic driver starts per default in OMU mode, loop mode (bosa) configured
+  per default in open-loop
+
+GPON Optic Driver, version 2.0.11, 2011.05.25
+---------------------------------------------
+- PLL calibration with power down via RESETCONTROL
+- PLL module initialisation update: A_CTRL2, CURR_SEL_DIV2 = 5
+- RX module CDR configuration don't touch VCO (CTRL3)
+- new predriver settings, FCSI TXBOSA.CTRL = 0x81, TX.PI_CTRL = 0x404F
+- FCSI predriver range check disabled temporarly!
+- bugfix in optic_ll_fcsi_init, optic_ll_fcsi_init_bosa_2nd():
+  just "add" TXBOSA_CTRL_FFR
+- bugfix in FCSI predriver writing into FCSI registers
+  (incorrect masking overwrotes setting)
+- FCSI register #19 PI_CTRL for OMU and BOSA mode introduced
+- DCDC APD deactivated implicitly in OMU mode (former mode change didn't touched
+  DCDC APD configuration)
+- init bias/mod value never set to zero by driver (use 1 instead)
+  0 is a meta value used by hardware after DAC update
+
+GPON Optic Driver, version 2.0.10, 2011.05.20
+---------------------------------------------
+- RX.AFECTRL.OUTPUT_CM_SEL initialisation changed into 4
+- reload timer for DCDC APD SW ramp reduced downto 10ms
+- optic_mpd_config enhanced by ratio_coarse_fine, coarse fine ratio calculation
+  deactivated (compilerswitch OPTIC_MPD_COARSE_FINE_RATIO_CALC = INACTIVE)
+- timestamp hotplug event triggered via worker thread, not directly anymore
+- temperature alarms hidden (compilerswitch OPTIC_TEMPERATURE_ALARM = INACTIVE)
+- TBGP value of ANALOG fuse register is ignored for FCSI reg 21 writing
+  (always 0 written into FSCI #21 TBGP field)
+
+GPON Optic Driver, version 2.0.9, 2011.05.13
+--------------------------------------------
+- new measurement cycle concept: 20ms measurement cycles, no buffer cycle
+  between reconfiguration of channels and reading measurement values anymore
+- external temperature calculation change: no 1200mV difference anymore
+- fusing information writing into FCSI register reactivated
+- chip version detection (gain recalibration measurement active)
+- RSSI 1490 power measurement mode introduced: FIO_CAL_MEASURE_RSSI_1490_GET
+  configures measurement block, waits for measured values and calculates all
+  measured values into power values
+- klocworks cleanup
+- drv_optic_api.h + struct optic_device shifted from include dir (interface)
+  into driver internal part (src dir)
+- optic driver uses hotplug.d/gpon directory for hotplug event handler script
+
+GPON Optic Driver, version 2.0.8, 2011.04.29
+--------------------------------------------
+- temperature alarms provided via events: event OPTIC_FIFO_ALARM uses enum
+  optic_irq to describe alarm (OPTIC_IRQ_TEMPALARM_YELLOW_SET,
+  OPTIC_IRQ_TEMPALARM_YELLOW_CLEAR, OPTIC_IRQ_TEMPALARM_RED_SET,
+  OPTIC_IRQ_TEMPALARM_RED_CLEAR)
+- next measurement cycle after channel configuration does not use read values
+- scale factor for translation between Imod <-> Dmod powerlevel dependent
+  introduced as config parameter: struct optic_mpd_config enhanced
+- otop update
+
+GPON Optic Driver, version 2.0.7, 2011.04.15
+--------------------------------------------
+- MPD initialisation update
+- MPD calibration bugfix (P1 coarse/fine ratio calculation takes care, coarse
+  level could could be zero - fine level relevant for correction direction
+- LTC pattern length range check added
+- OPTIC_IRQ_TEMPALARM_YELLOW_SET, OPTIC_IRQ_TEMPALARM_YELLOW_CLEAR,
+  OPTIC_IRQ_TEMPALARM_RED_SET, OPTIC_IRQ_TEMPALARM_RED_CLEAR introduced;
+  thresholds set via config file, struct optic_goi_config enhanced
+- otop update
+
+GPON Optic Driver, version 2.0.6, 2011.04.12
+--------------------------------------------
+- bugfix interrupt handling in BOSA mode
+- change of predifined FCSI bias_en setting to pass plausibility check
+- otop cleanup (BOSA2 printout)
+- optic_ll_mpd_level_search() update: coarse level correction (-9),
+  loop starting with gain = +/-10 * 16 and run until gain = 0
+- RX data FiFo security: LOS: RX_DATA_EN = 0, SIGDET: RX_DATA_EN = 1
+- measurement module: gain correction factor calibration after measurement of
+  all 6 offsets, means each 7th measurement cycle (instead of each 2nd)
+
+GPON Optic Driver, version 2.0.5, 2011.03.30
+--------------------------------------------
+- otop enhanced by LDO status
+- LTS support: FIO_GOI_LTS_CFG_SET/GET, FIO_GOI_LTS_ENABLE/DISABLE/STATUS_GET
+- optic_bert_cfg parameter pattern type change: uint32_t -> uint8_t
+- cli_misc (non automatic generated cli layer) introduced:
+  cli for goi_lts_cfg_set/get, bert_cfg_set/get not automatically generated
+
+GPON Optic Driver, version 2.0.4, 2011.03.24
+--------------------------------------------
+- DCDC DDR support: dcdc_ddr_cfg_set()/get(), dcdc_ddr_enable()/disable(),
+  dcdc_ddr_status_get(), cal_ddr_core_voltage_set()/get() implemented
+- struct optic_dcdc_ddr_config used, DCDC DDR cinfiguration parameters in
+  goi_config
+- otop update for DCDC DDR parameters (config, range, status)
+- FIO_CAL_FUSES_GET introduced for fusing register overview -> otop "f"
+- optic_ll_fcsi_predriver_set() range/plausibility check
+- struct optic_mpd_config enhanced by parameter powersave, configures
+  PMA_POWERSAVE_POWER_UP_EN / PMA_POWERSAVE_POWER_UP_OVR
+- LDO support: sys1 interface, FIO_LDO_ENABLE, FIO_LDO_DISABLE,
+  FIO_LDO_STATUS_GET
+
+GPON Optic Driver, version 2.0.3, 2011.03.17
+--------------------------------------------
+- OPTIC_BOSA_2 mode introduced, using OMU rx pins
+- DCDC APD files generalized to support DCDC-APD,-DDR,-CORE interface
+- DCDC CORE support: dcdc_core_cfg_set()/get(), dcdc_core_enable()/disable(),
+  dcdc_core_status_get(), cal_dcdc_core_voltage_set()/get() implemented
+- struct optic_range_config enhanced by vcore_min/max and vddr_min/max
+- struct optic_dcdc_core_config used, DCDC Core cinfiguration parameters in
+  goi_config
+- otop update for DCDC core parameters (config, range, status)
+
+GPON Optic Driver, version 2.0.2, 2011.03.11
+--------------------------------------------
+- bugfix reconfiguration LOL, overload tresholds in bosa_rx_config_set():
+  threshold current/voltage values are (re)calculated in bosa_init()
+  which have to been started via goi_init() after updating bosa configuration
+- general cleanup enabling/disabling interrupts, order of reset, ctrl CONTEXT
+  initialisation, goi_init to support OMU <-> BOSA mode switches on the fly
+- general cleanup in startup/init phase for OMU/BOSA mode and switching between
+  modes via optic_mode_set()
+- bugfix for starting without dedicated mode, later call of optic_mode_set()
+
+GPON Optic Driver, version 2.0.1, 2011.03.07
+--------------------------------------------
+- BOSA / Int200 interrupts LOS, SD, OVL enable each other
+- LOS and Overload thresholds calculated (power->current->voltage->
+  register value) and updated during temperature measurement cycle
+- doublecheck INT200 interrupts (MM.M_RESULT_9 register against MM.ALARM_CFG)
+  if interrupt was not thrown correctly (sign error in M_RESULT interpretation)
+  interrupts are disabled until next measurement cycle
+- omu_tx_disable()/enable(), omu_rx_disable()/enable(),
+  bosa_tx_disable()/enable(), bosa_rx_disable()/enable() use PLL.RESETCONTROL.
+  TX_RSTN and RX_RSTN instead of TX_PD/TXOMU_PD and RX_PD/RXOMU_PD
+- measurement thread bugfix: active debug mode avoids ibias/imod update even in
+  BOSA/open-loop mode
+
+GPON Optic Driver, version 2.0.0, 2011.03.01
+--------------------------------------------
+- control application updates Laserref temperature table file (~.csv):
+  original file is read, updates requested from driver, both tables
+  merged and data are written to new file ("goi_config.sh write_tables")
+- otop printout cleanup
+- calibration current selector enhanced by OPTIC_CAL_OFF
+- optic_ll_tx_fifo_set/get() bugfix (16 bit enable/disable delay and
+  bit-interpretation); both functions are exported
+- OMU/BOSA cleanup shifted to optic_ctrl_reset
+
+GPON Optic Driver, version 1.2.0, 2011.02.25
+--------------------------------------------
+- ext_att parameter deleted in goi_config, exchanged by r_diff[2]
+- rssi_1490_dark_corr parameter added to goi_config for current_offset
+  calculation
+- otop update: printout new config parameters
+- FIO_CAL_MM_DARK_CORR_SET, FIO_CAL_MM_DARK_CORR_GET, FIO_CAL_MM_DARK_CORR_FIND
+  to configure RSSI 1490 dark correction factor
+- in BOSA mode (only!) BIASPATH invert bit is not set
+- control apllication merges table from csv file with requested updated table
+
+GPON Optic Driver, version 1.1.5, 2011.02.23
+--------------------------------------------
+- debug mode deactivates DCDC APD and (in openloop mode) IbiasImod Update
+- maximum value check in Ibias/Imod calculation
+- bugfix Vapd (error) printout in otop
+- preparation to detect second call of optic_mode_set -> BOSA/OMU mode switch
+- FIO_CAL_LASERREF_TABLE_SET, FIO_CAL_LASERREF_TABLE_GET to set/get Ith/SE
+  table values directly. Ibias/Imod values are updated automatically
+- bugfix otop printout Ith/SE
+- RSSI1490 power measurement/calculation: single ended & differential
+- goi_config enhanced by parameter to define RSSI 1490 measurement method
+
+GPON Optic Driver, version 1.1.4, 2011.02.17
+--------------------------------------------
+- cleanup voltage measurement
+- bugfix in otop RSSI 1490 voltage/current printout
+- bugfix in parameter cleaning for mm_cfg_get()
+- BERT cleanup: bert_enable()
+- add p0, p1, pth to struct goi_config for Ibias/Imod table calculation
+- bugfix cal_dcdc_apd_voltage_set()
+- 2.nd call of fcsi (bosa) init in BOSA mode (workaround for A1.1)
+- Ibias/Imod calculation in driver (laserref + pth table transfered)
+- otop cleanup: e.g. temperature tables, status shows precalc. ibias/imod
+- bugfix in cal_*_table_get() functions: clearing param_out deletes param_in
+
+GPON Optic Driver, version 1.1.3, 2011.02.11
+--------------------------------------------
+- optic_isr_register() supports undefined p_ctrl handle
+  (called by other kernel moduls) -> isr registered for all control instances
+- FIO_CAL_LASERDELAY_SET/FIO_CAL_LASERDELAY_GET for laser bit delay
+  configuration, cal_laserdelay_set()/cal_laserdelay_get() are exported
+- optic_ll_bert_prbs_set() accepts all prbs selections
+- TX.DATAPATH.BERT and TX.BIASPATH.BERT set via bert_enable()/bert_disable()
+- cli register get "optic opticrg" returns hex values
+- power measurements shiftet from dual loop routine to general measurement
+  cycle (if BOSA mode is active)
+- open loop mode: only ibias/imod update is done regarding to ext. temperature
+- slope efficiency added to ibias/imod table, read back via
+  FIO_BOSA_TX_STATUS_GET for calculating tx power
+
+GPON Optic Driver, version 1.1.2, 2011.02.08
+--------------------------------------------
+- requesting/freeing irqs a second time (optic_irq_set()) is ignored
+- thread bugfix: reaction on pending signals
+- bert counter reset in bert_enable()
+- TX/DATAPATH and TX/BIASPATH configuration in bert_enable() and bert_disable()
+  (back to OMU or BOSA configuration)
+- FIO_CAL_MM_ENABLE/FIO_CAL_MM_DISABLE to stop/restart measurement background
+  cycle (only active, if OPTIC_MM_MEASUREMENT_LOOP is activated)
+- optic_config_omu struct enhanced by element laser_enable_single_ended
+  to define PLL.TOPCTRL.EXT_LASER_EN setting, read via config file
+- FIO_OPTIC_ISR_REGISTER for registering ISR callback,
+  function optic_isr_register() is exported
+
+GPON Optic Driver, version 1.1.1, 2011.01.28
+--------------------------------------------
+- GPIO signal detect -> interrupt (OMU mode)
+- OMU signal detect / loss of signal GPIO interrupt sets/releases CDR3 BPD bit
+- compiler switch/define OPTIC_DEBUG works as main switch for all debug defines
+- ignore BGP fusing information (at the moment!): FCSI.CBIAS.CTRL1 is not
+  updated with fusing information, read from STATUS.ANALOG
+- bugfix in automatic gain selection (optic_ll_mm_voltage_get())
+- FCSI writing checks via read and write second time, if needed
+- TX DATPATH, BIASPATH: DATA_PRG_EN not set (disturbs PLOAM state 5)
+
+GPON Optic Driver, version 1.1.0, 2011.01.25
+--------------------------------------------
+- mpd level searching cleanup: mpd cancellation and coarse/fine ratio working
+- fusing information handled
+- measurement rework: new p/n junction concept,
+  initialisation of all measurement types, periodic measurement of 3x offsets,
+  3 voltages for internal temperature, 1 voltage for external temperature and 3
+  voltages for power measurement
+- bugfix optic_float2int()
+- VAPD start value configured via FIO_DCDC_APD_CFG_SET
+
+GPON Optic Driver, version 1.0.10, 2011.01.21
+---------------------------------------------
+- enum optic_edable -> enum optic_activation
+- bosa initialisation cleanup
+- ioctl table check taken over from onu driver
+- "OMU" / "BOSA" mode printout
+- mpd offset cancellation bringup
+
+GPON Optic Driver, version 1.0.9, 2011.01.11
+--------------------------------------------
+- remove optic mode dependency from module load and added the interface
+  FIO_OPTIC_MODE_SET, which must be called before any other configuration
+- measurement module only read/calculate external temperature - without
+  any initial offset/gain-factor correction calibration
+
+GPON Optic Driver, version 1.0.8, 2010.12.23
+--------------------------------------------
+- rebuild measurement module:
+  initially parallel measurement of all channels for offset (all gains), gain
+  corrections (all gains), VDD, VBE1, VBE2, p/n-junction and 3 power voltages
+  periodic switch between parallel measurement of offset, VDD, VBE1, VBE2 and 3
+  power voltages - explicite measurement of gain correction (rotating gain
+  selector) - explicite measurement of p/n-junction - and offset/gain
+  calibration
+
+GPON Optic Driver, version 1.0.7, 2010.12.17
+--------------------------------------------
+- optic_exit() crash bugfixing: optic_context_free() cleaned
+- no mm offset/gain corection recalibration: PLOAM state 5 accessable after ~10s
+- mm init deactivated
+
+GPON Optic Driver, version 1.0.6, 2010.12.08
+--------------------------------------------
+- shift table files from etc/config/ to etc/optic to clean up etc/config dir
+- delete omu_init(), bosa_init()
+- delete mode param in goi_init()
+- add insmod parameter to choice OMU or BOSA mode at load-time
+- preinit (OMU/BOSA) mode sensitive
+
+GPON Optic Driver, version 1.0.5, 2010.12.03
+--------------------------------------------
+- bugfix optic_in_range() for address verification
+- mm measurement concept redesign: parallel channels, measured all 100ms
+  gain/offset calibration is started for gain_selector 2 and done in parallel
+  all measurement types starts with configured number of measured values
+  to calculate an average value, later this value is updated via filter
+- external temperature measurement bugfix & cleanup
+
+GPON Optic Driver, version 1.0.4, 2010.11.25
+--------------------------------------------
+- gain/offset calibration (optic_ll_mm_calibrate()) optimized to prepare one
+  channel while reading another one. MM channels 0 and 1 are used
+- gain/offset calibration restructured: channel prepare + read cycles + channel
+  reset. Same sequence used for all measurements
+- internal temperature measurement cleanup
+- dual loop state machine completed
+- interrupt handling skeletton
+
+GPON Optic Driver, version 1.0.3, 2010.11.19
+--------------------------------------------
+- initialisation adaptation, preinit, omu mode, printout options
+- bugfix gpio request/interpretation
+- bugfix optic_ll_mm_prepare()
+- config parameters for BOSA dualloop introduced
+- dual loop support: optic_ll_mpd_regulation_get(), optic_ll_mpd_stable_get()
+
+GPON Optic Driver, version 1.0.2, 2010.11.12
+--------------------------------------------
+- pre-init sequence for module load phase
+- mpd_cfg_set/get() enhanced by cid settings
+- bosa_tx_cfg_set/get() enhanced by learnthreshold_bias/mod and
+  updatethreshold_bias/mod for dual loop operation
+- goi_init() cleanup: OMU/BOSA PLL initialisation shifted to the start
+  goi_init() is called by startup handshake (hotplug event, if all configs read)
+- housekeeper / measure_thread enhancement: BOSA event for BOSA measurements
+
+GPON Optic Driver, version 1.0.1, 2010.11.05
+--------------------------------------------
+- goi_status_get() enhanced by imod, amod, ibias, abias
+- BOSA module support: bosa_init() enhanced,
+  bosa_rx_cfg_set/get(), bosa_tx_cfg_set/get(), bosa_rx_enable/disable()
+  bosa_tx_enable/disable(), bosa_rx_status_get(), bosa_tx_status_get() added
+- mm_cfg_set/get(): support RSSI1490shunt, RSSI1550vref, RF1550vref
+- MM module: RSSI 1490 differential and single ended voltage/curent measurement
+  supported, RSSI 1550 and RF 1550 single ended voltage measurement supported
+  automatic gain calibration (only one correction of gain + new measurement
+  per cycle)
+
+GPON Optic Driver, version 1.0.0, 2010.10.29
+--------------------------------------------
+- DCDC APD module added (drv_optic_dcdc_apd_interface.h, drv_optic_dcdc_apd.c)
+  dcdc_apd_cfg_set/get(), dcdc_apd_enable/disable(), dcdc_apd_voltage_set/get(),
+  dcdc_apd_status_get() added
+- dcdc_apd_voltage_set(): APD voltage is changed by 2V maximum,
+  if needed, in several steps using 10ms timer optic_timer_apd_adapt()
+- APD duty cycle saturation added to VAPD temperature table (calculated via
+  application). In case of dcdc_apd_voltage_set() sat value is calculated via
+  interpolation between nearest vapd voltage entries
+
+GPON Optic Driver, version 0.4.1, 2010.10.22
+--------------------------------------------
+- CLI base command "vig" supported (instead of "vg") with additonal "type"
+- BOSA module support: bosa_init(), bosa_powerlevel_set/get(),
+  bosa_dualloop_enable/disable(), bosa_dualloop_status_get()
+- MPD module: mpd_trace_get() added
+- typedef cleanup, register header files
+
+GPON Optic Driver, version 0.4.0, 2010.10.20
+--------------------------------------------
+- CLI bugfix (additional parameters were skipped)
+- CLI command "vg" added (used by LantiqLab for initial handshake)
+- CAL module renew: cal_mpd_dbg_gaincal_set/get() ->
+  cal_mpd_dbg_gain_set/get(), cal_mpd_dbg_cal_set/get()
+  cal_mpd_gaincal_set/get() -> cal_mpd_gain_set/get(), cal_mpd_cal_set/get()
+  cal_mpd_refcw_set/get() -> cal_mpd_ref_codeword_set/get()
+  cal_mpd_dbg_refcw_set/get() -> cal_mpd_dbg_ref_codeword_set/get()
+  cal_mpd_offset_set/get/find() -> cal_mpd_tia_offset_set/get/find()
+  cal_mpd_dbg_offset_set/get() -> cal_mpd_dbg_tia_offset_set/get()
+- MPD calibration splitted for independent P0 / P1 calibration
+  (needed for cal_mpd_level_find())
+- CAL module: cal_mpd_level_set/get/find(),
+  cal_mpd_cfratio_set/get/find(), cal_fcsi_predriver_set/get() added
+
+GPON Optic Driver, version 0.3.6, 2010.10.08
+--------------------------------------------
+- FCSI module support: fcsi_cfg_set/get() to init powerlevel specific fcsi
+  configuration: gvn, dd/bc_loadn, dd/bc_bias_en, dd/bc_loadp, dd/bc_cm_load
+- CAL module: cal_debug_status_get(); status shown via otop
+  cal_mpd_gaincal_set/get(), cal_mpd_refcw_set/get(), cal_mpd_offset_set/get(),
+  cal_mpd_offset_find() added
+- debug mode introduced: no powerlevel depending seetings are used but
+  debug setting (cal_debug_enable/disable())
+  cal_mpd_dbg_gaincal_set/get(), cal_mpd_dbg_refcw_set/get(),
+  cal_mpd_dbg_offset_set/get() added
+
+GPON Optic Driver, version 0.3.5, 2010.10.01
+--------------------------------------------
+- laser lifetime (base) is configured via goi_cfg_set() - read from file
+- laser lifetime (base) doublechecked against ibias/imod table
+  (use highest timestamp instead of configured base, if timestamp > base)
+- optic driver use hotplug event to update stored laser lifetime (base) in file
+- CAL module: cal_debug_enable/disable(), cal_vapd_table_set/get()
+  cal_mpdcorr_table_set/get(), cal_tcorrext_table_set/get() added
+
+GPON Optic Driver, version 0.3.4, 2010.09.30
+--------------------------------------------
+- cleanup, deleting unused function description, skelettons, parameters
+- mpd calibration in goi_init() shifted to bosa specific part: bosa_init()
+- bert_status_get(): word_cnt and error_cnt added
+- cal_ibiasimod_table_set/get(): read/written via temperature and powerlevel
+  definition; ibias/imod value + age timestamp read/written
+- OCTRLG support: internal timestamp measured via OCTRLG.TXTCNT in seconds
+- *_io_* files/routines renamed into *_ll_*
+
+GPON Optic Driver, version 0.3.3, 2010.09.24
+--------------------------------------------
+- range configuration separated: goi_range_def_set/get()
+- calibration module: ibias/imod direct write/read
+- mm_laser_temperature_get(), mm_die_temperature_get() supported
+  with 1K granularity
+- APD DCDC support: optic_ll_apd_init() called by goi_init()
+- temperature specific cycle count / age
+- goi_table_get() supported by driver
+
+GPON Optic Driver, version 0.3.2, 2010.09.17
+--------------------------------------------
+- mm support: parameters used for external temperature measurement
+- external temperature measurement (nominal), convert into corrected
+- internal temperature (and external) calculated without bitshift [K]
+- mpd calibration finalized: optic_ll_mpd_calibrate()
+- loop mode setting separated: optic_ll_mpd_loop_set()
+
+GPON Optic Driver, version 0.3.1, 2010.09.13
+--------------------------------------------
+- offset cancellation done per gain bank, coarse/fine DAC ratio measured
+  via separated gain selector for global measurements
+- calibration (100uA/1mA) defined in config file for each gain bank
+- transfer / completion of temptrans table supported
+
+GPON Optic Driver, version 0.3.0, 2010.09.10
+--------------------------------------------
+- temperature tables rebuild: table_temperature_corr, table_temperature_nom
+  with separate min/max values, each processing routine differs between
+- mm setting fix for internal temperature measurement
+  (separate channel for VDD, VBE1, VBE2 - no change needed)
+- mpd cal setting is dependent of tia gain selector
+- lol thresholds in omu configuration interpreted as % setting
+
+GPON Optic Driver, version 0.2.7, 2010.09.07
+--------------------------------------------
+- mpd_cfg_set/get() separated from goi_cfg_set/get()
+- state change crosscheck: all tables read / all config modules set
+- drv_optic_goi_api.h deleted: api overview covered by drv_optic_api.h
+- transfer / completion of mpd_resp_corr table supported
+
+GPON Optic Driver, version 0.2.6, 2010.09.03
+--------------------------------------------
+- mpd support: dac calibration, offset cancellation,
+  mpd coarse/fine ratio measurement: optic_ll_mpd_ratio_measure()
+- otop support for mpd calibrated settings (offset tia, P1; gain ratio P0, P1)
+- cli cleanup (new style)
+
+GPON Optic Driver, version 0.2.5, 2010.08.31
+--------------------------------------------
+- DCDC_APD access: pseudo 8 bit register support
+- style cleanup: lower case functions and variables (not completed)
+- VAPD calculated by application and transfered to driver
+- fuse correction for temperature and ibias/imod values: optic_fusecorrect_*()
+- ibias/imod -> codewords translation: optic_ibiasimod_codeword()
+
+GPON Optic Driver, version 0.2.4, 2010.08.20
+--------------------------------------------
+- value type specific shift defines, gain correction becomes 32 bit
+- extra-/interpolation of LaserRef table in application (instead of Ibias/Imod)
+  calculation of Ibias/Imod table bases of complete reference tables
+- extrapolation bases on value type specific characteristic temperature/space,
+  if characteristic temperature cannot be calculated, initial value is used
+
+GPON Optic Driver, version 0.2.3, 2010.08.17
+--------------------------------------------
+- Pth and LaserRef table are handled in application, Ibias/Imod table
+  is calculated and transfered via GOI_TableSet/Get()
+- Inter-/Extrapolation in application
+- GOI_CfgSet/Get parameters nP0[], nP1[], nPthRef deleted
+- style cleanup (first parts): typedefs, variable names, function names, tabs
+
+GPON Optic Driver, version 0.2.2, 2010.08.09
+--------------------------------------------
+- no *_StateSet/Get() CLI access : internal state gets part of GOI_StatusGet()
+- default fuse values for fuse register == 0x0000 defined
+- initialising FCSI.CBIAS with fuse information tgbp, vbgp, irefbgp
+- management of several config and table states
+- GOI_TableSet/Get() covers temperature table read/write (not GOI_CfgSet/Get())
+
+GPON Optic Driver, version 0.2.1, 2010.08.06
+--------------------------------------------
+- no direct GPIO access, gpio_drv will care about
+- new naming for OMU block: GOI_Omu* -> OMU_*
+- separated bert interface: drv_optic_bert_interface.h,
+  drv_optic_bert.c, own OPTIC_BERT_MAGIC and bertFunctionTable
+- gtc-pma access (alternative target for bert configuration)
+- BERT support: BERT_CfgSet/Get(), BERT_Enable/Disable()
+  BERT_Synchronize(), BERT_StatusGet()
+
+GPON Optic Driver, version 0.2.0, 2010.08.03
+--------------------------------------------
+- GPIO access in GOI_OmuCfgSet() for initialisation,
+  GOI_OmuRxStatusGet() and GOI_OmuTxStatusGet() for LOS, LOL, SD info
+- temperature measurement / calculation
+
+GPON Optic Driver, version 0.1.4, 2010.07.30
+--------------------------------------------
+- OMU support: GOI_OmuInit(), GOI_OmuCfgSet/Get(), GOI_OmuRxEnable/Disable(),
+  GOI_OmuTxEnable/Disable(), GOI_OmuRxStatusGet(), GOI_OmuTxStatusGet()
+- offset/gain calibration
+- proc fs / optic_top support for offset/gain calibration table
+- SYSTEM_SIMULATION support (vhdl model based simulation of optic hardware)
+- register access via OPTIC_RegisterRead/Write() supported for
+  OPTIC_SYS_GPON, OPTIC_STATUS, too
+
+GPON Optic Driver, version 0.1.3, 2010.07.23
+--------------------------------------------
+- optic_top supports GOI_CfgGet() and internal temperature tables
+  via proc fs (current status: Pth, LaserRef, IbiasImod)
+- generic table parsing and lineary interpolation of values
+- calculation of ibias/imod in temp table (from pth, laser_ref)
+- OPTIC_FCSI_BFD_CTRL0_RESET changed: 33 Ohm input termination
+  (bfd_rterm_sel = 0x07)
+
+GPON Optic Driver, version 0.1.2, 2010.07.14
+--------------------------------------------
+- supports SYS_GPON module: activate clocks in GOI_Init()
+- measurement thread, waked up by internal timer
+- config table handling via control application
+- interpolation of empty table values
+
+GPON Optic Driver, version 0.1.1, 2010.07.09
+--------------------------------------------
+- FCSI initialisation
+- reading fuse registers in GOI_Init()
+- config tables read via ioctl (GOI_CfgSet)
+- drv_optic_ll_pll.c/h for internal pll routines
+- separated omu interface: drv_optic_omu_interface.h,
+  drv_optic_omu.c, own OPTIC_OMU_MAGIC and omuFunctionTable
+
+GPON Optic Driver, version 0.1.0, 2010.07.01
+--------------------------------------------
+- opticFifo, nfcFifo, WorkerThread, control-deamon run
+- hotplug msg -> etc/hotplug.d/gpon-optic/*
+- 16 bit register support
+- FCSI handling
+- register access simulation
+- devio timer simulation
+
+GPON Optic Driver, version 0.0.2, 2010.06.01
+--------------------------------------------
+- ONU -> OPTIC cleanup
+- register header files integrated
+- register access via OPTIC_RegisterRead/Write()
+
+GPON Optic Driver, version 0.0.1, 2010.04.01
+--------------------------------------------
+- skeleton reused from ONU driver
