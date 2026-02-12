@@ -51,7 +51,7 @@ local omcid_opts = {"omcc_version", "iop_mask", "mib_file", "omci_log_level",
                     "omci_log_to_console", "sw_verA", "sw_verB", "pon_slot",
                     "vendor_id", "equipment_id", "hw_ver", "uni_type",
                     "cp_hw_ver_sync", "override_active", "override_commit",
-                    "mod_omcid", "omcid_version", "omcid_8021x"}
+                    "mod_omcid", "patch_version", "omcid_8021x"}
 
 -- Snapshot omcid-relevant options before commit so we can detect changes
 local _omcid_snapshot = {}
@@ -585,26 +585,16 @@ mod_omcid.datatype = "bool"
 mod_omcid.default = false
 mod_omcid.rmempty = true
 
-local omcid_version =
-	config:taboption("advanced", Value, "omcid_version", translate("Patch Software " ..
-	"Version"), translate("Modify the software version OMCID reports on the command "..
-	"line."))
+local patch_version =
+	config:taboption("advanced", Flag, "patch_version", translate("Patch Software " ..
+	"Version"), translate("Patch the omcid version string to match the active bank's " ..
+	"software version (from Software Version A/B on the PON tab). Respects active " ..
+	"bank override if set."))
 
-omcid_version.datatype = "and(string, maxlength(14))"
-omcid_version.rmempty = true
-omcid_version:depends("mod_omcid", "1")
-
-local restore_sw_ver =
-	config:taboption("advanced", Button, "restore_sw_ver",
-	translate("Restore Software Version"))
-
-restore_sw_ver.inputtitle = translate("Restore")
-restore_sw_ver.inputstyle = "apply"
-restore_sw_ver:depends("mod_omcid", "1")
-
-function restore_sw_ver.write(self, section, value)
-	luci.sys.call("/opt/lantiq/bin/config_onu.sh restore_sw_ver")
-end
+patch_version.datatype = "bool"
+patch_version.default = false
+patch_version.rmempty = true
+patch_version:depends("mod_omcid", "1")
 
 local omcid_8021x =
 	config:taboption("advanced", Flag, "omcid_8021x", translate("Patch 802.1x " ..

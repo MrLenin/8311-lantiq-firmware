@@ -178,52 +178,36 @@ struct lan_port_index {
 	uint32_t index;
 };
 
-/** LAN per-port hardware configuration data.
+/** GMII multiplexer mode (v7.5.1 addition). */
+enum lan_mode_gmux {
+	LAN_MODE_GMUX_GPHY0_GMII = 0,
+	LAN_MODE_GMUX_GPHY0_MII2 = 1,
+	LAN_MODE_GMUX_GPHY1_GMII = 2,
+	LAN_MODE_GMUX_GPHY1_MII2 = 3,
+	LAN_MODE_GMUX_SGMII = 4,
+	LAN_MODE_GMUX_XMII0 = 5,
+	LAN_MODE_GMUX_XMII1 = 6,
+};
+
+/** LAN per-port hardware configuration data (v7.5.1 layout, 52 bytes).
     Used by \ref FIO_LAN_PORT_CFG_SET and \ref lan_port_cfg_get_u.
 */
 struct lan_port_cfg {
-	/** Port Selection.
-	    Valid from 0 to the ONU_GPE_MAX_ETH_UNI - 1.
-	    0/1 are internal PHYs, 2/3 are external.*/
 	uint32_t index;
-	/** Port enable.*/
 	uint32_t uni_port_en;
-	/** Interface mode.
-	    \note If selecting SGMII mode, the speed selection
-	          (LAN_MODE_SGMII_SLOW/LAN_MODE_SGMII_FAST) must fit the GPE
-		  initialiation (mode in gpe_init_data)."*/
+	int32_t mdio_dev_addr;
+	enum lan_mode_gmux gmux_mode;
 	enum lan_mode_interface mode;
-	/** PHY duplex selection.*/
 	enum lan_mode_duplex duplex_mode;
-	/** Flow control mode.*/
 	enum lan_mode_flow_control flow_control_mode;
-	/** Interface speed (if no PHY is connected).*/
 	enum lan_mode_speed speed_mode;
-	/** Transmit Clock Delay.
-	    Configure the delay of TX_CLK_D versus TX_CLK in steps of 500ps.
-	    The total configured delay is TD = TXDLY * 500ps.
-	    Valid range: 0..7.
-	    This setting is valid only in the \ref LAN_MODE_RGMII_MAC mode
-	    selected.*/
 	uint8_t tx_clk_dly;
-	/** Receive Clock Delay.
-	    Configure the delay of RX_CLK_D versus RX_CLK in steps of 500 ps.
-	    The resulting delay is TD = RXDLY * 500 ps.
-	    Valid range: 0..7.
-	    This setting is valid only in the \ref LAN_MODE_RGMII_MAC mode
-	    selected.*/
 	uint8_t rx_clk_dly;
-	/** Maximum Ethernet frames length, must be less
-	    than ONU_GPE_MAX_ETHERNET_FRAME_LENGTH.
-	    \note
-	    Please take care to modify the related pdu_size_max_eth value within
-	    \ref FIO_GPE_CFG_SET accordingly.
-	*/
 	uint16_t max_frame_size;
-	/** LPI mode enable. */
 	uint32_t lpi_enable;
-	/** SGMII autonegotiation selection */
 	enum sgmii_autoneg_mode autoneg_mode;
+	uint32_t invtx;
+	uint32_t invrx;
 } __PACKED__;
 
 /** Union to retrieve LAN port configuration data.
@@ -320,21 +304,16 @@ struct mdio_dis {
 /** LAN per-port hardware loop configuration data.
     Used by \ref FIO_LAN_LOOP_CFG_SET and \ref lan_loop_cfg_get_u and.
 */
+/** LAN per-port loop configuration (v7.5.1 layout, 32 bytes). */
 struct lan_loop_cfg {
-	/** Port Selection.
-	    Valid from 0 to the ONU_GPE_MAX_ETH_UNI - 1.
-	    0/1 are internal PHYs (FE/GE), 2/3 are internal PHYs (FE).*/
 	uint32_t index;
-	/** Ethernet MAC egress loop.*/
 	uint32_t mac_egress_loop_en;
-	/** xMII ingress loop.*/
 	uint32_t mii_ingress_loop_en;
-	/** SGMII ingress loop.*/
 	uint32_t sgmii_ingress_loop_en;
-	/** PHY ingress loop.*/
 	uint32_t phy_ingress_loop_en;
-	/** PHY egress loop.*/
 	uint32_t phy_egress_loop_en;
+	uint32_t lan_port_ingress_loop_en;
+	uint32_t mac_swap_en;
 } __PACKED__;
 
 /** Union to retrieve per-port LAN loop configuration data.
@@ -530,29 +509,17 @@ struct lan_cnt_reset {
 	uint32_t index;
 } __PACKED__;
 
-/** LAN port capability.
-    Used by \ref FIO_LAN_PORT_CAPABILITY_CFG_SET. */
+/** LAN port capability (v7.5.1 layout, 36 bytes — bool widened to uint32_t). */
 struct lan_port_capability_cfg {
-	/** LAN port index, starting with 0. */
 	uint32_t index;
-	/** Supports full duplex mode. */
-	bool full_duplex;
-	/** Supports half-duplex mode. */
-	bool half_duplex;
-	/** Supports 10 Mbit/s data rate. */
-	bool mbit_10;
-	/** Supports 100 Mbit/s data rate. */
-	bool mbit_100;
-	/** Supports 1000 Mbit/s data rate. */
-	bool mbit_1000;
-	/** Supports pause frame reception ant transmission for backpressure. */
-	bool sym_pause;
-	/** Supports asymmetric pause frame handling for backpressure. */
-	bool asym_pause;
-	/** Supports Energy efficient Ethernet mode.
-	    \remarks This argument is currently not supported and
-	    should be set to 'false'. */
-	bool eee;
+	uint32_t full_duplex;
+	uint32_t half_duplex;
+	uint32_t mbit_10;
+	uint32_t mbit_100;
+	uint32_t mbit_1000;
+	uint32_t sym_pause;
+	uint32_t asym_pause;
+	uint32_t eee;
 } __PACKED__;
 
 /** Union to retrieve per-port LAN port capability.
@@ -1015,6 +982,45 @@ union lan_port_capability_cfg_get_u {
 */
 #define FIO_LAN_PORT_CAPABILITY_CFG_GET \
 	_IOWR(LAN_MAGIC, 0x1a, union lan_port_capability_cfg_get_u)
+
+/**
+   Set the 802.1X port authorization state.
+
+   \param lan_port_802_1x_auth_cfg Pointer to \ref lan_port_802_1x_auth_cfg.
+
+   \remarks Proprietary ioctl, not present in v4.5.0 SDK. Added in shipping
+            v7.5.1 kernel modules. Controls GPE LAN Port Table bit 28 (per-port
+            authorization) and GPE Constants[1] eapol_transparent_enable.
+*/
+#define FIO_LAN_PORT_802_1X_AUTH_CFG_SET \
+	_IOW(LAN_MAGIC, 0x25, struct lan_port_802_1x_auth_cfg)
+
+/**
+   Read the 802.1X port authorization state.
+
+   \param lan_port_802_1x_auth_cfg Pointer to \ref lan_port_802_1x_auth_cfg.
+*/
+#define FIO_LAN_PORT_802_1X_AUTH_CFG_GET \
+	_IOWR(LAN_MAGIC, 0x26, struct lan_port_802_1x_auth_cfg)
+
+/** 802.1X authorization result. */
+enum lan_port_802_1x_auth_result {
+	/** Port authorized — normal traffic flows. */
+	LAN_PORT_802_1X_AUTH_OPEN = 0,
+	/** Port unauthorized — non-EAPoL traffic blocked by GPE. */
+	LAN_PORT_802_1X_AUTH_BLOCK = 1,
+};
+
+/** Structure for 802.1X port authorization configuration.
+    Used by \ref FIO_LAN_PORT_802_1X_AUTH_CFG_SET and
+    \ref FIO_LAN_PORT_802_1X_AUTH_CFG_GET.
+*/
+struct lan_port_802_1x_auth_cfg {
+	/** LAN port index (0 to ONU_GPE_MAX_ETH_UNI - 1). */
+	uint32_t port_id;
+	/** Authorization result. */
+	enum lan_port_802_1x_auth_result auth_result;
+} __PACKED__;
 
 /*! @} */
 

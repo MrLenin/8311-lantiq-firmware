@@ -121,6 +121,8 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_network_address.h \
    @top_srcdir@/include/me/omci_tcp_udp_config_data.h \
    @top_srcdir@/include/me/omci_onu_dyn_pwr_mngmt_ctrl.h \
+   @top_srcdir@/include/me/omci_enhanced_security_control.h \
+   @top_srcdir@/include/me/omci_ipv6_host_config_data.h \
    @top_srcdir@/include/me/omci_me_65281.h \
    @top_srcdir@/include/me/omci_me_65296.h \
    @top_srcdir@/include/me/omci_me_65297.h \
@@ -242,6 +244,8 @@ libomci_a_SOURCES = \
    me/omci_network_address.c \
    me/omci_tcp_udp_config_data.c \
    me/omci_onu_dyn_pwr_mngmt_ctrl.c \
+   me/omci_enhanced_security_control.c \
+   me/omci_ipv6_host_config_data.c \
    uci/omci_uci_config.c \
    me/omci_me_65281.c \
    me/omci_me_65296.c \

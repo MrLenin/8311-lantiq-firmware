@@ -212,7 +212,7 @@ static enum omci_api_return ext_vlan_idx_get(struct omci_api_ctx *ctx,
 */
 static enum omci_api_return bridge_port_info_get(struct omci_api_ctx *ctx,
 					         uint16_t me_id,
-					         bool *ani_indication,
+					         uint8_t *tp_type,
 						 uint8_t *conn_idx)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
@@ -240,7 +240,7 @@ static enum omci_api_return bridge_port_info_get(struct omci_api_ctx *ctx,
 	    - 2: p-Mapper
 	    - 3: ITP
 	*/
-	*ani_indication = entry.data.bridge_port.tp_type & 0x2 ? true : false;
+	*tp_type = (uint8_t)entry.data.bridge_port.tp_type;
 
 	*conn_idx = (uint8_t)entry.data.bridge_port.tp_pointer;
 
@@ -513,7 +513,8 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 	uint32_t ext_vlan_idx[2];
 	uint8_t dscp_profile, tp_idx, i, j, ext_vlan_num = ds_mode == 0 ? 2 : 1;
 	uint32_t idx, tmp_idx;
-	bool ani_ind = false, enable_egress, enable_ingress = true;
+	int dispatch = 0;  /* 0=LAN, 1=GEM, 2=pMapper */
+	bool enable_egress, enable_ingress = true;
 
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n"
@@ -570,10 +571,32 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 
 	switch (association_type) {
 	case 0:
-		ret = bridge_port_info_get(ctx, associated_ptr, &ani_ind, &tp_idx);
+		{
+			uint8_t bp_tp_type;
+
+			ret = bridge_port_info_get(ctx, associated_ptr,
+						   &bp_tp_type, &tp_idx);
+			if (ret != OMCI_API_SUCCESS)
+				return ret;
+			idx = tp_idx;
+			/* Map bridge port TP type to dispatch:
+			 * 0 (PPTP) -> 0 (LAN)
+			 * 2 (p-Mapper) -> 2 (mapper fanout)
+			 * 3 (ITP) -> 1 (single GEM port) */
+			if (bp_tp_type == 2)
+				dispatch = 2;
+			else if (bp_tp_type & 0x2)
+				dispatch = 1;
+		}
+		break;
+	case 1:
+		/* 802.1p Mapper — get mapper hardware index.
+		   Ext VLAN will fan out to all GEM ports under this mapper. */
+		ret = index_get(ctx, MAPPER_DOT1PMAPPER_MEID_TO_IDX,
+				associated_ptr, &idx);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
-		idx = tp_idx;
+		dispatch = 2;  /* pMapper fanout */
 		break;
 	case 2:
 		ret = index_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
@@ -589,17 +612,19 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 			if (ret != OMCI_API_SUCCESS)
 				return ret;
 		}
-
+		/* dispatch stays 0 = LAN */
 		break;
 	case 3:
-		/* fixed mapping to LAN4*/
+		/* fixed mapping to LAN4 */
 		idx = 4;
+		/* dispatch stays 0 = LAN */
 		break;
 	case 5:
 		ret = index_get(ctx, MAPPER_GEMITP_MEID_TO_GPIX,
 				associated_ptr, &idx);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
+		dispatch = 1;  /* single GEM port */
 		break;
 	case 6:
 		ret = index_get(ctx, MAPPER_MULCTCAST_GEMPORTITP_MEID_TO_CTP_MEID,
@@ -611,6 +636,7 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
 		idx = idx & 0xFFFF;
+		dispatch = 1;  /* single GEM port */
 		break;
 	default:
 		DBG(OMCI_API_ERR, ("Unsupported Association Type %u\n",
@@ -618,34 +644,34 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 		return OMCI_API_ERROR;
 	}
 
-	switch (association_type) {
-	case 0:
-	case 2:
-	case 3:
-		if (ani_ind) {
+	if (dispatch == 2) {
+		/* pMapper: fan out ext VLAN to all GEM ports in the mapper */
+		uint32_t gpix[8];
+		unsigned int k;
+
+		ret = omci_api_pmapper_get(ctx, (uint16_t)idx, gpix,
+					   NULL, NULL, NULL);
+		if (ret != OMCI_API_SUCCESS) {
+			DBG(OMCI_API_ERR, ("pMapper at index %u get failed, "
+					   "ret=%d\n", idx, ret));
+			return ret;
+		}
+		for (k = 0; k < 8; k++) {
+			if (gpix[k] == 255 || gpix[k] == 0xffff)
+				continue;
 			ret = omci_api_gem_port_us_ext_vlan_modify(ctx,
-						(uint16_t)idx, true,
+						(uint16_t)gpix[k], true,
 						(uint8_t)ext_vlan_idx[0], true);
 			if (ret != OMCI_API_SUCCESS)
 				return ret;
-
 			ret = omci_api_gem_port_ds_ext_vlan_modify(ctx,
-						(uint16_t)idx, true,
+						(uint16_t)gpix[k], true,
 						(uint8_t)ext_vlan_idx[1]);
 			if (ret != OMCI_API_SUCCESS)
 				return ret;
-		} else {
-			ret = omci_api_lan_port_ext_vlan_modify(ctx,
-						(uint16_t)idx,
-						enable_egress ? 1 : 0,
-						(uint8_t)ext_vlan_idx[1],
-						enable_ingress ? 1 : 0,
-						(uint8_t)ext_vlan_idx[0],
-						true);
 		}
-		break;
-	case 5:
-	case 6:
+	} else if (dispatch == 1) {
+		/* Single GEM port (ANI side) */
 		ret = omci_api_gem_port_us_ext_vlan_modify(ctx,
 					(uint16_t)idx, true,
 					(uint8_t)ext_vlan_idx[0], true);
@@ -657,7 +683,18 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 					(uint8_t)ext_vlan_idx[1]);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
-		break;
+	} else if (dispatch == 0) {
+		/* UNI/LAN port */
+		ret = omci_api_lan_port_ext_vlan_modify(ctx,
+					(uint16_t)idx,
+					enable_egress ? 1 : 0,
+					(uint8_t)ext_vlan_idx[1],
+					enable_ingress ? 1 : 0,
+					(uint8_t)ext_vlan_idx[0],
+					true);
+	} else {
+		DBG(OMCI_API_ERR, ("Unsupported Bridge Port TP type %d\n",
+				   dispatch));
 	}
 
 	return ret;

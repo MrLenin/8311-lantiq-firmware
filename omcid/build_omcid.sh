@@ -29,8 +29,6 @@ ONU_DRV_INC="${SCRIPT_DIR}/gpon_onu_drv-4.5.0/src/include"
 OPTIC_DRV_INC="${SCRIPT_DIR}/gpon_optic_drv/src/include"
 LIBCLI_INC="${SCRIPT_DIR}/libcli/include/cli"
 LIBCLI_LIB="${SCRIPT_DIR}/libcli/lib"
-COMPAT_HDR="${SCRIPT_DIR}/drv_onu_compat.h"
-
 # ---- Install prefixes (temporary, under /tmp) ----
 IFXOS_INSTALL="/tmp/lib_ifxos_install"
 OMCI_API_INSTALL="/tmp/omci_api_install"
@@ -40,6 +38,7 @@ HOST="mips-openwrt-linux-uclibc"
 BUILD="x86_64-linux-gnu"
 
 export CC="$CC --sysroot=$SYSROOT"
+export LDFLAGS="-L${SYSROOT}/usr/lib"
 
 # ---- Handle 'clean' argument ----
 if [ "${1:-}" = "clean" ]; then

@@ -124,6 +124,56 @@ omci_api_ani_g_tx_optical_level_get(struct omci_api_ctx *ctx,
 				    uint16_t me_id,
 				    int16_t *tx_optical_level);
 
+/** Retrieve laser bias current (G.988 Table 9.2.1)
+
+   \param[in]  ctx                OMCI API context pointer
+   \param[in]  me_id              Managed Entity identifier
+   \param[out] laser_bias_current Laser bias current in units of 2 uA
+
+   \remark Uses FIO_BOSA_TX_STATUS_GET (v7.5.1 24-byte struct)
+*/
+enum omci_api_return
+omci_api_ani_g_laser_bias_current_get(struct omci_api_ctx *ctx,
+				      uint16_t me_id,
+				      uint16_t *laser_bias_current);
+
+/** Retrieve laser/module temperature (G.988 Table 9.2.1)
+
+   \param[in]  ctx         OMCI API context pointer
+   \param[in]  me_id       Managed Entity identifier
+   \param[out] temperature Temperature in units of 1/256 degree C (signed)
+
+   \remark Uses FIO_MM_LASER_TEMPERATURE_GET
+*/
+enum omci_api_return
+omci_api_ani_g_laser_temperature_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     int16_t *temperature);
+
+/** Retrieve supply voltage (G.988 Table 9.2.1)
+
+   \param[in]  ctx            OMCI API context pointer
+   \param[in]  me_id          Managed Entity identifier
+   \param[out] supply_voltage Supply voltage in units of 20 mV
+
+   \remark Uses FIO_MM_SUPPLY_VOLTAGE_GET (new in v7.5.1, ioctl #10)
+*/
+enum omci_api_return
+omci_api_ani_g_supply_voltage_get(struct omci_api_ctx *ctx,
+				  uint16_t me_id,
+				  uint16_t *supply_voltage);
+
+/** Retrieve GEM block length from hardware
+
+   \param[in]  ctx           OMCI API context pointer
+   \param[in]  me_id         Managed Entity identifier
+   \param[out] gem_block_len GEM block length in bytes
+*/
+enum omci_api_return
+omci_api_ani_g_gem_block_len_get(struct omci_api_ctx *ctx,
+				 uint16_t me_id,
+				 uint16_t *gem_block_len);
+
 /** @} */
 
 /** @} */

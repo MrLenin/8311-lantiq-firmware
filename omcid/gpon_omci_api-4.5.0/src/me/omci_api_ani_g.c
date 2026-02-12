@@ -21,6 +21,46 @@
    @{
 */
 
+/*
+ * ============================================================================
+ *  v7.5.1 kernel-specific struct and ioctl definitions.
+ *
+ *  The shipping mod_optic.ko (v7.5.1) has different struct sizes than the
+ *  v4.5.0 SDK headers.  Since we're building a replacement binary for this
+ *  exact kernel, define the correct layouts locally.
+ * ============================================================================
+ */
+
+/*
+ * BOSA TX status — 24 bytes in v7.5.1 (was 9 in v4.5.0).
+ * tx_enable widened from bool(1) to uint32_t(4), new fields inserted.
+ * Layout from Ghidra decompilation of shipping mod_optic.ko.
+ */
+struct bosa_tx_status {
+	uint32_t tx_enable;
+	uint16_t bias_current;		/* [mA] << FLOAT2INTSHIFT_CURRENT (8) */
+	uint16_t modulation_current;	/* [mA] << FLOAT2INTSHIFT_CURRENT (8) */
+	uint32_t _reserved1;
+	uint16_t laser_threshold;	/* [mA] << FLOAT2INTSHIFT_CURRENT (8) */
+	uint16_t slope_efficiency;	/* [uW/mA] << FLOAT2INTSHIFT_SLOPEEFF */
+	uint8_t  _reserved2[8];
+};
+
+#define FIO_BOSA_TX_STATUS_GET_751 \
+	_IOR(OPTIC_BOSA_MAGIC, 13, struct bosa_tx_status)
+
+/*
+ * Supply voltage — new in v7.5.1, ioctl #10 in MM block.
+ * Not present in v4.5.0 SDK.  Single uint32_t value.
+ */
+struct mm_supply_voltage {
+	uint32_t voltage_val;		/* [V] << FLOAT2INTSHIFT_VOLTAGE_FINE (14) */
+};
+
+#define FIO_MM_SUPPLY_VOLTAGE_GET \
+	_IOR(OPTIC_MM_MAGIC, 10, struct mm_supply_voltage)
+
+
 /** GOI power check interval */
 #define OMCI_API_ANIG_GOI_POWER_CHECK_INTERVAL                         1
 
@@ -205,22 +245,126 @@ omci_api_ani_g_optical_signal_level_get(struct omci_api_ctx *ctx,
 }
 
 enum omci_api_return
+omci_api_ani_g_laser_bias_current_get(struct omci_api_ctx *ctx,
+				      uint16_t me_id,
+				      uint16_t *laser_bias_current)
+{
+	enum omci_api_return ret;
+	struct bosa_tx_status status;
+
+	memset(&status, 0, sizeof(status));
+	ret = dev_ctl(ctx->remote, ctx->goi_fd,
+		      FIO_BOSA_TX_STATUS_GET_751, &status, sizeof(status));
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR,
+			("omci_api_ani_g_laser_bias_current_get failed\n"));
+		return ret;
+	}
+
+	/* G.988 Table 9.2.1: laser bias current in units of 2 uA.
+	   bias_current is fixed-point [mA] << OPTIC_FLOAT2INTSHIFT_CURRENT (8).
+	   raw / 256 = mA, mA / 0.002 = units of 2 uA.
+	   So: (raw * 500) >> 8.  Clamp to uint16_t max. */
+	{
+		uint32_t val = ((uint32_t)status.bias_current * 500) >> 8;
+		*laser_bias_current = (val > 0xFFFF) ? 0xFFFF : (uint16_t)val;
+	}
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_ani_g_laser_temperature_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     int16_t *temperature)
+{
+	enum omci_api_return ret;
+	struct optic_temperature temp;
+
+	memset(&temp, 0, sizeof(temp));
+	ret = dev_ctl(ctx->remote, ctx->goi_fd,
+		      FIO_MM_LASER_TEMPERATURE_GET, &temp, sizeof(temp));
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR,
+			("omci_api_ani_g_laser_temperature_get failed\n"));
+		return ret;
+	}
+
+	/* G.988 Table 9.2.1: temperature in units of 1/256 degree C.
+	   optic_temperature is in Kelvin, 0xFFFF = invalid.
+	   Convert: (K - 273) * 256.  Invalid → -128 (0xFF80). */
+	if (temp.temperature == 0xFFFF)
+		*temperature = (int16_t)-128;
+	else
+		*temperature = (int16_t)((temp.temperature - 273) * 256);
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_ani_g_supply_voltage_get(struct omci_api_ctx *ctx,
+				  uint16_t me_id,
+				  uint16_t *supply_voltage)
+{
+	enum omci_api_return ret;
+	struct mm_supply_voltage volt;
+
+	memset(&volt, 0, sizeof(volt));
+	ret = dev_ctl(ctx->remote, ctx->goi_fd,
+		      FIO_MM_SUPPLY_VOLTAGE_GET, &volt, sizeof(volt));
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR,
+			("omci_api_ani_g_supply_voltage_get failed\n"));
+		return ret;
+	}
+
+	/* G.988 Table 9.2.1: supply voltage in units of 20 mV.
+	   voltage_val is [V] << OPTIC_FLOAT2INTSHIFT_VOLTAGE_FINE (14).
+	   raw / 16384 = V, V / 0.020 = units of 20 mV.
+	   So: (raw * 50 + 10) >> 14.  +10 for rounding. */
+	*supply_voltage =
+		(uint16_t)((volt.voltage_val * 50 + 10) >> 14);
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_ani_g_gem_block_len_get(struct omci_api_ctx *ctx,
+				 uint16_t me_id,
+				 uint16_t *gem_block_len)
+{
+	enum omci_api_return ret;
+	struct gpe_cfg gpe_cfg;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd,
+		      FIO_GPE_CFG_GET, &gpe_cfg, sizeof(gpe_cfg));
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR,
+			("omci_api_ani_g_gem_block_len_get failed\n"));
+		return ret;
+	}
+
+	*gem_block_len = gpe_cfg.gem_blk_len;
+	return ret;
+}
+
+enum omci_api_return
 omci_api_ani_g_tx_optical_level_get(struct omci_api_ctx *ctx,
 				    uint16_t me_id,
 				    int16_t *tx_optical_level)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
-	struct optic_bosa_tx_status status;
+	struct bosa_tx_status status;
 	float pwr_mw, bias_current, modulation_current, laser_threshold,
 	      slope_efficiency;
 
+	memset(&status, 0, sizeof(status));
 	ret = dev_ctl(ctx->remote, ctx->goi_fd,
-		      FIO_BOSA_TX_STATUS_GET, &status, sizeof(status));
+		      FIO_BOSA_TX_STATUS_GET_751, &status, sizeof(status));
 	if (ret != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_MSG,
 			("omci_api_ani_g_tx_optical_level_get failed\n"));
 		return ret;
-		
 	}
 
 	bias_current =
@@ -233,7 +377,7 @@ omci_api_ani_g_tx_optical_level_get(struct omci_api_ctx *ctx,
 		optic_uin16t_to_float(status.laser_threshold,
 				      OPTIC_FLOAT2INTSHIFT_CURRENT);
 	slope_efficiency =
-		optic_uin16t_to_float(status.laser_threshold,
+		optic_uin16t_to_float(status.slope_efficiency,
 				      OPTIC_FLOAT2INTSHIFT_SLOPEEFFICIENCY);
 
 	pwr_mw = slope_efficiency * ((bias_current + modulation_current) / 2

@@ -930,8 +930,14 @@ enum {
 	/** GEM port network CTP PMHD */
 	OMCI_ME_GEM_PORT_NETWORK_CTP_PMHD = 333,
 
+	/** Enhanced Security Control */
+	OMCI_ME_ENHANCED_SECURITY_CONTROL = 332,
+
 	/** ONU dynamic power management control */
 	OMCI_ME_ONU_DYN_PWR_MNGMT_CTRL = 336,
+
+	/** IPv6 Host Config Data */
+	OMCI_ME_IPV6_CONFIG_DATA = 347,
 
 	/* 65280 - 65535 reserved for vendor specific use */
 	OMCI_ME_65281 = 65281,

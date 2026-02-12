@@ -26,6 +26,7 @@
 #ifdef INCLUDE_CLI_SUPPORT
 
 #include "lib_cli_config.h"
+#include "lib_cli_osmap.h"
 #include "lib_cli_core.h"
 
 /** \addtogroup OMCI_CLI

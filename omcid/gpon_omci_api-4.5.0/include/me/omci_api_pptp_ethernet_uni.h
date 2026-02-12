@@ -193,6 +193,28 @@ omci_api_pptp_ethernet_uni_configuration_ind_get(struct omci_api_ctx *ctx,
 						 uint16_t me_id,
 						 uint8_t *cfg_ind);
 
+/** Retrieve current Operational state from hardware
+
+   \param[in]  ctx            OMCI API context pointer
+   \param[in]  me_id          Managed Entity identifier
+   \param[out] oper_state     0 = enabled (link up), 1 = disabled (link down)
+*/
+enum omci_api_return
+omci_api_pptp_ethernet_uni_oper_state_get(struct omci_api_ctx *ctx,
+					  uint16_t me_id,
+					  uint8_t *oper_state);
+
+/** Retrieve current Sensed type from hardware
+
+   \param[in]  ctx            OMCI API context pointer
+   \param[in]  me_id          Managed Entity identifier
+   \param[out] sensed_type    Circuit pack type code (G.988 Table 9.1.5)
+*/
+enum omci_api_return
+omci_api_pptp_ethernet_uni_sensed_type_get(struct omci_api_ctx *ctx,
+					   uint16_t me_id,
+					   uint8_t *sensed_type);
+
 /** @} */
 
 /** @} */

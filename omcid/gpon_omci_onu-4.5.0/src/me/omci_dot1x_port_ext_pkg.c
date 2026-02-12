@@ -18,6 +18,7 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_dot1x_port_ext_pkg.h"
+#include "me/omci_api_dot1x_port_ext_pkg.h"
 
 /** \addtogroup OMCI_ME_DOT1X_PORT_EXTENSION_PACKAGE
    @{
@@ -29,6 +30,61 @@ static uint16_t backend_auth_state_cp[] = {0, 1, 2, 3, 4, 5, 6, 7};
 static uint16_t auth_controlled_port_status_cp[] = {1, 2};
 static uint16_t admin_controlled_dirs_cp[] = {0, 1};
 static uint16_t op_controlled_dirs_cp[] = {0, 1};
+
+/** Custom init: default action_register=3 (force authenticated) so newly
+    created instances start with port authorized. */
+static enum omci_error me_init(struct omci_context *context,
+			       struct me *me,
+			       void *init_data,
+			       uint16_t suppress_avc)
+{
+	struct omci_me_dot1x_port_ext_pkg *me_data;
+	enum omci_error error;
+
+	error = default_me_init(context, me, init_data, suppress_avc);
+	if (error != OMCI_SUCCESS)
+		return error;
+
+	/* If no template data, set safe defaults matching v8.6.3 behavior */
+	if (!init_data) {
+		me_data = (struct omci_me_dot1x_port_ext_pkg *)me->data;
+		me_data->action_register = 3;
+		me_data->auth_controlled_port_status = 1; /* authorized */
+	}
+
+	return OMCI_SUCCESS;
+}
+
+/** Custom update: enforce 802.1X via kernel ioctl and update computed
+    auth_controlled_port_status attribute. */
+static enum omci_error me_update(struct omci_context *context,
+				 struct me *me,
+				 void *data,
+				 uint16_t attr_mask)
+{
+	enum omci_api_return ret;
+	struct omci_me_dot1x_port_ext_pkg *upd_data;
+	struct omci_me_dot1x_port_ext_pkg *me_data;
+
+	upd_data = (struct omci_me_dot1x_port_ext_pkg *)data;
+	me_data = (struct omci_me_dot1x_port_ext_pkg *)me->data;
+
+	/* Issue enforcement ioctl to kernel driver */
+	ret = omci_api_dot1x_port_ext_pkg_update(context->api,
+						 me->instance_id,
+						 upd_data->dot1x_enable,
+						 upd_data->action_register);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_ERROR_DRV;
+
+	/* Update computed attribute: auth_controlled_port_status
+	 * G.988: 1=authorized, 2=unauthorized */
+	me_data->auth_controlled_port_status =
+		(!upd_data->dot1x_enable || upd_data->action_register == 3)
+		? 1 : 2;
+
+	return OMCI_SUCCESS;
+}
 
 /** Managed Entity class */
 struct me_class me_dot1x_port_ext_pkg_class = {
@@ -212,13 +268,13 @@ struct me_class me_dot1x_port_ext_pkg_class = {
 		NULL
 	},
 	/* Init Handler */
-	default_me_init,
+	me_init,
 	/* Shutdown Handler */
 	NULL,
 	/* Validate Handler */
 	default_me_validate,
 	/* Update Handler */
-	default_me_update,
+	me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
 #ifdef INCLUDE_PM

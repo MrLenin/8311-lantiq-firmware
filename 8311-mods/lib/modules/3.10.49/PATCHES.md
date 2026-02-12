@@ -337,15 +337,16 @@ that filtering. Referenced in the Chinese mod changelog (2023.10.20):
 | File offset | 316,133 (`0x4D2E5`) |
 | Size | 58 bytes (zero-padded) |
 | Original | Stock version string (see above) |
-| Patched | User-specified string from `8311.config.omcid_version` |
-| UCI toggle | `8311.config.omcid_version` = any string (max 58 chars) |
+| Patched | Active bank's software version (from `sw_verA`/`sw_verB`) |
+| UCI toggle | `8311.config.patch_version` = `1` (boolean flag) |
 | Applied by | `config_onu.sh mod` → `mod_omcid_version()` |
-| Reversed by | `config_onu.sh restore_sw_ver` → writes stock string back |
+| Reversed by | `omcid.sh` startup restores stock binary if `patch_version` is unset |
 
 **Effect:** Changes the software version reported by `omcid -v` and visible to
 the OLT via OMCI managed entities. Used for ISP interoperability — some OLTs
-reject ONUs that don't report an expected version string. The version string
-is written as raw bytes at the offset, zero-padded to 58 bytes.
+reject ONUs that don't report an expected version string. When enabled, the
+version is auto-determined from the active bank (respecting `override_active`).
+The version string is written as raw bytes at the offset, zero-padded to 58 bytes.
 
 **Note:** A second version offset at 307,944 (`0x4B1E8`) was used in earlier
 versions but is now commented out in `config_onu.sh`.

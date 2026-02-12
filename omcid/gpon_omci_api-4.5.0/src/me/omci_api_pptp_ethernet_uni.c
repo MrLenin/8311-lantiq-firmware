@@ -600,4 +600,84 @@ omci_api_pptp_ethernet_uni_configuration_ind_get(struct omci_api_ctx *ctx,
 	return ret;
 }
 
+enum omci_api_return
+omci_api_pptp_ethernet_uni_oper_state_get(struct omci_api_ctx *ctx,
+					  uint16_t me_id,
+					  uint8_t *oper_state)
+{
+	enum omci_api_return ret;
+	uint32_t uni_port_idx = 0;
+	union lan_port_status_get_u status;
+
+	DBG(OMCI_API_MSG, ("%s\n   me_id = %u", __FUNCTION__, me_id));
+
+	ret = index_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
+			me_id, &uni_port_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	status.in.index = (uint8_t)uni_port_idx;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
+		      &status, sizeof(status));
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	switch (status.out.link_status) {
+	case LAN_PHY_STATUS_10_UP:
+	case LAN_PHY_STATUS_100_UP:
+	case LAN_PHY_STATUS_1000_UP:
+		*oper_state = 0;	/* enabled */
+		break;
+	default:
+		*oper_state = 1;	/* disabled */
+		break;
+	}
+
+	return OMCI_API_SUCCESS;
+}
+
+enum omci_api_return
+omci_api_pptp_ethernet_uni_sensed_type_get(struct omci_api_ctx *ctx,
+					   uint16_t me_id,
+					   uint8_t *sensed_type)
+{
+	enum omci_api_return ret;
+	uint32_t uni_port_idx = 0;
+	union lan_port_status_get_u status;
+
+	DBG(OMCI_API_MSG, ("%s\n   me_id = %u", __FUNCTION__, me_id));
+
+	ret = index_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
+			me_id, &uni_port_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	status.in.index = (uint8_t)uni_port_idx;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
+		      &status, sizeof(status));
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	/* Map link speed to circuit pack type enum.
+	   Values from G.988 Table 9.1.5 / omci_types.h. */
+	switch (status.out.link_status) {
+	case LAN_PHY_STATUS_10_UP:
+		*sensed_type = 22;	/* 10BaseT */
+		break;
+	case LAN_PHY_STATUS_100_UP:
+		*sensed_type = 23;	/* 100BaseT */
+		break;
+	case LAN_PHY_STATUS_1000_UP:
+		*sensed_type = 47;	/* 10/100/1000BaseT */
+		break;
+	default:
+		*sensed_type = 0;	/* auto/no limitation */
+		break;
+	}
+
+	return OMCI_API_SUCCESS;
+}
+
 /** @} */

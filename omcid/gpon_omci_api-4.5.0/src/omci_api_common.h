@@ -128,6 +128,7 @@
 
 #include "drv_optic_interface.h"
 #include "drv_optic_bosa_interface.h"
+#include "drv_optic_mm_interface.h"
 #include "drv_optic_event_interface.h"
 
 /** Offset used to calculate SW_GPIX from the maximum number of GPIX */

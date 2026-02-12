@@ -25,6 +25,57 @@
    @{
 */
 
+static enum omci_error sensed_type_get(struct omci_context *context,
+				       struct me *me,
+				       void *data,
+				       size_t data_size)
+{
+	enum omci_api_return ret;
+	uint8_t tmp = 0;
+	assert(data_size == 1);
+	ret = omci_api_pptp_ethernet_uni_sensed_type_get(context->api,
+							 me->instance_id,
+							 &tmp);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_ERROR_DRV;
+	memcpy(data, &tmp, 1);
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error oper_state_get(struct omci_context *context,
+				      struct me *me,
+				      void *data,
+				      size_t data_size)
+{
+	enum omci_api_return ret;
+	uint8_t tmp = 0;
+	assert(data_size == 1);
+	ret = omci_api_pptp_ethernet_uni_oper_state_get(context->api,
+							me->instance_id,
+							&tmp);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_ERROR_DRV;
+	memcpy(data, &tmp, 1);
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error config_ind_get(struct omci_context *context,
+				      struct me *me,
+				      void *data,
+				      size_t data_size)
+{
+	enum omci_api_return ret;
+	uint8_t tmp = 0;
+	assert(data_size == 1);
+	ret = omci_api_pptp_ethernet_uni_configuration_ind_get(context->api,
+							       me->instance_id,
+							       &tmp);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_ERROR_DRV;
+	memcpy(data, &tmp, 1);
+	return OMCI_SUCCESS;
+}
+
 static enum omci_error me_update(struct omci_context *context,
 				 struct me *me,
 				 void *data,
@@ -217,7 +268,7 @@ struct me_class me_pptp_ethernet_uni_class = {
 			  1,
 			  OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			  OMCI_ATTR_PROP_TEMPLATE,
-			  NULL),
+			  sensed_type_get),
 		/* 3. Auto detection configuration */
 		ATTR_ENUM("Auto detection config",
 			  ATTR_SUPPORTED,
@@ -252,7 +303,7 @@ struct me_class me_pptp_ethernet_uni_class = {
 			  1,
 			  OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			  OMCI_ATTR_PROP_TEMPLATE | OMCI_ATTR_PROP_OPTIONAL,
-			  NULL),
+			  oper_state_get),
 		/* 7. Configuration ind */
 		ATTR_ENUM("Configuration ind",
 			  ATTR_SUPPORTED,
@@ -261,7 +312,7 @@ struct me_class me_pptp_ethernet_uni_class = {
 				   config_ind),
 			  1,
 			  OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_TEMPLATE,
-			  NULL),
+			  config_ind_get),
 		/* 8. Max frame size */
 		ATTR_UINT("Max frame size",
 			  ATTR_SUPPORTED,

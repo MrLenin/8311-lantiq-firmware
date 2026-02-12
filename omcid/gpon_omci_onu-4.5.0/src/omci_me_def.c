@@ -121,6 +121,8 @@ extern struct me_class me_managed_entity_class;
 extern struct me_class me_omci_class;
 #endif
 extern struct me_class me_onu_dyn_pwr_mngmt_ctrl_class;
+extern struct me_class me_enhanced_security_control_class;
+extern struct me_class me_ipv6_host_config_data_class;
 extern struct me_class me_65281_class;
 extern struct me_class me_65296_class;
 extern struct me_class me_65297_class;
@@ -254,6 +256,8 @@ struct me_class *me_def_class_array[] = {
 	&me_omci_class,
 #endif
 	&me_onu_dyn_pwr_mngmt_ctrl_class,
+	&me_enhanced_security_control_class,
+	&me_ipv6_host_config_data_class,
 	&me_65281_class,
 	&me_65296_class,
 	&me_65297_class,

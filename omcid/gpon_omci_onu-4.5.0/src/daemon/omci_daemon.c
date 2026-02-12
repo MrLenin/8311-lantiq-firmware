@@ -21,6 +21,7 @@
 #include "daemon/omci_daemon.h"
 
 #ifdef INCLUDE_CLI_SUPPORT
+#include "lib_cli_osmap.h"
 static struct cli_core_context_s *cli_core_ctx = IFX_NULL;
 # if defined(INCLUDE_CLI_PIPE_SUPPORT)
 static struct cli_pipe_context_s *cli_pipe_ctx = IFX_NULL;

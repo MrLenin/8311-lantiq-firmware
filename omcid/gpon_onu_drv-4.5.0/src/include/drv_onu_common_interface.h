@@ -106,6 +106,8 @@ struct onu_version_string {
 	char sce_interface_version[80];
 	/** Chip id */
 	char chip_id[80];
+	/** Device type string (e.g., "PSB98030"). Added in v7.5.1. */
+	char device_type[80];
 } __PACKED__;
 
 /** Structure for register access.

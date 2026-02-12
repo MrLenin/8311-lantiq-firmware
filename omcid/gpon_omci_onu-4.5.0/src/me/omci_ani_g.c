@@ -13,6 +13,9 @@
 */
 #define OMCI_DBG_MODULE   OMCI_DBG_MODULE_ME
 
+#include "ifxos_time.h"
+#include "ifxos_memory_alloc.h"
+
 #include "omci_core.h"
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
@@ -23,6 +26,21 @@
 /** \addtogroup OMCI_ME_ANI_G
    @{
 */
+
+/** Self test thread priority */
+#define ANI_G_TEST_THREAD_PRIO             IFXOS_THREAD_PRIO_LOWEST
+/** Self test thread stack size */
+#define ANI_G_TEST_THREAD_STACKSIZE        IFXOS_DEFAULT_STACK_SIZE
+
+/** Non-ITU data of the ANI-G Managed Entity */
+struct internal_data {
+	/** Self test thread control */
+	IFXOS_ThreadCtrl_t self_test_thr_ctrl;
+	/** Back-pointer to context (for thread) */
+	struct omci_context *context;
+	/** Back-pointer to ME (for thread) */
+	struct me *me;
+};
 
 static enum omci_error sr_indication_get(struct omci_context *context,
 					 struct me *me,
@@ -108,13 +126,132 @@ static enum omci_error response_time_get(struct omci_context *context,
 	return OMCI_SUCCESS;
 }
 
+static enum omci_error gem_block_len_get(struct omci_context *context,
+					 struct me *me,
+					 void *data,
+					 size_t data_size)
+{
+	enum omci_api_return ret;
+	uint16_t tmp = 0;
+	assert(data_size == 2);
+	ret = omci_api_ani_g_gem_block_len_get(context->api,
+					       me->instance_id,
+					       &tmp);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_ERROR_DRV;
+	memcpy(data, &tmp, 2);
+	return OMCI_SUCCESS;
+}
+
+/** Self test thread — collects optical measurements and sends
+    autonomous Test Result message (G.988 Table 9.2.1) */
+static int32_t self_test_thread(struct IFXOS_ThreadParams_s *thr_params)
+{
+	struct internal_data *me_internal_data;
+	struct omci_context *context;
+	struct me *me;
+	union omci_msg msg;
+	uint16_t tci;
+	int16_t rx_level = 0, tx_level = 0, temperature = 0;
+	uint16_t supply_voltage = 0, bias_current = 0;
+
+	me_internal_data = (struct internal_data *)thr_params->nArg1;
+	context = me_internal_data->context;
+	me = me_internal_data->me;
+	tci = (uint16_t)thr_params->nArg2;
+
+	/* Let the test ACK be sent first */
+	IFXOS_SecSleep(1);
+
+	/* Collect measurements (best-effort, failures produce 0) */
+	(void)omci_api_ani_g_supply_voltage_get(context->api,
+						me->instance_id,
+						&supply_voltage);
+	(void)omci_api_ani_g_optical_signal_level_get(context->api,
+						      me->instance_id,
+						      &rx_level);
+	(void)omci_api_ani_g_tx_optical_level_get(context->api,
+						  me->instance_id,
+						  &tx_level);
+	(void)omci_api_ani_g_laser_bias_current_get(context->api,
+						    me->instance_id,
+						    &bias_current);
+	(void)omci_api_ani_g_laser_temperature_get(context->api,
+						   me->instance_id,
+						   &temperature);
+
+	/* Build autonomous test result message */
+	memset(&msg, 0, sizeof(msg));
+
+	msg.tr_ani_g.header.tci = tci;
+	msg.tr_ani_g.header.type = 0;
+	omci_msg_type_mt_set(&msg, OMCI_MT_TEST_RESULT);
+	msg.tr_ani_g.header.dev_id = OMCI_FORMAT_BASELINE;
+	msg.tr_ani_g.header.class_id = hton16(OMCI_ME_ANI_G);
+	msg.tr_ani_g.header.instance_id = hton16(me->instance_id);
+
+	/* Type 1: Power feed voltage (20 mV units) */
+	msg.tr_ani_g.type1 = 1;
+	msg.tr_ani_g.value1 = hton16(supply_voltage);
+
+	/* Type 3: Received optical power (0.002 dBm units) */
+	msg.tr_ani_g.type3 = 3;
+	msg.tr_ani_g.value3 = hton16((uint16_t)rx_level);
+
+	/* Type 5: Transmitted optical power (0.002 dBm units) */
+	msg.tr_ani_g.type5 = 5;
+	msg.tr_ani_g.value5 = hton16((uint16_t)tx_level);
+
+	/* Type 9: Laser bias current (2 uA units) */
+	msg.tr_ani_g.type9 = 9;
+	msg.tr_ani_g.value9 = hton16(bias_current);
+
+	/* Type 12: Temperature (1/256 degree C) */
+	msg.tr_ani_g.type12 = 12;
+	msg.tr_ani_g.value12 = hton16((uint16_t)temperature);
+
+	return (int32_t)omci_msg_send(context, &msg);
+}
+
 static enum omci_error test_action_handle(struct omci_context *context,
 					  struct me *me,
 					  const union omci_msg *msg,
 					  union omci_msg *rsp)
 {
+	struct internal_data *me_internal_data;
+	enum omci_error error;
+
 	dbg_in(__func__, "%p, %p, %p, %p", (void *)context, (void *)me,
 	       (void *)msg, (void *)rsp);
+
+	me_internal_data = (struct internal_data *)me->internal_data;
+
+	/* G.988: test type 0x07 = self-test / start test */
+	if (msg->test_onu_g.test == 0x07) {
+		if (IFXOS_THREAD_INIT_VALID
+		    (&me_internal_data->self_test_thr_ctrl))
+			(void)IFXOS_ThreadDelete(&me_internal_data->
+						 self_test_thr_ctrl, 0);
+
+		me_internal_data->context = context;
+		me_internal_data->me = me;
+
+		error = (enum omci_error)
+			IFXOS_ThreadInit(&me_internal_data->self_test_thr_ctrl,
+					 "tstanig", self_test_thread,
+					 ANI_G_TEST_THREAD_STACKSIZE,
+					 ANI_G_TEST_THREAD_PRIO,
+					 (unsigned long)me_internal_data,
+					 (unsigned long)msg->msg.header.tci);
+
+		RETURN_IF_ERROR(error);
+	} else {
+		/* unsupported test */
+		rsp->test_rsp.result = OMCI_MR_PARAM_ERROR;
+
+		dbg_out_ret(__func__, OMCI_ERROR);
+		return OMCI_ERROR;
+	}
 
 	dbg_out_ret(__func__, OMCI_SUCCESS);
 	return OMCI_SUCCESS;
@@ -167,6 +304,10 @@ static enum omci_error me_init(struct omci_context *context,
 
 	RETURN_IF_PTR_NULL(init_data);
 
+	me->internal_data = IFXOS_MemAlloc(sizeof(struct internal_data));
+	RETURN_IF_MALLOC_ERROR(me->internal_data);
+	memset(me->internal_data, 0, sizeof(struct internal_data));
+
 	/* setup ARC support */
 	me->arc_context->arc_attr = 8;
 	me->arc_context->arc_interval_attr = 9;
@@ -182,9 +323,17 @@ static enum omci_error me_shutdown(struct omci_context *context,
 				   struct me *me)
 {
 	enum omci_api_return ret;
-	(void)context;
 
 	ret = omci_api_ani_g_destroy(context->api, me->instance_id);
+
+	if (me->internal_data) {
+		struct internal_data *data =
+			(struct internal_data *)me->internal_data;
+		if (IFXOS_THREAD_INIT_VALID(&data->self_test_thr_ctrl))
+			(void)IFXOS_ThreadDelete(&data->self_test_thr_ctrl, 0);
+		IFXOS_MemFree(me->internal_data);
+		me->internal_data = NULL;
+	}
 
 	if (ret != OMCI_API_SUCCESS)
 		return OMCI_ERROR_DRV;
@@ -236,7 +385,7 @@ struct me_class me_ani_g_class = {
 			  offsetof(struct omci_me_ani_g, gem_block_len),
 			  2,
 			  OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR,
-			  NULL),
+			  gem_block_len_get),
 		/* 4. Piggy-back Dynamic Bandwidth Allocation */
 		ATTR_ENUM("Piggyback DBA reporting",
 			  ATTR_SUPPORTED,

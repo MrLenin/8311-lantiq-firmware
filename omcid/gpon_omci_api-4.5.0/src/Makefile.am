@@ -51,6 +51,7 @@ libomciapi_a_extra = \
    @top_srcdir@/include/me/omci_api_olt_g.h \
    @top_srcdir@/include/me/omci_api_onu_g.h \
    @top_srcdir@/include/me/omci_api_onu2_g.h \
+   @top_srcdir@/include/me/omci_api_dot1x_port_ext_pkg.h \
    @top_srcdir@/include/me/omci_api_pptp_ethernet_uni.h \
    @top_srcdir@/include/me/omci_api_priority_queue.h \
    @top_srcdir@/include/me/omci_api_sw_image.h \
@@ -82,6 +83,7 @@ libomciapi_a_SOURCES = \
    me/omci_api_circuit_pack.c \
    me/omci_api_dot1p_mapper.c \
    me/omci_api_dot1p_rate_limiter.c \
+   me/omci_api_dot1x_port_ext_pkg.c \
    me/omci_api_equipment_extension_package.c \
    me/omci_api_ethernet_ds_pmhd.c \
    me/omci_api_ethernet_pmhd.c \

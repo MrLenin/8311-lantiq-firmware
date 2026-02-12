@@ -746,6 +746,8 @@ struct gpe_tcont_cfg {
 	uint32_t epn;
 	/** Policy */
 	uint32_t policy;
+	/** Reserved (set to 0). Added in v7.5.1. */
+	uint32_t _reserved[2];
 } __PACKED__;
 
 /** Add an entry to the GPON T-CONT table.
@@ -1370,6 +1372,8 @@ struct gpe_parser_cfg {
 		       special Ethertype values. These are configured in the
 		       ONU_GPE_ETHERTYPE_EXCEPTION_TABLE. */
 	uint32_t special_tag;
+	/** Reserved (set to 0). Added in v7.5.1. */
+	uint32_t _reserved[2];
 } __PACKED__;
 
 /** TPID (VLAN Ethertype) definition.
@@ -1654,6 +1658,10 @@ struct gpe_tod_sync {
 	uint32_t tod_extended_seconds;
 	/** Time of Day lower part, given in units of nanoseconds.*/
 	uint32_t tod_nano_seconds;
+	/** ToD offset in picoseconds for fine-grained adjustment. Added in v7.5.1. */
+	int32_t tod_offset_pico_seconds;
+	/** ToD quality indicator. Added in v7.5.1. */
+	int32_t tod_quality;
 } __PACKED__;
 
 /** Set or get the Time of Day asynchronously.
@@ -2786,7 +2794,7 @@ struct gpe_capability {
    - GPE_STATUS_VALUE_RANGE_ERR: if the Allocation ID is out of range
    - GPE_STATUS_NOT_AVAILABLE: if the T-CONT index is out of range
 */
-#define FIO_GPE_TCONT_SET _IOW(GPE_MAGIC, 0x1D, struct gpe_tcont)
+#define FIO_GPE_TCONT_SET _IOWR(GPE_MAGIC, 0x1D, struct gpe_tcont)
 
 /**
    Get the Allocation ID of a T-CONT in the T-CONT table.
@@ -2897,7 +2905,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_PARSER_CFG_GET \
-			_IOR(GPE_MAGIC, 0x23, struct gpe_parser_cfg)
+			_IOWR(GPE_MAGIC, 0x23, struct gpe_parser_cfg)
 
 /**
    Read the TMU-based counters. Available counter values are:
@@ -3044,7 +3052,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_TOD_SYNC_SET _IOW(GPE_MAGIC, 0x2C, struct gpe_tod_sync)
+#define FIO_GPE_TOD_SYNC_SET _IOWR(GPE_MAGIC, 0x2C, struct gpe_tod_sync)
 
 /**
    Read the Time of Day. The returned format is UTC.
