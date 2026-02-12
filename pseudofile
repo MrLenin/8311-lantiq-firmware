@@ -40,6 +40,9 @@ usr/lib/lua/luci/model/cbi/8311-config.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/
 usr/lib/lua/luci/model/cbi/8311-management.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-management.lua
 usr/lib/lua/luci/model/cbi/8311-optic-cal.lua F @TIMESTAMP 664 0 0 cat ./8311-mods/usr/lib/lua/luci/model/cbi/8311-optic-cal.lua
 usr/lib/lua/luci/util.lua F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/lua/luci/util.lua
+usr/libexec D @TIMESTAMP 755 0 0
+usr/libexec/sftp-server F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/libexec/sftp-server
+usr/sbin/dropbear F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/dropbear
 usr/sbin/fw_setenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_setenv
 usr/sbin/fw_printenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_printenv
 opt/lantiq/bin/fw_setenv S @TIMESTAMP 777 0 0 /opt/lantiq/bin/fw_printenv
