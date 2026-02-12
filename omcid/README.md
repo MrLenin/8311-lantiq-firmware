@@ -35,16 +35,25 @@ The build requires the **OpenWRT Barrier Breaker 14.07 xrx200 toolchain**
 (GCC 4.8.3 Linaro + uClibc 0.9.33.2). This produces correct soft-float
 MIPS32r2 binaries matching the G-010S-P device ABI.
 
-### Download
+### Archives (in this directory, tracked with git-lfs)
+
+| Archive | Contents |
+|---------|----------|
+| `OpenWrt-SDK-lantiq-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2` | Full SDK (includes toolchain + sysroot with libuci, libcli, etc.) |
+| `OpenWrt-Toolchain-lantiq-for-mips_34kc+dsp-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2` | Standalone cross-compiler toolchain |
+
+These are also available from the OpenWRT archive:
+https://archive.openwrt.org/barrier_breaker/14.07/lantiq/xrx200/
+
+### Extraction
 
 ```sh
-# Download and extract the SDK (contains the toolchain)
-wget https://archive.openwrt.org/barrier_breaker/14.07/lantiq/xrx200/OpenWrt-SDK-lantiq-xrx200_gcc-4.8-linaro_uClibc-0.9.33.2.Linux-x86_64.tar.bz2
-tar xf OpenWrt-SDK-lantiq-xrx200_gcc-4.8-linaro_uClibc-0.9.33.2.Linux-x86_64.tar.bz2
+# Extract the SDK (contains both the toolchain and a sysroot with target libraries)
+tar xf OpenWrt-SDK-lantiq-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2
 
 # The toolchain is at:
 #   OpenWrt-SDK-.../staging_dir/toolchain-mips_34kc_gcc-4.8-linaro_uClibc-0.9.33.2/
-# Copy or symlink it:
+# Copy or symlink it to the default location:
 cp -a OpenWrt-SDK-.../staging_dir/toolchain-mips_34kc_gcc-4.8-linaro_uClibc-0.9.33.2 /tmp/owrt-tc
 ```
 
