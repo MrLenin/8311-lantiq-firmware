@@ -27,6 +27,8 @@ OMCI_API_SRC="${SCRIPT_DIR}/gpon_omci_api-4.5.0"
 OMCI_ONU_SRC="${SCRIPT_DIR}/gpon_omci_onu-4.5.0"
 ONU_DRV_INC="${SCRIPT_DIR}/gpon_onu_drv-4.5.0/src/include"
 OPTIC_DRV_INC="${SCRIPT_DIR}/gpon_optic_drv/src/include"
+LIBCLI_INC="${SCRIPT_DIR}/libcli/include/cli"
+LIBCLI_LIB="${SCRIPT_DIR}/libcli/lib"
 COMPAT_HDR="${SCRIPT_DIR}/drv_onu_compat.h"
 
 # ---- Install prefixes (temporary, under /tmp) ----
@@ -103,8 +105,8 @@ if [ ! -f Makefile ]; then
 		--enable-omci-api-library="-L${OMCI_API_SRC}/src" \
 		--enable-cli \
 		--enable-cli-pipe \
-		--enable-cli-include="-I${TC}/include/cli" \
-		--enable-cli-library="-L${TC}/usr/lib" \
+		--enable-cli-include="-I${LIBCLI_INC}" \
+		--enable-cli-library="-L${LIBCLI_LIB}" \
 		--disable-voip \
 		--disable-pm \
 		--disable-remote-onu \

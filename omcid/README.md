@@ -13,6 +13,7 @@ maintainable source-level modifications.
 | `gpon_onu_drv-4.5.0/` | ONU kernel driver headers (ioctl definitions) |
 | `gpon_optic_drv/` | Optic driver headers (from [Osmocom mirror](https://gitea.osmocom.org/gpon/gpon_optic_drv)) |
 | `lib_ifxos/` | OS abstraction layer v1.5.19 (from [xdarklight/lib_ifxos](https://github.com/xdarklight/lib_ifxos)) |
+| `libcli/` | CLI pipe library headers + static lib (from OpenWRT SDK) |
 | `drv_onu_compat.h` | Compat header fixing ioctl struct sizes for shipping v7.5.1 kernel |
 | `IOCTL_COMPAT.md` | Full ioctl compatibility analysis |
 
