@@ -269,8 +269,9 @@ enum omci_error omci_init(struct omci_context **ref_context,
 			  omci_mib_on_reset *mib_on_reset,
 			  omci_cli_on_exec *cli_on_exec,
 			  const enum omci_olt mib,
-			  const char *remote_ip,
-			  const char *uni2lan)
+			  uint8_t omcc_version,
+			  uint32_t iop_mask,
+			  uint8_t lct_port)
 {
 	enum omci_error error;
 	struct omci_context *context;
@@ -279,10 +280,9 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	RETURN_IF_PTR_NULL(ref_context);
 	RETURN_IF_PTR_NULL(mib_on_reset);
 
-	dbg_in(__func__, "%p, %p, %p, %d, %s, %s",
+	dbg_in(__func__, "%p, %p, %p, %d, 0x%02x, 0x%08x, %u",
 	       (void *)ref_context, (void *)mib_on_reset,
-	       cli_on_exec, mib, remote_ip ? remote_ip : "null",
-	       uni2lan ? uni2lan : "null");
+	       cli_on_exec, mib, omcc_version, iop_mask, lct_port);
 
 	heap_check_init();
 
@@ -318,6 +318,9 @@ enum omci_error omci_init(struct omci_context **ref_context,
 
 	memset(context, 0, sizeof(struct omci_context));
 	context->olt = mib;
+	context->omcc_version = omcc_version;
+	context->iop_mask = iop_mask;
+	context->lct_port = lct_port;
 
 	/** \todo get ONU ID */
 	context->onu_id = 0x0012;
@@ -365,8 +368,15 @@ enum omci_error omci_init(struct omci_context **ref_context,
 		dbg_err("ERROR(%d): Action Event init failed", OMCI_ERROR);
 		goto do_msg_fifo_shutdown;
 	}
-	
-	/* Initialize Message Event object*/	
+
+	/* Initialize Action Handled Event object (v7.5.1 addition) */
+	if (IFXOS_EventInit(&context->action_handled_event) != IFX_SUCCESS) {
+		dbg_err("ERROR(%d): Action Handled Event init failed",
+			OMCI_ERROR);
+		goto do_msg_fifo_shutdown;
+	}
+
+	/* Initialize Message Event object*/
 	if (IFXOS_EventInit(&context->msg_event) != IFX_SUCCESS) {
 		dbg_err("ERROR(%d): Message Event init failed", OMCI_ERROR);
 		goto do_msg_fifo_shutdown;
@@ -376,8 +386,8 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	error = (enum omci_error)omci_api_init(&omci_api_init_data,
 					       event_cb,
 					       context,
-					       remote_ip,
-					       uni2lan,
+					       NULL,
+					       NULL,
 					       &context->api);
 	if (error) {
 		dbg_err("ERROR(%d) OMCI API init error", error);
@@ -464,6 +474,7 @@ delete_context_lock:
 
 	(void)IFXOS_EventDelete(&context->msg_event);
 	(void)IFXOS_EventDelete(&context->action_event);
+	(void)IFXOS_EventDelete(&context->action_handled_event);
 
 free_context:
 	IFXOS_MemFree(context);
@@ -483,6 +494,7 @@ enum omci_error omci_shutdown(struct omci_context *context)
 	(void)pm_shutdown(context);
 #endif
 	(void)IFXOS_EventWakeUp(&context->msg_event);
+	(void)IFXOS_EventWakeUp(&context->action_handled_event);
 	(void)core_thread_stop(context);
 	(void)msg_fifo_shutdown(context);
 	(void)timeout_shutdown(context);
@@ -504,6 +516,7 @@ enum omci_error omci_shutdown(struct omci_context *context)
 
 	(void)IFXOS_EventDelete(&context->msg_event);
 	(void)IFXOS_EventDelete(&context->action_event);
+	(void)IFXOS_EventDelete(&context->action_handled_event);
 
 	IFXOS_MemFree(context);
 
@@ -1140,6 +1153,67 @@ enum omci_error omci_me_attr_offset_get(struct omci_context *context,
 	return OMCI_SUCCESS;
 }
 
+enum omci_error omci_me_attr_get(struct omci_context *context,
+				 uint16_t class_id,
+				 uint16_t instance_id,
+				 unsigned int attr,
+				 void *data,
+				 size_t data_size)
+{
+	struct me *me;
+	enum omci_error error;
+
+	RETURN_IF_PTR_NULL(context);
+	RETURN_IF_PTR_NULL(data);
+
+	mib_lock_read(context);
+
+	error = mib_me_find(context, class_id, instance_id, &me);
+	if (error) {
+		mib_unlock(context);
+		RETURN_IF_ERROR(error);
+	}
+
+	me_lock(context, me);
+	error = me_attr_read(context, me, attr, data, data_size);
+	me_unlock(context, me);
+
+	mib_unlock(context);
+
+	return error;
+}
+
+enum omci_error omci_me_attr_set(struct omci_context *context,
+				 uint16_t class_id,
+				 uint16_t instance_id,
+				 unsigned int attr,
+				 const void *data,
+				 size_t data_size,
+				 bool suppress_avc)
+{
+	struct me *me;
+	enum omci_error error;
+
+	RETURN_IF_PTR_NULL(context);
+	RETURN_IF_PTR_NULL(data);
+
+	mib_lock_write(context);
+
+	error = mib_me_find(context, class_id, instance_id, &me);
+	if (error) {
+		mib_unlock(context);
+		RETURN_IF_ERROR(error);
+	}
+
+	me_lock(context, me);
+	error = me_attr_write(context, me, attr, data, data_size, suppress_avc);
+	me_unlock(context, me);
+
+	mib_unlock(context);
+
+	return error;
+}
+
 enum omci_error omci_me_alarm_bitmap_get(struct omci_context *context,
 					 uint16_t class_id,
 					 uint16_t instance_id,
@@ -1457,6 +1531,50 @@ on_exit:
 	mib_unlock(context);
 	dbg_out_ret(__func__, error);
 	return error;
+}
+
+enum omci_error omci_iop_mask_set(struct omci_context *context,
+				  uint32_t mask)
+{
+	RETURN_IF_PTR_NULL(context);
+
+	context_lock(context);
+	context->iop_mask = mask;
+	context_unlock(context);
+
+	return OMCI_SUCCESS;
+}
+
+enum omci_error omci_iop_mask_get(struct omci_context *context,
+				  uint32_t *mask)
+{
+	RETURN_IF_PTR_NULL(context);
+	RETURN_IF_PTR_NULL(mask);
+
+	context_lock(context);
+	*mask = context->iop_mask;
+	context_unlock(context);
+
+	return OMCI_SUCCESS;
+}
+
+bool omci_iop_mask_isset(struct omci_context *context, unsigned int option)
+{
+	if (context == NULL)
+		return false;
+
+	return (context->iop_mask & (1u << option)) != 0;
+}
+
+enum omci_error omci_omcc_version_get(struct omci_context *context,
+				      uint8_t *omcc_version)
+{
+	RETURN_IF_PTR_NULL(context);
+	RETURN_IF_PTR_NULL(omcc_version);
+
+	*omcc_version = context->omcc_version;
+
+	return OMCI_SUCCESS;
 }
 
 /** @} */

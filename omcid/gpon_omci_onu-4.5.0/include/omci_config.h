@@ -84,7 +84,7 @@
 /* #undef INCLUDE_OMCI_SELF_DESCRIPTION */
 
 /* Enable PM Managed Entities and PM funtionality */
-/* #undef INCLUDE_PM */
+#define INCLUDE_PM 1
 
 /* Enable remote ONU */
 /* #undef INCLUDE_REMOTE_ONU */

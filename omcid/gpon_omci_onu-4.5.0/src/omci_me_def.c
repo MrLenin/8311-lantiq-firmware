@@ -66,7 +66,6 @@ extern struct me_class me_network_address_class;
 extern struct me_class me_tcp_udp_config_data_class;
 extern struct me_class me_onu2_g_class;
 extern struct me_class me_dot1x_port_ext_pkg_class;
-extern struct me_class me_pon_pptp_class;
 extern struct me_class me_port_mapping_package_class;
 extern struct me_class me_pptp_ethernet_uni_class;
 extern struct me_class me_pptp_lct_uni_class;
@@ -123,11 +122,21 @@ extern struct me_class me_omci_class;
 extern struct me_class me_onu_dyn_pwr_mngmt_ctrl_class;
 extern struct me_class me_enhanced_security_control_class;
 extern struct me_class me_ipv6_host_config_data_class;
-extern struct me_class me_65281_class;
-extern struct me_class me_65296_class;
-extern struct me_class me_65297_class;
-extern struct me_class me_65305_class;
-extern struct me_class me_65306_class;
+extern struct me_class me_dot1ag_md_class;
+extern struct me_class me_dot1ag_ma_class;
+extern struct me_class me_dot1ag_def_md_lvl_class;
+extern struct me_class me_dot1ag_mep_class;
+extern struct me_class me_dot1ag_mep_status_class;
+extern struct me_class me_dot1ag_mep_ccm_db_class;
+extern struct me_class me_dot1ag_cfm_stack_class;
+extern struct me_class me_dot1ag_cmi_class;
+extern struct me_class me_eth_ext_pmhd_class;
+extern struct me_class me_energy_consumption_pmhd_class;
+extern struct me_class me_poe_ctrl_class;
+extern struct me_class me_eth_ext_pmhd_64_class;
+extern struct me_class me_zte_emop_class;
+extern struct me_class me_onu_loop_detection_class;
+extern struct me_class me_ext_mop_class;
 extern struct me_class me_65529_class;
 extern struct me_class me_65530_class;
 
@@ -203,7 +212,6 @@ struct me_class *me_def_class_array[] = {
 	&me_tcp_udp_config_data_class,
 	&me_onu2_g_class,
 	&me_dot1x_port_ext_pkg_class,
-	&me_pon_pptp_class,
 	&me_port_mapping_package_class,
 	&me_pptp_ethernet_uni_class,
 	&me_pptp_lct_uni_class,
@@ -258,11 +266,21 @@ struct me_class *me_def_class_array[] = {
 	&me_onu_dyn_pwr_mngmt_ctrl_class,
 	&me_enhanced_security_control_class,
 	&me_ipv6_host_config_data_class,
-	&me_65281_class,
-	&me_65296_class,
-	&me_65297_class,
-	&me_65305_class,
-	&me_65306_class,
+	&me_dot1ag_md_class,
+	&me_dot1ag_ma_class,
+	&me_dot1ag_def_md_lvl_class,
+	&me_dot1ag_mep_class,
+	&me_dot1ag_mep_status_class,
+	&me_dot1ag_mep_ccm_db_class,
+	&me_dot1ag_cfm_stack_class,
+	&me_dot1ag_cmi_class,
+	&me_eth_ext_pmhd_class,
+	&me_energy_consumption_pmhd_class,
+	&me_poe_ctrl_class,
+	&me_eth_ext_pmhd_64_class,
+	&me_zte_emop_class,
+	&me_onu_loop_detection_class,
+	&me_ext_mop_class,
 	&me_65529_class,
 	&me_65530_class
 };

@@ -401,4 +401,104 @@ RESET_ERROR:
 	return OMCI_SUCCESS;
 }
 
+enum omci_error mib_line_parse(struct omci_context *context,
+			       unsigned int line, char *buff)
+{
+	enum omci_error error = OMCI_SUCCESS;
+	uint16_t class_id, instance_id;
+	unsigned int attr;
+	char data[OMCI_ME_DATA_SIZE_MAX];
+	size_t attr_size, attr_offset;
+	enum omci_attr_type attr_format;
+	uint16_t tmp16;
+	uint32_t tmp32;
+	bool active = true;
+	char *p;
+
+	p = token_next(buff);
+	if (!p)
+		return OMCI_ERROR;
+
+	if (*p == '*') {
+		active = false;
+		p = token_next(NULL);
+		if (!p)
+			return OMCI_ERROR;
+	}
+	class_id = (uint16_t)strtol(p, NULL, 0);
+
+	p = token_next(NULL);
+	if (!p)
+		return OMCI_ERROR;
+	instance_id = (uint16_t)strtoul(p, NULL, 0);
+
+	if (class_id == 0 && instance_id == 0)
+		return OMCI_ERROR;
+
+	error = omci_me_is_supported(context, class_id);
+	if (error)
+		return error;
+
+	memset(&data[0], 0x00, sizeof(data));
+
+	for (attr = 1, p = token_next(NULL);
+	     attr <= OMCI_ATTRIBUTES_NUM && p;
+	     attr++, p = token_next(NULL)) {
+
+		error = omci_me_attr_size_get(context, class_id,
+					      attr, &attr_size);
+		if (error)
+			return error;
+
+		error = omci_me_attr_offset_get(context, class_id,
+						attr, &attr_offset);
+		if (error)
+			return error;
+
+		error = omci_me_attr_type_get(context, class_id,
+					      attr, &attr_format);
+		if (error)
+			return error;
+
+		if (token_parse(p, strlen(buff) + (p - buff)))
+			return OMCI_ERROR;
+
+		switch (attr_format) {
+		case OMCI_ATTR_TYPE_PTR:
+		case OMCI_ATTR_TYPE_BF:
+		case OMCI_ATTR_TYPE_INT:
+		case OMCI_ATTR_TYPE_UINT:
+		case OMCI_ATTR_TYPE_ENUM:
+			switch (attr_size) {
+			case 1:
+				*(uint8_t *)(data + attr_offset) =
+				    (uint8_t)strtoul(p, NULL, 0);
+				break;
+			case 2:
+				tmp16 = (uint16_t)strtoul(p, NULL, 0);
+				memcpy(data + attr_offset, &tmp16, 2);
+				break;
+			case 4:
+				tmp32 = (uint32_t)strtoul(p, NULL, 0);
+				memcpy(data + attr_offset, &tmp32, 4);
+				break;
+			default:
+				return OMCI_ERROR;
+			}
+			break;
+
+		case OMCI_ATTR_TYPE_STR:
+			memcpy(data + attr_offset, p, attr_size);
+			break;
+
+		case OMCI_ATTR_TYPE_TBL:
+		case OMCI_ATTR_TYPE_UNKNOWN:
+			return OMCI_ERROR;
+		}
+	}
+
+	return omci_me_create(context, active, class_id, instance_id,
+			      data, 0xffff);
+}
+
 /** @} */

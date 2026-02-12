@@ -17,6 +17,7 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_ip_host_config_data.h"
+#include "omci_net.h"
 #include "omci_api_usock.h"
 
 #ifdef INCLUDE_OMCI_ONU_UCI
@@ -57,29 +58,6 @@ const char *ip_host_ifname_get(uint16_t instance_id)
 	assert(instance_id < 2);
 
 	return net_name[instance_id];
-}
-
-static int mac_address_get(const char *name, char *mac_address)
-{
-#ifdef LINUX
-	int fd, i;
-	struct ifreq ifr;
-
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd < 0)
-		return -1;
-	ifr.ifr_addr.sa_family = AF_INET;
-	strncpy(ifr.ifr_name, name, IFNAMSIZ-1);
-	if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-		close(fd);
-		return -1;
-	}
-	close(fd);
-	for (i = 0; i < 6; i++)
-		mac_address[i] = ifr.ifr_hwaddr.sa_data[i];
-#endif
-
-	return 0;
 }
 
 static int ip_address_get(const char *name, char *ip_address)
@@ -125,88 +103,284 @@ static enum omci_error mac_get(struct omci_context *context,
 {
 	assert(data_size == 6);
 
-	mac_address_get(ip_host_ifname_get(me->instance_id), data);
+	omci_net_mac_get(ip_host_ifname_get(me->instance_id), data);
 
 	return OMCI_SUCCESS;
+}
+
+static int netmask_get(const char *name, char *netmask)
+{
+#ifdef LINUX
+	int fd;
+	struct ifreq ifr;
+	struct sockaddr_in *sa;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0)
+		return -1;
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, name, IFNAMSIZ - 1);
+	if (ioctl(fd, SIOCGIFNETMASK, &ifr) < 0) {
+		close(fd);
+		return -1;
+	}
+	sa = (struct sockaddr_in *)&ifr.ifr_netmask;
+	memcpy(netmask, &sa->sin_addr.s_addr, 4);
+	close(fd);
+#else
+	memset(netmask, 0, 4);
+#endif
+	return 0;
+}
+
+#define IFN_LEN 64
+#define ADR_LEN 8
+
+static int gateway_get(const char *name, char *gateway)
+{
+#ifdef LINUX
+	FILE *f = NULL;
+	char line[128];
+
+	f = fopen("/proc/net/route", "r");
+	if (f) {
+		/* skip header line */
+		fgets(line, sizeof(line), f);
+		while (fgets(line, sizeof(line), f)) {
+			uint32_t dest, gw;
+			char ifn[IFN_LEN];
+			int ret = sscanf(line, "%" _MKSTR(IFN_LEN) "s\t%"
+					       _MKSTR(ADR_LEN) "x\t%"
+					       _MKSTR(ADR_LEN) "x",
+					 ifn, &dest, &gw);
+			if (ret == 3 && strcmp(name, ifn) == 0 && dest == 0) {
+				memcpy(gateway, &gw, 4);
+				fclose(f);
+				return 0;
+			}
+		}
+		fclose(f);
+	}
+	memset(gateway, 0, 4);
+#else
+	memset(gateway, 0, 4);
+#endif
+	return 0;
+}
+
+static int dns_get(const char *name, const bool secondary, char *dns_addr)
+{
+#ifdef LINUX
+	FILE *f = NULL;
+	char line[128], ifn[IFN_LEN];
+	uint8_t dns[4];
+	uint8_t dns_cnt;
+	int ret;
+
+	(void)name;  /* on this device, resolv.conf is global */
+	memset(dns, 0, sizeof(dns));
+
+	f = fopen("/etc/resolv.conf", "r");
+	if (f) {
+		dns_cnt = 0;
+		while (fgets(line, sizeof(line), f)) {
+			/* Try interface-scoped format first (OpenWRT style) */
+			ret = sscanf(line,
+				     "# Interface %" _MKSTR(IFN_LEN) "s", ifn);
+			if (ret == 1) {
+				if (strcmp(name, ifn) != 0) {
+					/* skip entries for other interfaces */
+					while (fgets(line, sizeof(line), f)) {
+						if (line[0] == '#')
+							break;
+					}
+					continue;
+				}
+				dns_cnt = 0;
+				continue;
+			}
+
+			ret = sscanf(line,
+				     "nameserver %hhu.%hhu.%hhu.%hhu",
+				     &dns[0], &dns[1], &dns[2], &dns[3]);
+			if (ret != 4)
+				continue;
+
+			dns_cnt++;
+
+			if ((dns_cnt == 1 && !secondary) ||
+			    (dns_cnt == 2 && secondary)) {
+				memcpy(dns_addr, dns, 4);
+				fclose(f);
+				return 0;
+			}
+		}
+		fclose(f);
+	}
+	memset(dns_addr, 0, 4);
+#else
+	memset(dns_addr, 0, 4);
+#endif
+	return 0;
+}
+
+static int domain_name_get_sys(const char *name, char *domain, size_t size)
+{
+#ifdef LINUX
+	FILE *f = NULL;
+	char line[128];
+	int ret;
+
+	f = fopen("/etc/resolv.conf", "r");
+	if (f) {
+		while (fgets(line, sizeof(line), f)) {
+			ret = sscanf(line, "search %25s", domain);
+			if (ret == 1) {
+				fclose(f);
+				return 0;
+			}
+		}
+		fclose(f);
+	}
+	memset(domain, 0, size);
+#else
+	(void)name;
+	memset(domain, 0, size);
+#endif
+	return 0;
 }
 
 static enum omci_error current_address_get(struct omci_context *context,
 					   struct me *me, void *data,
 					   size_t data_size)
 {
-#ifdef INCLUDE_OMCI_ONU_UCI
-	struct uci_network *net = NULL;
-#endif
+	struct omci_me_ip_host_config_data *me_data;
+
 	assert(data_size == 4);
 
-#ifdef INCLUDE_OMCI_ONU_UCI
-	if (omci_uci_init() == 0) {
-		net = uci_network_get(ip_host_ifname_get(me->instance_id));
-		if (net) {
-			if (net->ipaddr) {
-				memcpy(data, net->ipaddr, data_size);
-			} else {
-				if (ip_address_get(
-					ip_host_ifname_get(me->instance_id),
-					data) != 0)
-					memset(data, 0, data_size);
-			}
-		}
-		omci_uci_free();
+	me_data = (struct omci_me_ip_host_config_data *)me->data;
+
+	if (me_data->ip_options & 1) {
+		/* DHCP enabled — read live address from kernel */
+		if (ip_address_get(ip_host_ifname_get(me->instance_id),
+				   data) != 0)
+			memset(data, 0, data_size);
+	} else {
+		/* Static config — return stored value */
+		memcpy(data, me_data->ip_address, data_size);
 	}
-#endif
 
 	return OMCI_SUCCESS;
 }
 
 static enum omci_error current_mask_get(struct omci_context *context,
-					 struct me *me,
-					 void *data,
-					 size_t data_size)
+					struct me *me,
+					void *data,
+					size_t data_size)
 {
-#ifdef INCLUDE_OMCI_ONU_UCI
-	struct uci_network *net = NULL;
-#endif
+	struct omci_me_ip_host_config_data *me_data;
+
 	assert(data_size == 4);
 
-#ifdef INCLUDE_OMCI_ONU_UCI
-	if (omci_uci_init() == 0) {
-		net = uci_network_get(ip_host_ifname_get(me->instance_id));
-		if (net) {
-			if (net->netmask)
-				memcpy(data, net->netmask, data_size);
-			else
-				memset(data, 0, data_size);
-		}
-		omci_uci_free();
+	me_data = (struct omci_me_ip_host_config_data *)me->data;
+
+	if (me_data->ip_options & 1) {
+		if (netmask_get(ip_host_ifname_get(me->instance_id), data) != 0)
+			memset(data, 0, data_size);
+	} else {
+		memcpy(data, me_data->mask, data_size);
 	}
-#endif
 
 	return OMCI_SUCCESS;
 }
 
 static enum omci_error current_gateway_get(struct omci_context *context,
-					 struct me *me,
-					 void *data,
-					 size_t data_size)
+					   struct me *me,
+					   void *data,
+					   size_t data_size)
 {
-#ifdef INCLUDE_OMCI_ONU_UCI
-	struct uci_network *net = NULL;
-#endif
+	struct omci_me_ip_host_config_data *me_data;
+
 	assert(data_size == 4);
 
-#ifdef INCLUDE_OMCI_ONU_UCI
-	if (omci_uci_init() == 0) {
-		net = uci_network_get(ip_host_ifname_get(me->instance_id));
-		if (net) {
-			if (net->gateway)
-				memcpy(data, net->gateway, data_size);
-			else
-				memset(data, 0, data_size);
-		}
-		omci_uci_free();
+	me_data = (struct omci_me_ip_host_config_data *)me->data;
+
+	if (me_data->ip_options & 1) {
+		if (gateway_get(ip_host_ifname_get(me->instance_id), data) != 0)
+			memset(data, 0, data_size);
+	} else {
+		memcpy(data, me_data->gateway, data_size);
 	}
-#endif
+
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error current_primary_dns_get(struct omci_context *context,
+					       struct me *me,
+					       void *data,
+					       size_t data_size)
+{
+	struct omci_me_ip_host_config_data *me_data;
+
+	assert(data_size == 4);
+
+	me_data = (struct omci_me_ip_host_config_data *)me->data;
+
+	if (me_data->ip_options & 1) {
+		if (dns_get(ip_host_ifname_get(me->instance_id),
+			    false, data) != 0)
+			memset(data, 0, data_size);
+	} else {
+		memcpy(data, me_data->primary_dns, data_size);
+	}
+
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error current_secondary_dns_get(struct omci_context *context,
+						 struct me *me,
+						 void *data,
+						 size_t data_size)
+{
+	struct omci_me_ip_host_config_data *me_data;
+
+	assert(data_size == 4);
+
+	me_data = (struct omci_me_ip_host_config_data *)me->data;
+
+	if (me_data->ip_options & 1) {
+		if (dns_get(ip_host_ifname_get(me->instance_id),
+			    true, data) != 0)
+			memset(data, 0, data_size);
+	} else {
+		memcpy(data, me_data->secondary_dns, data_size);
+	}
+
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error current_domain_name_get(struct omci_context *context,
+					       struct me *me,
+					       void *data,
+					       size_t data_size)
+{
+	assert(data_size == 25);
+
+	if (domain_name_get_sys(ip_host_ifname_get(me->instance_id),
+				data, data_size) != 0)
+		memset(data, 0, data_size);
+
+	return OMCI_SUCCESS;
+}
+
+static enum omci_error current_host_name_get(struct omci_context *context,
+					     struct me *me,
+					     void *data,
+					     size_t data_size)
+{
+	assert(data_size == 25);
+	/* Host name from DHCP — not typically available on this device.
+	   Return stored value (which may be set via OMCI). */
 
 	return OMCI_SUCCESS;
 }
@@ -583,7 +757,7 @@ struct me_class me_ip_host_config_data_class = {
 			 4,
 			 OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			 OMCI_ATTR_PROP_OPTIONAL | OMCI_ATTR_PROP_TEMPLATE,
-			 NULL),
+			 current_primary_dns_get),
 		/* 13. Current secondary DNS */
 		ATTR_STR("Current secondary DNS",
 			 ATTR_SUPPORTED,
@@ -592,7 +766,7 @@ struct me_class me_ip_host_config_data_class = {
 			 4,
 			 OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			 OMCI_ATTR_PROP_OPTIONAL | OMCI_ATTR_PROP_TEMPLATE,
-			 NULL),
+			 current_secondary_dns_get),
 		/* 14. Domain name */
 		ATTR_STR("Domain name",
 			 ATTR_SUPPORTED,
@@ -601,7 +775,7 @@ struct me_class me_ip_host_config_data_class = {
 			 25,
 			 OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			 OMCI_ATTR_PROP_TEMPLATE,
-			 NULL),
+			 current_domain_name_get),
 		/* 15. Host name */
 		ATTR_STR("Host name",
 			 ATTR_SUPPORTED,
@@ -610,7 +784,7 @@ struct me_class me_ip_host_config_data_class = {
 			 25,
 			 OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_AVC |
 			 OMCI_ATTR_PROP_TEMPLATE,
-			 NULL),
+			 current_host_name_get),
 		/* 16. Doesn't exist */
 		ATTR_NOT_DEF()
 	},

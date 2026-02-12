@@ -21,6 +21,11 @@
 #include "voip/omci_api_voip.h"
 #include "me/omci_onu_power_shedding.h"
 #include "omci_core.h"
+#include "omci_config.h"
+
+/* Forward declaration from omci_daemon_mib.c */
+enum omci_error mib_line_parse(struct omci_context *context,
+			       unsigned int line, char *buff);
 
 
 #ifdef INCLUDE_CLI_SUPPORT
@@ -1980,6 +1985,470 @@ static int cli_ac_power_off(void *p_ctx,
 	return ret;
 }
 
+/** Parse hex bytes from a command string, skipping the first N tokens.
+
+   \param[out] data     Output buffer for parsed bytes
+   \param[in]  data_size Maximum buffer size
+   \param[in]  cmd      Input command string (space-separated hex tokens)
+   \param[in]  skip     Number of leading tokens to skip
+   \return Number of bytes parsed, or -1 on overflow
+*/
+static int bytes_parse(void *data, int data_size, const char *cmd, int skip)
+{
+	int curr_byte;
+	char *sep = " ";
+	char *byte;
+	char *cmd_tok = NULL;
+	uint8_t *p = data;
+
+	byte = strtok_r((char *)cmd, sep, &cmd_tok);
+	curr_byte = 0;
+	while (byte != NULL) {
+		if (curr_byte >= data_size)
+			return -1;
+
+		if (skip) {
+			skip--;
+		} else {
+			p[curr_byte] = (uint8_t)strtol(byte, 0, 16);
+			curr_byte++;
+		}
+
+		byte = strtok_r(0, sep, &cmd_tok);
+	}
+
+	return curr_byte;
+}
+
+/** Get Managed Entity attribute data
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_managed_entity_attr_data_get(void *p_ctx,
+						 const char *cmd,
+						 clios_file_t *out)
+{
+	int ret;
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	enum omci_error error;
+	uint16_t class_id;
+	uint16_t instance_id;
+	unsigned int attr;
+	uint8_t data[OMCI_ME_DATA_SIZE_MAX];
+	size_t attr_size;
+	unsigned int i;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: managed_entity_attr_data_get" IFXOS_CRLF
+	    "Short Form: meadg" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Input Parameter" IFXOS_CRLF
+	    "- uint16_t class_id" IFXOS_CRLF
+	    "- uint16_t instance_id" IFXOS_CRLF
+	    "- unsigned int attr (1-16)" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    "- uint8_t attr_data[] (hex)" IFXOS_CRLF
+	    IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if ((ret = cli_check_help__file(cmd, USAGE, out)) > 0)
+		return ret;
+
+	ret = cli_sscanf(cmd, "%hi %hi %i", &class_id, &instance_id, &attr);
+	if (ret < 3)
+		return cli_check_help__file("-h", USAGE, out);
+
+	error = omci_me_attr_size_get(context, class_id, attr, &attr_size);
+	if (error)
+		return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, error);
+
+	error = omci_me_attr_get(context, class_id, instance_id,
+				 attr, data, attr_size);
+	if (error)
+		return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, error);
+
+	ret = IFXOS_FPrintf(out, "errorcode=%d", OMCI_SUCCESS);
+
+	if (attr_size)
+		ret += IFXOS_FPrintf(out, " attr_data=");
+
+	for (i = 0; i < attr_size; i++)
+		ret += IFXOS_FPrintf(out, "%02x ", data[i]);
+
+	ret += IFXOS_FPrintf(out, IFXOS_CRLF);
+	return ret;
+}
+
+/** Set Managed Entity attribute data
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_managed_entity_attr_data_set(void *p_ctx,
+						 const char *cmd,
+						 clios_file_t *out)
+{
+	int ret;
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	enum omci_error error;
+	uint16_t class_id;
+	uint16_t instance_id;
+	unsigned int attr;
+	uint8_t data[OMCI_ME_DATA_SIZE_MAX];
+	size_t attr_size;
+	int len;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: managed_entity_attr_data_set" IFXOS_CRLF
+	    "Short Form: meads" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Input Parameter" IFXOS_CRLF
+	    "- uint16_t class_id" IFXOS_CRLF
+	    "- uint16_t instance_id" IFXOS_CRLF
+	    "- unsigned int attr (1-16)" IFXOS_CRLF
+	    "- uint8_t attr_data[] (hex)" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if ((ret = cli_check_help__file(cmd, USAGE, out)) > 0)
+		return ret;
+
+	ret = cli_sscanf(cmd, "%hi %hi %i", &class_id, &instance_id, &attr);
+	if (ret < 3)
+		return cli_check_help__file("-h", USAGE, out);
+
+	error = omci_me_attr_size_get(context, class_id, attr, &attr_size);
+	if (error)
+		return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, error);
+
+	len = bytes_parse(data, OMCI_ME_DATA_SIZE_MAX, cmd, 3);
+	if (len < 0 || (size_t)len != attr_size)
+		return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF,
+				     OMCI_ERROR_INVALID_VAL);
+
+	error = omci_me_attr_set(context, class_id, instance_id,
+				 attr, data, attr_size, true);
+	if (error)
+		return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, error);
+
+	return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, OMCI_SUCCESS);
+}
+
+/** Create a Managed Entity from MIB line format
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_me_create(void *p_ctx,
+			      const char *cmd,
+			      clios_file_t *out)
+{
+	int ret;
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	char data[1024];
+	enum omci_error fct_ret;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: managed_entity_create" IFXOS_CRLF
+	    "Short Form: mec" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Input Parameter" IFXOS_CRLF
+	    "- char[1024] data (MIB line: class_id instance_id [attr1 ...])"
+	    IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	ret = cli_check_help__file(cmd, USAGE, out);
+	if (ret > 0)
+		return ret;
+
+	snprintf(data, sizeof(data), "%s", cmd);
+	fct_ret = mib_line_parse(context, 0, data);
+
+	return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, fct_ret);
+}
+
+/** Reset alarm sequence number
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_alarm_seq_num_reset(void *p_ctx,
+					const char *cmd,
+					clios_file_t *out)
+{
+	struct omci_context *context = (struct omci_context *)p_ctx;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: alarm_seq_num_reset" IFXOS_CRLF
+	    "Short Form: asnr" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if (cli_check_help__file(cmd, USAGE, out) > 0)
+		return 0;
+
+	context->mib.alarm_seq_num = 0;
+
+	return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, OMCI_SUCCESS);
+}
+
+/** Get IOP mask
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_iop_mask_get(void *p_ctx,
+				 const char *cmd,
+				 clios_file_t *out)
+{
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	uint32_t mask = 0;
+	enum omci_error error;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: iop_mask_get" IFXOS_CRLF
+	    "Short Form: img" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    "- uint32_t iop_mask" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if (cli_check_help__file(cmd, USAGE, out) > 0)
+		return 0;
+
+	error = omci_iop_mask_get(context, &mask);
+
+	return IFXOS_FPrintf(out, "errorcode=%d iop_mask=%u" IFXOS_CRLF,
+			     error, mask);
+}
+
+/** Set IOP mask
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_iop_mask_set(void *p_ctx,
+				 const char *cmd,
+				 clios_file_t *out)
+{
+	int ret;
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	unsigned int mask;
+	enum omci_error error;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: iop_mask_set" IFXOS_CRLF
+	    "Short Form: ims" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Input Parameter" IFXOS_CRLF
+	    "- uint32_t iop_mask" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if ((ret = cli_check_help__file(cmd, USAGE, out)) > 0)
+		return ret;
+
+	ret = cli_sscanf(cmd, "%u", &mask);
+	if (ret < 1)
+		return cli_check_help__file("-h", USAGE, out);
+
+	error = omci_iop_mask_set(context, (uint32_t)mask);
+
+	return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, error);
+}
+
+/** Get ME attribute version info
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_me_attr_version_get(void *p_ctx,
+					const char *cmd,
+					clios_file_t *out)
+{
+	int ret;
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	uint16_t class_id;
+	unsigned int attr_count = 0;
+	unsigned int i;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: managed_entity_attr_version_get" IFXOS_CRLF
+	    "Short Form: meavg" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Input Parameter" IFXOS_CRLF
+	    "- uint16_t class_id" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    "- unsigned int attr_count" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if ((ret = cli_check_help__file(cmd, USAGE, out)) > 0)
+		return ret;
+
+	ret = cli_sscanf(cmd, "%hi", &class_id);
+	if (ret < 1)
+		return cli_check_help__file("-h", USAGE, out);
+
+	/* Count defined attributes for this ME class */
+	for (i = 1; i <= OMCI_ATTRIBUTES_NUM; i++) {
+		enum omci_attr_prop prop;
+		if (omci_me_attr_prop_get(context, class_id, i, &prop)
+		    == OMCI_SUCCESS && prop != OMCI_ATTR_PROP_NONE)
+			attr_count++;
+	}
+
+	return IFXOS_FPrintf(out,
+			     "errorcode=%d attr_count=%u" IFXOS_CRLF,
+			     OMCI_SUCCESS, attr_count);
+}
+
+/** Get message pool size
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_msg_pool_size(void *p_ctx,
+				  const char *cmd,
+				  clios_file_t *out)
+{
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: msg_pool_size" IFXOS_CRLF
+	    "Short Form: mps" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    "- unsigned int pool_size" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if (cli_check_help__file(cmd, USAGE, out) > 0)
+		return 0;
+
+	return IFXOS_FPrintf(out,
+			     "errorcode=%d pool_size=%u" IFXOS_CRLF,
+			     OMCI_SUCCESS, OMCI_RECEIVED_MSG_FIFO_SIZE);
+}
+
+/** Get current OMCC version
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_current_version_get(void *p_ctx,
+					const char *cmd,
+					clios_file_t *out)
+{
+	struct omci_context *context = (struct omci_context *)p_ctx;
+	uint8_t version = 0;
+	enum omci_error error;
+
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: omci_current_version_get" IFXOS_CRLF
+	    "Short Form: omcicvg" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF
+	    "- uint8_t omcc_version" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if (cli_check_help__file(cmd, USAGE, out) > 0)
+		return 0;
+
+	error = omci_omcc_version_get(context, &version);
+
+	return IFXOS_FPrintf(out,
+			     "errorcode=%d omcc_version=%u" IFXOS_CRLF,
+			     error, version);
+}
+
+/** SW image upgrade (stub)
+
+   \param[in] p_ctx OMCI context pointer
+   \param[in] cmd   Input commands
+   \param[in] out   Output FD
+*/
+static int cli_omci_sw_image_upgrade(void *p_ctx,
+				     const char *cmd,
+				     clios_file_t *out)
+{
+#ifndef OMCI_DEBUG_DISABLE
+	static const char USAGE[] =
+	    "Long Form: sw_image_upgrade" IFXOS_CRLF
+	    "Short Form: swiu" IFXOS_CRLF
+	    IFXOS_CRLF
+	    "Output Parameter" IFXOS_CRLF
+	    "- enum omci_error errorcode" IFXOS_CRLF IFXOS_CRLF;
+#else
+#undef USAGE
+#define USAGE ""
+#endif
+
+	if (cli_check_help__file(cmd, USAGE, out) > 0)
+		return 0;
+
+	return IFXOS_FPrintf(out, "errorcode=%d" IFXOS_CRLF, OMCI_SUCCESS);
+}
+
 /**
    Register the CLI commands.
 */
@@ -2050,6 +2519,15 @@ int cli_access_commands_register(struct cli_core_context_s *p_core_ctx)
 					"meg", "managed_entity_get",
 					cli_omci_managed_entity_get);
 	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"meadg", "managed_entity_attr_data_get",
+					cli_omci_managed_entity_attr_data_get);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"meads", "managed_entity_attr_data_set",
+					cli_omci_managed_entity_attr_data_set);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"mec", "managed_entity_create",
+					cli_omci_me_create);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
 					"cg", "class_get",
 					cli_omci_class_get);
 	(void)cli_core_key_add__file(p_core_ctx, group_mask,
@@ -2058,6 +2536,27 @@ int cli_access_commands_register(struct cli_core_context_s *p_core_ctx)
 	(void)cli_core_key_add__file(p_core_ctx, group_mask,
 					"acoff", "ac_power_off",
 					cli_ac_power_off);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"asnr", "alarm_seq_num_reset",
+					cli_omci_alarm_seq_num_reset);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"img", "iop_mask_get",
+					cli_omci_iop_mask_get);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"ims", "iop_mask_set",
+					cli_omci_iop_mask_set);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"meavg", "managed_entity_attr_version_get",
+					cli_omci_me_attr_version_get);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"mps", "msg_pool_size",
+					cli_omci_msg_pool_size);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"omcicvg", "omci_current_version_get",
+					cli_omci_current_version_get);
+	(void)cli_core_key_add__file(p_core_ctx, group_mask,
+					"swiu", "sw_image_upgrade",
+					cli_omci_sw_image_upgrade);
 	return 0;
 }
 

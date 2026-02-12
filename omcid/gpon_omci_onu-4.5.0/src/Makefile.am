@@ -12,6 +12,7 @@ libomci_a_extra = \
    @top_srcdir@/src/omci_list.h \
    @top_srcdir@/src/omci_me.h \
    @top_srcdir@/src/omci_me_def.h \
+   @top_srcdir@/src/omci_net.h \
    @top_srcdir@/src/omci_me_handlers.h \
    @top_srcdir@/src/omci_mib.h \
    @top_srcdir@/src/omci_msg_dump.h \
@@ -76,7 +77,6 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_onu_power_shedding.h \
    @top_srcdir@/include/me/omci_onu_remote_debug.h \
    @top_srcdir@/include/me/omci_onu2_g.h \
-   @top_srcdir@/include/me/omci_pon_pptp.h \
    @top_srcdir@/include/me/omci_port_mapping_package.h \
    @top_srcdir@/include/me/omci_pptp_ethernet_uni.h \
    @top_srcdir@/include/me/omci_pptp_lct_uni.h \
@@ -123,11 +123,7 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_onu_dyn_pwr_mngmt_ctrl.h \
    @top_srcdir@/include/me/omci_enhanced_security_control.h \
    @top_srcdir@/include/me/omci_ipv6_host_config_data.h \
-   @top_srcdir@/include/me/omci_me_65281.h \
-   @top_srcdir@/include/me/omci_me_65296.h \
-   @top_srcdir@/include/me/omci_me_65297.h \
-   @top_srcdir@/include/me/omci_me_65305.h \
-   @top_srcdir@/include/me/omci_me_65306.h \
+   @top_srcdir@/include/me/omci_stub_mes.h \
    @top_srcdir@/include/me/omci_me_65529.h \
    @top_srcdir@/include/me/omci_me_65530.h
 
@@ -136,6 +132,8 @@ libomci_a_customer =
 libomci_a_SOURCES = \
    $(libomci_a_customer) \
    omci_alarm.c \
+   omci_config_api.c \
+   omci_net.c \
    omci_interface.c \
    omci_core.c \
    omci_debug.c \
@@ -199,7 +197,6 @@ libomci_a_SOURCES = \
    me/omci_onu_power_shedding.c \
    me/omci_onu_remote_debug.c \
    me/omci_onu2_g.c \
-   me/omci_pon_pptp.c \
    me/omci_port_mapping_package.c \
    me/omci_pptp_ethernet_uni.c \
    me/omci_pptp_lct_uni.c \
@@ -246,12 +243,8 @@ libomci_a_SOURCES = \
    me/omci_onu_dyn_pwr_mngmt_ctrl.c \
    me/omci_enhanced_security_control.c \
    me/omci_ipv6_host_config_data.c \
+   me/omci_stub_mes.c \
    uci/omci_uci_config.c \
-   me/omci_me_65281.c \
-   me/omci_me_65296.c \
-   me/omci_me_65297.c \
-   me/omci_me_65305.c \
-   me/omci_me_65306.c \
    me/omci_me_65529.c \
    me/omci_me_65530.c
 

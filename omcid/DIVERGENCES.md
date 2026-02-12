@@ -40,48 +40,25 @@ OLTs and affect operational functionality.
 
 ### 2a. ANI-G Optical Monitoring Getters (ME 263, attrs 3-7)
 
-OLTs query these to monitor SFP optic health. LuCI status page also uses them.
-The v4.5.0 API has `optical_signal_level_get` and `tx_optical_level_get` but does
-NOT expose individual sensor readings.
+| Function | Status |
+|----------|--------|
+| `omci_api_ani_g_laser_bias_current_get` | **FIXED** — `omci_api_ani_g.c:248` |
+| `omci_api_ani_g_laser_temperature_get` | **FIXED** — `omci_api_ani_g.c:277` |
+| `omci_api_ani_g_supply_voltage_get` | **FIXED** — `omci_api_ani_g.c:305` |
+| `omci_api_ani_g_gem_block_len_get` | **FIXED** — `omci_api_ani_g.c` |
 
-| Function | v4.5.0 | Shipping | Impact |
-|----------|--------|----------|--------|
-| `omci_api_ani_g_laser_bias_current_get` | MISSING | Present | HIGH — attr 5 |
-| `omci_api_ani_g_laser_temperature_get` | MISSING | Present | HIGH — attr 4 |
-| `omci_api_ani_g_supply_voltage_get` | MISSING | Present | HIGH — attr 6 |
-| `omci_api_ani_g_gem_block_len_get` | MISSING | Present | LOW — attr 3 |
-
-**Implementation approach:** The BOSA driver ioctls (`FIO_BOSA_TX_STATUS_GET`,
-`FIO_BOSA_RX_STATUS_GET`) already return raw sensor data. The v4.5.0
-`tx_optical_level_get` function internally reads bias current and temperature
-to calculate TX power. We need to extract those intermediate values into
-separate getter functions.
-
-**Source files to modify:**
-- `gpon_omci_api-4.5.0/src/me/omci_api_ani_g.c` — add 4 getter functions
-- `gpon_omci_api-4.5.0/include/me/omci_api_ani_g.h` — declare them
-- `gpon_omci_onu-4.5.0/src/me/omci_ani_g.c` — wire getters into ME Get handler
+Implemented in Phase 4. Self-test handler also added to `omci_ani_g.c`.
 
 ### 2b. PPTP Ethernet UNI State Getters (ME 11, attrs 5-6)
 
-OLTs query operational state and sensed type to determine UNI link status.
+| Function | Status |
+|----------|--------|
+| `omci_api_pptp_ethernet_uni_oper_state_get` | **FIXED** — `omci_api_pptp_ethernet_uni.c:604` |
+| `omci_api_pptp_ethernet_uni_sensed_type_get` | **FIXED** — `omci_api_pptp_ethernet_uni.c:641` |
+| `omci_api_pptp_ethernet_uni_lan_is_available` | **FIXED** — `omci_api_pptp_ethernet_uni.c` |
+| `omci_api_pptp_ethernet_uni_lan_port_enable` | **FIXED** — `omci_api_pptp_ethernet_uni.c` |
 
-| Function | v4.5.0 | Shipping | Impact |
-|----------|--------|----------|--------|
-| `omci_api_pptp_ethernet_uni_oper_state_get` | MISSING | Present | HIGH — attr 6 |
-| `omci_api_pptp_ethernet_uni_sensed_type_get` | MISSING | Present | MEDIUM — attr 5 |
-| `omci_api_pptp_ethernet_uni_lan_is_available` | MISSING | Present | MEDIUM |
-| `omci_api_pptp_ethernet_uni_lan_port_enable` | MISSING | Present | MEDIUM |
-
-**Implementation approach:** `FIO_LAN_PORT_STATUS_GET` ioctl returns link status.
-The existing `configuration_ind_get` already calls this ioctl — extend it to also
-expose oper_state (link up/down → 0/1) and sensed_type (PHY speed detection).
-`lan_port_enable` uses `FIO_LAN_PORT_CFG_SET` (already in compat header).
-
-**Source files to modify:**
-- `gpon_omci_api-4.5.0/src/me/omci_api_pptp_ethernet_uni.c` — add getters
-- `gpon_omci_api-4.5.0/include/me/omci_api_pptp_ethernet_uni.h` — declare
-- `gpon_omci_onu-4.5.0/src/me/omci_pptp_ethernet_uni.c` — wire into ME handler
+Implemented in Phase 4. Getter callbacks wired in `omci_pptp_ethernet_uni.c`.
 
 ---
 
@@ -223,7 +200,35 @@ and side-by-side comparison with v4.5.0 source:
 
 ---
 
-## 8. Methodology for Future Comparisons
+## 8. ME Count Gap Analysis
+
+| | Shipping | Our Build | Notes |
+|---|---|---|---|
+| Total MEs | 100 | 87 | Gap = 14 (VoIP + PM) minus 1 (our extra) |
+| VoIP | ME 138 only | 0 | VoIP ifdef disabled — needs pjsip |
+| PM | 14 MEs | 0 | PM ifdef disabled — see below |
+| Extra in ours | — | ME 332 | Enhanced Security Control (not in shipping) |
+
+### PM MEs in Shipping (14)
+
+321 (Eth DS PMHD), 24 (Eth PMHD), 89 (Eth PMHD 2), 296 (Eth PMHD 3),
+322 (Eth US PMHD), 312 (FEC PMHD), 276 (GAL Eth PMHD), 267 (GEM port PMHD),
+51 (Bridge PMHD), 52 (Bridge port PMHD), 273 (Threshold 1), 274 (Threshold 2),
+341 (GEM port NW CTP PMHD), 135 (IP host monitoring data)
+
+All 14 are behind `#ifdef INCLUDE_PM` in v4.5.0 source. Enabling PM would register
+13 of these (333 instead of 341 — renumber needed). The 4 PM stubs we added as
+customer MEs (334, 341, 343, 425) would need reconciliation.
+
+### Remaining Non-Functional Gaps
+
+- ME 138 (VoIP Config Data): Deferred — requires `INCLUDE_OMCI_ONU_VOIP` + pjsip
+- PM system: Deferred — requires `INCLUDE_PM` + class_id 333→341 renumber
+- ME 332 (Enhanced Security Control): Present in ours, absent from shipping. Harmless.
+
+---
+
+## 9. Methodology for Future Comparisons
 
 For systematic binary-vs-source comparison at scale:
 

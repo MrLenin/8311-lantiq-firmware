@@ -81,12 +81,14 @@ struct omci_config {
 	/** MIB Config path (specified via command argument) */
 	char *mib_config_path;
 
-	/** Remote ONU IP Address */
-	char *remote_ip;
+	/** OMCC version byte (default 0xA0 = G.988 baseline) */
+	uint8_t omcc_version;
 
-	/** OMCI PPTP Ethernet UNI port ID mapping to LAN port index.
-	    (optional, specified via command argument)*/
-	char *uni2lan_path;
+	/** IOP (Interoperability Option) mask */
+	uint32_t iop_mask;
+
+	/** LCT port number (1-4, 9; 0xFF = not configured) */
+	uint8_t lct_port;
 
 	IFXOS_File_t *debug_file;
 
@@ -107,6 +109,15 @@ extern struct omci_config omci_config;
    \param[in] context ONU OMCI context pointer
 */
 enum omci_error mib_on_reset(struct omci_context *context);
+
+/** Parse a single MIB-format line to create an ME with attributes
+
+   \param[in] context OMCI context pointer
+   \param[in] line    Line number (for error messages only)
+   \param[in] buff    MIB line: "class_id instance_id [attr1 attr2 ...]"
+*/
+enum omci_error mib_line_parse(struct omci_context *context,
+			       unsigned int line, char *buff);
 
 /** @} */
 

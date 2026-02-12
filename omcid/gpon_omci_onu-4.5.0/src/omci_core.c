@@ -624,30 +624,26 @@ int service_action(struct omci_context *context,
 {
 	enum omci_error error;
 	union omci_msg rsp;
-	uint32_t action_msec;
 
 	(void)rsp_create(msg, &context->action.rsp);
 
-	action_msec = 0;
 	context->action.msg = *msg;
 	context->action.run = true;
-	/* Wakeup action event */	
+	/* Wakeup action event */
 	if (IFXOS_EventWakeUp(&context->action_event) < IFX_SUCCESS)
 		dbg_err("service_action - action event wakeup failed");
 
-	while (context->action.run && action_msec < context->action_timeout) {
-		IFXOS_MSecSleep(1);
-		action_msec++;
+	/* Wait for action thread to signal completion (v7.5.1: event-based) */
+	if (IFXOS_EventWait(&context->action_handled_event,
+			    context->action_timeout, NULL) < IFX_SUCCESS
+	    || context->action.run) {
+		return service_busy_device(context, msg);
 	}
 
-	if (action_msec >= context->action_timeout) {
-		return service_busy_device(context, msg);
-	} else {
-		context_lock(context);
-		context->action.ready = false;
-		rsp = context->action.rsp;
-		context_unlock(context);
-	}
+	context_lock(context);
+	context->action.ready = false;
+	rsp = context->action.rsp;
+	context_unlock(context);
 
 	/* send messages with AK = 1, others are dropped
 
@@ -836,6 +832,9 @@ static int32_t action_thread_main(struct IFXOS_ThreadParams_s *thr_params)
 		context->action.run = false;
 		context->action.ready = true;
 		context_unlock(context);
+
+		/* Signal core thread that action is complete (v7.5.1) */
+		(void)IFXOS_EventWakeUp(&context->action_handled_event);
 
 		/* unlock MIB */
 		if (mt != OMCI_MT_MIB_RESET) {

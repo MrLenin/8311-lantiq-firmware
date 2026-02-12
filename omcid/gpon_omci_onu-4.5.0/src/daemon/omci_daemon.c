@@ -51,8 +51,11 @@ struct omci_config omci_config;
 static const char *help =
 	"\nOptions:"
 	"\n-l, --log                            Specify log file"
-	"\n-m, --mib                            Select default MIB"
+	"\n-m, --model                          Select default MIB model"
 	"\n-p, --config-path                    Specify custom config path"
+	"\n-o, --omcc <version>                 OMCC version byte (default 0xA0)"
+	"\n-i, --iop-mask <mask>                IOP mask (hex)"
+	"\n-g, --lct-port <port>                LCT port number (1-4, 9)"
 #ifdef INCLUDE_CLI_SUPPORT
 	"\n-c, --console                        Start console"
 #endif
@@ -61,12 +64,6 @@ static const char *help =
 	"\n-d, --debug_level <number>           Default debug level for all modules"
 	"\n                                     (%u - max level .. %u - no output)"
 #endif
-#if defined(INCLUDE_REMOTE_ONU)
-	"\n"
-	"\n-r, --remote_dti_agent <ip>[:<port>] Connect to remote ONU with given "
-	"\n                                     IP address and optional port"
-#endif
-	"\n-u, --uni2lan-path                   Specify UNI to LAN mapping path"
 	"\n-h, --help                           Print help (this message) and exit"
 	"\n-v, --version                        Print version information and exit"
 	"\n";
@@ -95,29 +92,29 @@ static void omci_help(char *app_name)
 
 /** Supported options */
 static struct option opt_string[] = {
-	{"mib", required_argument, 0, 'm'},
+	{"model", required_argument, 0, 'm'},
 	{"config-path", required_argument, 0, 'p'},
+	{"omcc", required_argument, 0, 'o'},
+	{"iop-mask", required_argument, 0, 'i'},
+	{"lct-port", required_argument, 0, 'g'},
 	{"help", no_argument, 0, 'h'},
 	{"version", no_argument, 0, 'v'},
 #ifdef INCLUDE_CLI_SUPPORT
 	{"console", no_argument, 0, 'c'},
 #endif
-#if defined(INCLUDE_REMOTE_ONU)
-	{"remote_dti_agent", required_argument, 0, 'r'},
-#endif
 	{"trace-ioctl", no_argument, 0, 't'},
 	{"log", required_argument, 0, 'l'},
 	{"debug_level", required_argument, 0, 'd'},
-	{"uni2lan-path", required_argument, 0, 'u'},
+	{0, 0, 0, 0},
 };
 
 /** Options string */
 static const char long_opts[] =
-	"hvm:p:"
+	"hvm:p:o:i:g:"
 #ifdef INCLUDE_CLI_SUPPORT
 	"c"
 #endif
-	"r:tl:d:u:";
+	"tl:d:";
 
 /** Parse command-line arguments
 
@@ -151,9 +148,9 @@ static int omci_arg_parse(int argc, char *argv[])
 			break;
 
 		case 'v':
-			omci_printf( OMCID "OMCI daemon v"
-				      PACKAGE_VERSION " (compiled on " __DATE__
-				      " " __TIME__ ")\n");
+			omci_printf(OMCID "OMCI daemon v"
+				    PACKAGE_VERSION " (compiled on " __DATE__
+				    " " __TIME__ ")\n");
 			error = 1;
 			break;
 
@@ -162,26 +159,65 @@ static int omci_arg_parse(int argc, char *argv[])
 			omci_config.start_console = true;
 			break;
 #endif
-		case 'r':
-#if defined(INCLUDE_REMOTE_ONU)
+
+		case 'o':
 			if (optarg == NULL) {
 				omci_printfe("Missing value for argument "
-					     "'-r'\n");
+					     "'-o'\n");
 				error = 1;
 				break;
 			}
-			if (omci_config.remote_ip) {
-				omci_free(omci_config.remote_ip);
-				omci_config.remote_ip = NULL;
+			{
+				unsigned int tmp = 0;
+				ret = sscanf(optarg, "%u", &tmp);
+				if (!ret || tmp > 0xFF) {
+					omci_printfe("Invalid value for "
+						     "argument '-o'\n");
+					error = 1;
+					break;
+				}
+				omci_config.omcc_version = (uint8_t)tmp;
 			}
-			omci_config.remote_ip = omci_malloc(strlen(optarg) + 1);
-			if (omci_config.remote_ip == NULL) {
-				omci_printfe("Memory allocation error!\n");
+			break;
+
+		case 'i':
+			if (optarg == NULL) {
+				omci_printfe("Missing value for argument "
+					     "'-i'\n");
 				error = 1;
 				break;
 			}
-			strcpy(omci_config.remote_ip, optarg);
-#endif
+			{
+				unsigned long tmp = 0;
+				ret = sscanf(optarg, "%lu", &tmp);
+				if (!ret) {
+					omci_printfe("Invalid value for "
+						     "argument '-i'\n");
+					error = 1;
+					break;
+				}
+				omci_config.iop_mask = (uint32_t)tmp;
+			}
+			break;
+
+		case 'g':
+			if (optarg == NULL) {
+				omci_printfe("Missing value for argument "
+					     "'-g'\n");
+				error = 1;
+				break;
+			}
+			{
+				int tmp = 0;
+				ret = sscanf(optarg, "%d", &tmp);
+				if (!ret || (tmp < 1 || tmp > 9)) {
+					omci_printfe("Invalid value for "
+						     "argument '-g'\n");
+					error = 1;
+					break;
+				}
+				omci_config.lct_port = (uint8_t)tmp;
+			}
 			break;
 
 		case 'd':
@@ -234,6 +270,7 @@ static int omci_arg_parse(int argc, char *argv[])
 			}
 #endif
 			break;
+
 		case 'm':
 			if (optarg == NULL) {
 				omci_printfe("Missing value for argument "
@@ -286,48 +323,13 @@ static int omci_arg_parse(int argc, char *argv[])
 			strcpy(omci_config.mib_config_path, buff);
 			break;
 
-		case 'u':
-			if (optarg == NULL) {
-				omci_printfe("Missing value for argument "
-					     "'-u'\n");
-				error = 1;
-				break;
-			}
-			ret = sscanf(optarg, "%" _MKSTR(ARG_PARSE_BUFSZ) "s",
-				     buff);
-			if (!ret) {
-				omci_printfe("Invalid value for argument "
-					     "'-u'\n");
-				error = 1;
-				break;
-			}
-
-			if (omci_config.uni2lan_path) {
-				omci_free(omci_config.uni2lan_path);
-				omci_config.uni2lan_path = NULL;
-			}
-
-			omci_config.uni2lan_path =
-						  omci_malloc(strlen(buff) + 1);
-			if (omci_config.uni2lan_path == NULL) {
-				omci_printfe("Memory allocation error!\n");
-				error = 1;
-				break;
-			}
-			strcpy(omci_config.uni2lan_path, buff);
-			break;
-
 		default:
 			break;
 		}
 	} while (!error);
 
-	omci_free(omci_config.remote_ip);
-	omci_config.remote_ip = NULL;
 	omci_free(omci_config.mib_config_path);
 	omci_config.mib_config_path = NULL;
-	omci_free(omci_config.uni2lan_path);
-	omci_config.uni2lan_path = NULL;
 
 	return 1;
 }
@@ -458,6 +460,8 @@ int main(int argc, char *argv[])
 
 	/* default values */
 	omci_config.mib = OMCI_OLT_UNKNOWN;
+	omci_config.omcc_version = 0xA0;
+	omci_config.lct_port = 0xFF;
 
 	/* parse command arguments */
 	if (omci_arg_parse(argc, argv)) {
@@ -477,11 +481,13 @@ int main(int argc, char *argv[])
 	/* initialize OMCI stack */
 	omci_printf(OMCID "Initialize OMCI daemon " PACKAGE_VERSION
 		    " (compiled on " __DATE__ " " __TIME__ ")" "...\n");
+	omci_printf(OMCID "Use OMCC version 0x%02x\n",
+		    omci_config.omcc_version);
 	context = NULL;
 
 	ret = omci_init(&context, mib_on_reset, cli_cb,
-			omci_config.mib, omci_config.remote_ip,
-			omci_config.uni2lan_path);
+			omci_config.mib, omci_config.omcc_version,
+			omci_config.iop_mask, omci_config.lct_port);
 	if (ret != OMCI_SUCCESS) {
 		omci_printfe(OMCID "ERROR(%d) OMCI daemon initialize failed\n",
 			     ret);
@@ -511,7 +517,6 @@ do_omci_shutdown:
 	omci_printf(OMCID "finished\n");
 
 free_args:
-	omci_free(omci_config.remote_ip);
 	omci_free(omci_config.mib_config_path);
 
 #ifdef INCLUDE_IFXOS_SYSOBJ_SUPPORT

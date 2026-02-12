@@ -149,6 +149,8 @@ libomci_a_RANLIB = $(RANLIB)
 libomci_a_LIBADD =
 am__objects_1 =
 am_libomci_a_OBJECTS = $(am__objects_1) libomci_a-omci_alarm.$(OBJEXT) \
+	libomci_a-omci_config_api.$(OBJEXT) \
+	libomci_a-omci_net.$(OBJEXT) \
 	libomci_a-omci_interface.$(OBJEXT) \
 	libomci_a-omci_core.$(OBJEXT) libomci_a-omci_debug.$(OBJEXT) \
 	libomci_a-omci_list.$(OBJEXT) libomci_a-omci_me.$(OBJEXT) \
@@ -207,7 +209,6 @@ am_libomci_a_OBJECTS = $(am__objects_1) libomci_a-omci_alarm.$(OBJEXT) \
 	libomci_a-omci_onu_power_shedding.$(OBJEXT) \
 	libomci_a-omci_onu_remote_debug.$(OBJEXT) \
 	libomci_a-omci_onu2_g.$(OBJEXT) \
-	libomci_a-omci_pon_pptp.$(OBJEXT) \
 	libomci_a-omci_port_mapping_package.$(OBJEXT) \
 	libomci_a-omci_pptp_ethernet_uni.$(OBJEXT) \
 	libomci_a-omci_pptp_lct_uni.$(OBJEXT) \
@@ -254,12 +255,8 @@ am_libomci_a_OBJECTS = $(am__objects_1) libomci_a-omci_alarm.$(OBJEXT) \
 	libomci_a-omci_onu_dyn_pwr_mngmt_ctrl.$(OBJEXT) \
 	libomci_a-omci_enhanced_security_control.$(OBJEXT) \
 	libomci_a-omci_ipv6_host_config_data.$(OBJEXT) \
+	libomci_a-omci_stub_mes.$(OBJEXT) \
 	libomci_a-omci_uci_config.$(OBJEXT) \
-	libomci_a-omci_me_65281.$(OBJEXT) \
-	libomci_a-omci_me_65296.$(OBJEXT) \
-	libomci_a-omci_me_65297.$(OBJEXT) \
-	libomci_a-omci_me_65305.$(OBJEXT) \
-	libomci_a-omci_me_65306.$(OBJEXT) \
 	libomci_a-omci_me_65529.$(OBJEXT) \
 	libomci_a-omci_me_65530.$(OBJEXT)
 libomci_a_OBJECTS = $(am_libomci_a_OBJECTS)
@@ -301,6 +298,7 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_call_control_pmhd.Po \
 	./$(DEPDIR)/libomci_a-omci_cardholder.Po \
 	./$(DEPDIR)/libomci_a-omci_circuit_pack.Po \
+	./$(DEPDIR)/libomci_a-omci_config_api.Po \
 	./$(DEPDIR)/libomci_a-omci_core.Po \
 	./$(DEPDIR)/libomci_a-omci_debug.Po \
 	./$(DEPDIR)/libomci_a-omci_dot1p_mapper.Po \
@@ -356,11 +354,6 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_me_253.Po \
 	./$(DEPDIR)/libomci_a-omci_me_254.Po \
 	./$(DEPDIR)/libomci_a-omci_me_255.Po \
-	./$(DEPDIR)/libomci_a-omci_me_65281.Po \
-	./$(DEPDIR)/libomci_a-omci_me_65296.Po \
-	./$(DEPDIR)/libomci_a-omci_me_65297.Po \
-	./$(DEPDIR)/libomci_a-omci_me_65305.Po \
-	./$(DEPDIR)/libomci_a-omci_me_65306.Po \
 	./$(DEPDIR)/libomci_a-omci_me_65529.Po \
 	./$(DEPDIR)/libomci_a-omci_me_65530.Po \
 	./$(DEPDIR)/libomci_a-omci_me_def.Po \
@@ -371,6 +364,7 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_multicast_operations_profile.Po \
 	./$(DEPDIR)/libomci_a-omci_multicast_subscriber_config.Po \
 	./$(DEPDIR)/libomci_a-omci_multicast_subscriber_monitor.Po \
+	./$(DEPDIR)/libomci_a-omci_net.Po \
 	./$(DEPDIR)/libomci_a-omci_network_address.Po \
 	./$(DEPDIR)/libomci_a-omci_network_dial_plan_table.Po \
 	./$(DEPDIR)/libomci_a-omci_olt_g.Po \
@@ -383,7 +377,6 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_onu_remote_debug.Po \
 	./$(DEPDIR)/libomci_a-omci_os.Po \
 	./$(DEPDIR)/libomci_a-omci_pm.Po \
-	./$(DEPDIR)/libomci_a-omci_pon_pptp.Po \
 	./$(DEPDIR)/libomci_a-omci_port_mapping_package.Po \
 	./$(DEPDIR)/libomci_a-omci_pptp_ethernet_uni.Po \
 	./$(DEPDIR)/libomci_a-omci_pptp_lct_uni.Po \
@@ -395,6 +388,7 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_sip_agent_pmhd.Po \
 	./$(DEPDIR)/libomci_a-omci_sip_call_init_pmhd.Po \
 	./$(DEPDIR)/libomci_a-omci_sip_user_data.Po \
+	./$(DEPDIR)/libomci_a-omci_stub_mes.Po \
 	./$(DEPDIR)/libomci_a-omci_sw_image.Po \
 	./$(DEPDIR)/libomci_a-omci_tcont.Po \
 	./$(DEPDIR)/libomci_a-omci_tcp_udp_config_data.Po \
@@ -590,6 +584,7 @@ libomci_a_extra = \
    @top_srcdir@/src/omci_list.h \
    @top_srcdir@/src/omci_me.h \
    @top_srcdir@/src/omci_me_def.h \
+   @top_srcdir@/src/omci_net.h \
    @top_srcdir@/src/omci_me_handlers.h \
    @top_srcdir@/src/omci_mib.h \
    @top_srcdir@/src/omci_msg_dump.h \
@@ -654,7 +649,6 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_onu_power_shedding.h \
    @top_srcdir@/include/me/omci_onu_remote_debug.h \
    @top_srcdir@/include/me/omci_onu2_g.h \
-   @top_srcdir@/include/me/omci_pon_pptp.h \
    @top_srcdir@/include/me/omci_port_mapping_package.h \
    @top_srcdir@/include/me/omci_pptp_ethernet_uni.h \
    @top_srcdir@/include/me/omci_pptp_lct_uni.h \
@@ -701,11 +695,7 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_onu_dyn_pwr_mngmt_ctrl.h \
    @top_srcdir@/include/me/omci_enhanced_security_control.h \
    @top_srcdir@/include/me/omci_ipv6_host_config_data.h \
-   @top_srcdir@/include/me/omci_me_65281.h \
-   @top_srcdir@/include/me/omci_me_65296.h \
-   @top_srcdir@/include/me/omci_me_65297.h \
-   @top_srcdir@/include/me/omci_me_65305.h \
-   @top_srcdir@/include/me/omci_me_65306.h \
+   @top_srcdir@/include/me/omci_stub_mes.h \
    @top_srcdir@/include/me/omci_me_65529.h \
    @top_srcdir@/include/me/omci_me_65530.h
 
@@ -713,6 +703,8 @@ libomci_a_customer =
 libomci_a_SOURCES = \
    $(libomci_a_customer) \
    omci_alarm.c \
+   omci_config_api.c \
+   omci_net.c \
    omci_interface.c \
    omci_core.c \
    omci_debug.c \
@@ -776,7 +768,6 @@ libomci_a_SOURCES = \
    me/omci_onu_power_shedding.c \
    me/omci_onu_remote_debug.c \
    me/omci_onu2_g.c \
-   me/omci_pon_pptp.c \
    me/omci_port_mapping_package.c \
    me/omci_pptp_ethernet_uni.c \
    me/omci_pptp_lct_uni.c \
@@ -823,12 +814,8 @@ libomci_a_SOURCES = \
    me/omci_onu_dyn_pwr_mngmt_ctrl.c \
    me/omci_enhanced_security_control.c \
    me/omci_ipv6_host_config_data.c \
+   me/omci_stub_mes.c \
    uci/omci_uci_config.c \
-   me/omci_me_65281.c \
-   me/omci_me_65296.c \
-   me/omci_me_65297.c \
-   me/omci_me_65305.c \
-   me/omci_me_65306.c \
    me/omci_me_65529.c \
    me/omci_me_65530.c
 
@@ -1071,6 +1058,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_call_control_pmhd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_cardholder.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_circuit_pack.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_config_api.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_core.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_debug.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_dot1p_mapper.Po@am__quote@ # am--include-marker
@@ -1126,11 +1114,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_253.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_254.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_255.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65281.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65296.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65297.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65305.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65306.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65529.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_65530.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_def.Po@am__quote@ # am--include-marker
@@ -1141,6 +1124,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_multicast_operations_profile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_multicast_subscriber_config.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_multicast_subscriber_monitor.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_network_address.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_network_dial_plan_table.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_olt_g.Po@am__quote@ # am--include-marker
@@ -1153,7 +1137,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_onu_remote_debug.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_os.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_pm.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_pon_pptp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_port_mapping_package.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_pptp_ethernet_uni.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_pptp_lct_uni.Po@am__quote@ # am--include-marker
@@ -1165,6 +1148,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_sip_agent_pmhd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_sip_call_init_pmhd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_sip_user_data.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_stub_mes.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_sw_image.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_tcont.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_tcp_udp_config_data.Po@am__quote@ # am--include-marker
@@ -1221,6 +1205,34 @@ libomci_a-omci_alarm.obj: omci_alarm.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='omci_alarm.c' object='libomci_a-omci_alarm.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_alarm.obj `if test -f 'omci_alarm.c'; then $(CYGPATH_W) 'omci_alarm.c'; else $(CYGPATH_W) '$(srcdir)/omci_alarm.c'; fi`
+
+libomci_a-omci_config_api.o: omci_config_api.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_config_api.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_config_api.Tpo -c -o libomci_a-omci_config_api.o `test -f 'omci_config_api.c' || echo '$(srcdir)/'`omci_config_api.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_config_api.Tpo $(DEPDIR)/libomci_a-omci_config_api.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='omci_config_api.c' object='libomci_a-omci_config_api.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_config_api.o `test -f 'omci_config_api.c' || echo '$(srcdir)/'`omci_config_api.c
+
+libomci_a-omci_config_api.obj: omci_config_api.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_config_api.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_config_api.Tpo -c -o libomci_a-omci_config_api.obj `if test -f 'omci_config_api.c'; then $(CYGPATH_W) 'omci_config_api.c'; else $(CYGPATH_W) '$(srcdir)/omci_config_api.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_config_api.Tpo $(DEPDIR)/libomci_a-omci_config_api.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='omci_config_api.c' object='libomci_a-omci_config_api.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_config_api.obj `if test -f 'omci_config_api.c'; then $(CYGPATH_W) 'omci_config_api.c'; else $(CYGPATH_W) '$(srcdir)/omci_config_api.c'; fi`
+
+libomci_a-omci_net.o: omci_net.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_net.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_net.Tpo -c -o libomci_a-omci_net.o `test -f 'omci_net.c' || echo '$(srcdir)/'`omci_net.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_net.Tpo $(DEPDIR)/libomci_a-omci_net.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='omci_net.c' object='libomci_a-omci_net.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_net.o `test -f 'omci_net.c' || echo '$(srcdir)/'`omci_net.c
+
+libomci_a-omci_net.obj: omci_net.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_net.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_net.Tpo -c -o libomci_a-omci_net.obj `if test -f 'omci_net.c'; then $(CYGPATH_W) 'omci_net.c'; else $(CYGPATH_W) '$(srcdir)/omci_net.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_net.Tpo $(DEPDIR)/libomci_a-omci_net.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='omci_net.c' object='libomci_a-omci_net.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_net.obj `if test -f 'omci_net.c'; then $(CYGPATH_W) 'omci_net.c'; else $(CYGPATH_W) '$(srcdir)/omci_net.c'; fi`
 
 libomci_a-omci_interface.o: omci_interface.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_interface.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_interface.Tpo -c -o libomci_a-omci_interface.o `test -f 'omci_interface.c' || echo '$(srcdir)/'`omci_interface.c
@@ -2104,20 +2116,6 @@ libomci_a-omci_onu2_g.obj: me/omci_onu2_g.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_onu2_g.obj `if test -f 'me/omci_onu2_g.c'; then $(CYGPATH_W) 'me/omci_onu2_g.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_onu2_g.c'; fi`
 
-libomci_a-omci_pon_pptp.o: me/omci_pon_pptp.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_pon_pptp.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_pon_pptp.Tpo -c -o libomci_a-omci_pon_pptp.o `test -f 'me/omci_pon_pptp.c' || echo '$(srcdir)/'`me/omci_pon_pptp.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_pon_pptp.Tpo $(DEPDIR)/libomci_a-omci_pon_pptp.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_pon_pptp.c' object='libomci_a-omci_pon_pptp.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_pon_pptp.o `test -f 'me/omci_pon_pptp.c' || echo '$(srcdir)/'`me/omci_pon_pptp.c
-
-libomci_a-omci_pon_pptp.obj: me/omci_pon_pptp.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_pon_pptp.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_pon_pptp.Tpo -c -o libomci_a-omci_pon_pptp.obj `if test -f 'me/omci_pon_pptp.c'; then $(CYGPATH_W) 'me/omci_pon_pptp.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_pon_pptp.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_pon_pptp.Tpo $(DEPDIR)/libomci_a-omci_pon_pptp.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_pon_pptp.c' object='libomci_a-omci_pon_pptp.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_pon_pptp.obj `if test -f 'me/omci_pon_pptp.c'; then $(CYGPATH_W) 'me/omci_pon_pptp.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_pon_pptp.c'; fi`
-
 libomci_a-omci_port_mapping_package.o: me/omci_port_mapping_package.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_port_mapping_package.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_port_mapping_package.Tpo -c -o libomci_a-omci_port_mapping_package.o `test -f 'me/omci_port_mapping_package.c' || echo '$(srcdir)/'`me/omci_port_mapping_package.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_port_mapping_package.Tpo $(DEPDIR)/libomci_a-omci_port_mapping_package.Po
@@ -2762,6 +2760,20 @@ libomci_a-omci_ipv6_host_config_data.obj: me/omci_ipv6_host_config_data.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_ipv6_host_config_data.obj `if test -f 'me/omci_ipv6_host_config_data.c'; then $(CYGPATH_W) 'me/omci_ipv6_host_config_data.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_ipv6_host_config_data.c'; fi`
 
+libomci_a-omci_stub_mes.o: me/omci_stub_mes.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_stub_mes.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_stub_mes.Tpo -c -o libomci_a-omci_stub_mes.o `test -f 'me/omci_stub_mes.c' || echo '$(srcdir)/'`me/omci_stub_mes.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_stub_mes.Tpo $(DEPDIR)/libomci_a-omci_stub_mes.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_stub_mes.c' object='libomci_a-omci_stub_mes.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_stub_mes.o `test -f 'me/omci_stub_mes.c' || echo '$(srcdir)/'`me/omci_stub_mes.c
+
+libomci_a-omci_stub_mes.obj: me/omci_stub_mes.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_stub_mes.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_stub_mes.Tpo -c -o libomci_a-omci_stub_mes.obj `if test -f 'me/omci_stub_mes.c'; then $(CYGPATH_W) 'me/omci_stub_mes.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_stub_mes.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_stub_mes.Tpo $(DEPDIR)/libomci_a-omci_stub_mes.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_stub_mes.c' object='libomci_a-omci_stub_mes.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_stub_mes.obj `if test -f 'me/omci_stub_mes.c'; then $(CYGPATH_W) 'me/omci_stub_mes.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_stub_mes.c'; fi`
+
 libomci_a-omci_uci_config.o: uci/omci_uci_config.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_uci_config.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_uci_config.Tpo -c -o libomci_a-omci_uci_config.o `test -f 'uci/omci_uci_config.c' || echo '$(srcdir)/'`uci/omci_uci_config.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_uci_config.Tpo $(DEPDIR)/libomci_a-omci_uci_config.Po
@@ -2775,76 +2787,6 @@ libomci_a-omci_uci_config.obj: uci/omci_uci_config.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='uci/omci_uci_config.c' object='libomci_a-omci_uci_config.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_uci_config.obj `if test -f 'uci/omci_uci_config.c'; then $(CYGPATH_W) 'uci/omci_uci_config.c'; else $(CYGPATH_W) '$(srcdir)/uci/omci_uci_config.c'; fi`
-
-libomci_a-omci_me_65281.o: me/omci_me_65281.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65281.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65281.Tpo -c -o libomci_a-omci_me_65281.o `test -f 'me/omci_me_65281.c' || echo '$(srcdir)/'`me/omci_me_65281.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65281.Tpo $(DEPDIR)/libomci_a-omci_me_65281.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65281.c' object='libomci_a-omci_me_65281.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65281.o `test -f 'me/omci_me_65281.c' || echo '$(srcdir)/'`me/omci_me_65281.c
-
-libomci_a-omci_me_65281.obj: me/omci_me_65281.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65281.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65281.Tpo -c -o libomci_a-omci_me_65281.obj `if test -f 'me/omci_me_65281.c'; then $(CYGPATH_W) 'me/omci_me_65281.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65281.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65281.Tpo $(DEPDIR)/libomci_a-omci_me_65281.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65281.c' object='libomci_a-omci_me_65281.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65281.obj `if test -f 'me/omci_me_65281.c'; then $(CYGPATH_W) 'me/omci_me_65281.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65281.c'; fi`
-
-libomci_a-omci_me_65296.o: me/omci_me_65296.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65296.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65296.Tpo -c -o libomci_a-omci_me_65296.o `test -f 'me/omci_me_65296.c' || echo '$(srcdir)/'`me/omci_me_65296.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65296.Tpo $(DEPDIR)/libomci_a-omci_me_65296.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65296.c' object='libomci_a-omci_me_65296.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65296.o `test -f 'me/omci_me_65296.c' || echo '$(srcdir)/'`me/omci_me_65296.c
-
-libomci_a-omci_me_65296.obj: me/omci_me_65296.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65296.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65296.Tpo -c -o libomci_a-omci_me_65296.obj `if test -f 'me/omci_me_65296.c'; then $(CYGPATH_W) 'me/omci_me_65296.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65296.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65296.Tpo $(DEPDIR)/libomci_a-omci_me_65296.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65296.c' object='libomci_a-omci_me_65296.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65296.obj `if test -f 'me/omci_me_65296.c'; then $(CYGPATH_W) 'me/omci_me_65296.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65296.c'; fi`
-
-libomci_a-omci_me_65297.o: me/omci_me_65297.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65297.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65297.Tpo -c -o libomci_a-omci_me_65297.o `test -f 'me/omci_me_65297.c' || echo '$(srcdir)/'`me/omci_me_65297.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65297.Tpo $(DEPDIR)/libomci_a-omci_me_65297.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65297.c' object='libomci_a-omci_me_65297.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65297.o `test -f 'me/omci_me_65297.c' || echo '$(srcdir)/'`me/omci_me_65297.c
-
-libomci_a-omci_me_65297.obj: me/omci_me_65297.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65297.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65297.Tpo -c -o libomci_a-omci_me_65297.obj `if test -f 'me/omci_me_65297.c'; then $(CYGPATH_W) 'me/omci_me_65297.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65297.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65297.Tpo $(DEPDIR)/libomci_a-omci_me_65297.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65297.c' object='libomci_a-omci_me_65297.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65297.obj `if test -f 'me/omci_me_65297.c'; then $(CYGPATH_W) 'me/omci_me_65297.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65297.c'; fi`
-
-libomci_a-omci_me_65305.o: me/omci_me_65305.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65305.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65305.Tpo -c -o libomci_a-omci_me_65305.o `test -f 'me/omci_me_65305.c' || echo '$(srcdir)/'`me/omci_me_65305.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65305.Tpo $(DEPDIR)/libomci_a-omci_me_65305.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65305.c' object='libomci_a-omci_me_65305.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65305.o `test -f 'me/omci_me_65305.c' || echo '$(srcdir)/'`me/omci_me_65305.c
-
-libomci_a-omci_me_65305.obj: me/omci_me_65305.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65305.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65305.Tpo -c -o libomci_a-omci_me_65305.obj `if test -f 'me/omci_me_65305.c'; then $(CYGPATH_W) 'me/omci_me_65305.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65305.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65305.Tpo $(DEPDIR)/libomci_a-omci_me_65305.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65305.c' object='libomci_a-omci_me_65305.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65305.obj `if test -f 'me/omci_me_65305.c'; then $(CYGPATH_W) 'me/omci_me_65305.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65305.c'; fi`
-
-libomci_a-omci_me_65306.o: me/omci_me_65306.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65306.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65306.Tpo -c -o libomci_a-omci_me_65306.o `test -f 'me/omci_me_65306.c' || echo '$(srcdir)/'`me/omci_me_65306.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65306.Tpo $(DEPDIR)/libomci_a-omci_me_65306.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65306.c' object='libomci_a-omci_me_65306.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65306.o `test -f 'me/omci_me_65306.c' || echo '$(srcdir)/'`me/omci_me_65306.c
-
-libomci_a-omci_me_65306.obj: me/omci_me_65306.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65306.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65306.Tpo -c -o libomci_a-omci_me_65306.obj `if test -f 'me/omci_me_65306.c'; then $(CYGPATH_W) 'me/omci_me_65306.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65306.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_me_65306.Tpo $(DEPDIR)/libomci_a-omci_me_65306.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_me_65306.c' object='libomci_a-omci_me_65306.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65306.obj `if test -f 'me/omci_me_65306.c'; then $(CYGPATH_W) 'me/omci_me_65306.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65306.c'; fi`
 
 libomci_a-omci_me_65529.o: me/omci_me_65529.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_me_65529.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_me_65529.Tpo -c -o libomci_a-omci_me_65529.o `test -f 'me/omci_me_65529.c' || echo '$(srcdir)/'`me/omci_me_65529.c
@@ -3064,6 +3006,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_call_control_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_cardholder.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_circuit_pack.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_config_api.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_core.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_debug.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_dot1p_mapper.Po
@@ -3119,11 +3062,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_253.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_254.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_255.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65281.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65296.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65297.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65305.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65306.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65529.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65530.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_def.Po
@@ -3134,6 +3072,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_operations_profile.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_subscriber_config.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_subscriber_monitor.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_net.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_network_address.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_network_dial_plan_table.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_olt_g.Po
@@ -3146,7 +3085,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_onu_remote_debug.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_os.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pm.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_pon_pptp.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_port_mapping_package.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pptp_ethernet_uni.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pptp_lct_uni.Po
@@ -3158,6 +3096,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_agent_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_call_init_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_user_data.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_stub_mes.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sw_image.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_tcont.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_tcp_udp_config_data.Po
@@ -3233,6 +3172,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_call_control_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_cardholder.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_circuit_pack.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_config_api.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_core.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_debug.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_dot1p_mapper.Po
@@ -3288,11 +3228,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_253.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_254.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_255.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65281.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65296.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65297.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65305.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65306.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65529.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_65530.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_def.Po
@@ -3303,6 +3238,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_operations_profile.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_subscriber_config.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_multicast_subscriber_monitor.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_net.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_network_address.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_network_dial_plan_table.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_olt_g.Po
@@ -3315,7 +3251,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_onu_remote_debug.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_os.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pm.Po
-	-rm -f ./$(DEPDIR)/libomci_a-omci_pon_pptp.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_port_mapping_package.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pptp_ethernet_uni.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_pptp_lct_uni.Po
@@ -3327,6 +3262,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_agent_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_call_init_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sip_user_data.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_stub_mes.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_sw_image.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_tcont.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_tcp_udp_config_data.Po

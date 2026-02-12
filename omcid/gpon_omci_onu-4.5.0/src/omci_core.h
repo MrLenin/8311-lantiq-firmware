@@ -128,8 +128,8 @@ struct action_handler {
 	volatile enum omci_error handler_error;
 };
 
-/** Default OMCI message action timeout */
-#define OMCI_DEFAUL_MAX_ACTION_TIMEOUT		200
+/** Default OMCI message action timeout (shipping v7.5.1 uses 900) */
+#define OMCI_DEFAUL_MAX_ACTION_TIMEOUT		900
 
 /** OMCI context */
 struct omci_context {
@@ -175,6 +175,10 @@ struct omci_context {
 
 	/** Action event */
 	IFXOS_event_t action_event;
+
+	/** Action handled event — signaled when action thread completes
+	    processing. Core thread waits on this instead of polling. */
+	IFXOS_event_t action_handled_event;
 
 	/** Timeout thread control structure */
 	IFXOS_ThreadCtrl_t timeout_thread_ctrl;
@@ -226,6 +230,15 @@ struct omci_context {
 
 	/** OMCI message action timeout after which BUSY response is sent */
 	uint32_t action_timeout;
+
+	/** IOP (Interoperability Option) mask */
+	uint32_t iop_mask;
+
+	/** OMCC version byte */
+	uint8_t omcc_version;
+
+	/** LCT port number (0xFF = not configured) */
+	uint8_t lct_port;
 };
 
 /** Find timeouted entry in table attribute copy array and return its pointer

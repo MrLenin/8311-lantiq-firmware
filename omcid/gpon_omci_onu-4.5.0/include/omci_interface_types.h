@@ -166,10 +166,10 @@ typedef unsigned char bool;
 #endif
 
 /** Number of base (required) Managed Entities */
-#define OMCI_ME_BASE_CLASS_NUM			64
+#define OMCI_ME_BASE_CLASS_NUM			62
 
 /** Number of customer Managed Entities */
-#define OMCI_ME_CUSTOMER_CLASS_NUM		7
+#define OMCI_ME_CUSTOMER_CLASS_NUM		20
 
 /** Number of supported Managed Entity classes.
    \note This is a number of items in the me_def_class_array

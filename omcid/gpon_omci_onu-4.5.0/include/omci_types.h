@@ -927,8 +927,9 @@ enum {
 	/** Virtual Ethernet interface point */
 	OMCI_ME_VIRTUAL_ETHERNET_INTERFACE_POINT = 329,
 
-	/** GEM port network CTP PMHD */
-	OMCI_ME_GEM_PORT_NETWORK_CTP_PMHD = 333,
+	/** GEM port network CTP PMHD (renumbered 333→341 per G.988 2017
+	    and shipping v7.5.1 binary) */
+	OMCI_ME_GEM_PORT_NETWORK_CTP_PMHD = 341,
 
 	/** Enhanced Security Control */
 	OMCI_ME_ENHANCED_SECURITY_CONTROL = 332,
@@ -936,23 +937,31 @@ enum {
 	/** ONU dynamic power management control */
 	OMCI_ME_ONU_DYN_PWR_MNGMT_CTRL = 336,
 
+	/** Ethernet Frame Extended PMHD */
+	OMCI_ME_ETHERNET_EXTENDED_PMHD = 334,
+
 	/** IPv6 Host Config Data */
 	OMCI_ME_IPV6_CONFIG_DATA = 347,
 
+	/** Energy Consumption PMHD */
+	OMCI_ME_ENERGY_CONSUMPTION_PMHD = 343,
+
+	/** PoE Control */
+	OMCI_ME_POE_CTRL = 349,
+
+	/** Ethernet Frame Extended PMHD 64-bit */
+	OMCI_ME_ETHERNET_EXTENDED_PMHD_64 = 425,
+
 	/* 65280 - 65535 reserved for vendor specific use */
-	OMCI_ME_65281 = 65281,
+	OMCI_ME_ZTE_EMOP = 65282,
 
-	OMCI_ME_65296 = 65296,
-
-	OMCI_ME_65297 = 65297,
-
-	OMCI_ME_65305 = 65305,
-
-	OMCI_ME_65306 = 65306,
+	OMCI_ME_ONU_LOOP_DETECTION = 65528,
 
 	OMCI_ME_65529 = 65529,
 
-	OMCI_ME_65530 = 65530
+	OMCI_ME_65530 = 65530,
+
+	OMCI_ME_EXT_MOP = 65531
 };
 
 /** This attribute reports whether the Managed Entity is currently capable of

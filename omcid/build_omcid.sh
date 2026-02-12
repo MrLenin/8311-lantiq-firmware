@@ -107,7 +107,7 @@ if [ ! -f Makefile ]; then
 		--enable-cli-include="-I${LIBCLI_INC}" \
 		--enable-cli-library="-L${LIBCLI_LIB}" \
 		--disable-voip \
-		--disable-pm \
+		--enable-pm \
 		--disable-remote-onu \
 		--enable-omci-uci \
 		--enable-libucimap \

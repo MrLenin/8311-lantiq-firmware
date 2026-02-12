@@ -430,8 +430,8 @@ static int cli_omci_me_prop_get(
 
 #ifndef OMCI_DEBUG_DISABLE
 	static const char usage[] =
-		"Long Form: managed_entity_prop_get" OMCI_CRLF
-		"Short Form: mepg" OMCI_CRLF
+		"Long Form: class_prop_get" OMCI_CRLF
+		"Short Form: cpg" OMCI_CRLF
 		OMCI_CRLF
 		"Input Parameter" OMCI_CRLF
 		"- uint16_t class_id" OMCI_CRLF
@@ -745,7 +745,6 @@ static int cli_omci_attr_change(
 	return IFXOS_FPrintf(p_out, "errorcode=%d " OMCI_CRLF, (int)fct_ret);
 }
 
-#if defined(INCLUDE_PM)
 /** Handle command
 
    \param[in] p_ctx     OMCI context pointer
@@ -787,8 +786,6 @@ static int cli_omci_interval_end(
 	fct_ret = omci_interval_end(p_ctx, interval_end_time);
 	return IFXOS_FPrintf(p_out, "errorcode=%d " OMCI_CRLF, (int)fct_ret);
 }
-
-#endif /* defined(INCLUDE_PM) */
 /** Handle command
 
    \param[in] p_ctx     OMCI context pointer
@@ -1121,16 +1118,14 @@ unsigned int group_mask = 0;
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "meag", "managed_entity_alarm_get", cli_omci_me_alarm_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "pe", "processing_enable", cli_omci_processing_enable);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "med", "managed_entity_delete", cli_omci_me_delete);
-(void)cli_core_key_add__file(p_core_ctx, group_mask, "mepg", "managed_entity_prop_get", cli_omci_me_prop_get);
+(void)cli_core_key_add__file(p_core_ctx, group_mask, "cpg", "class_prop_get", cli_omci_me_prop_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "measg", "managed_entity_attr_size_get", cli_omci_me_attr_size_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "meapg", "managed_entity_attr_prop_get", cli_omci_me_attr_prop_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "meatg", "managed_entity_attr_type_get", cli_omci_me_attr_type_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "meaog", "managed_entity_attr_offset_get", cli_omci_me_attr_offset_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "mecg", "managed_entity_count_get", cli_omci_me_count_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "ac", "attr_change", cli_omci_attr_change);
-#if defined(INCLUDE_PM)
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "ie", "interval_end", cli_omci_interval_end);
-#endif /* defined(INCLUDE_PM) */
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "og", "olt_get", cli_omci_olt_get);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "mr", "mib_reset", cli_omci_mib_reset);
 (void)cli_core_key_add__file(p_core_ctx, group_mask, "meis", "managed_entity_is_supported", cli_omci_me_is_supported);

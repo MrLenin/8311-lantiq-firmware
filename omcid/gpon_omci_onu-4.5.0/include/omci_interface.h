@@ -70,26 +70,61 @@ enum omci_error omci_dbg_file_set(IFXOS_File_t *file);
 #ifndef SWIG
 /** Initialize OMCI context
 
-   \param[out] ref_context Reference to NULL pointer of type
-                           struct omci_context.
-                           The memory allocation and deletion will be done
-                           by the library itself.
-                           Returns OMCI context pointer
+   \param[out] ref_context   Reference to NULL pointer of type
+                             struct omci_context.
+                             The memory allocation and deletion will be done
+                             by the library itself.
+                             Returns OMCI context pointer
 
-   \param[in] mib_on_reset MIB on reset handler
-   \param[in] cli_on_exec  Routine which will be called upon CLI command execute
-                           request from ONU remote debug ME
-   \param[in] mib          Select default MIB
-   \param[in] remote_ip    Remote ONU IP address
-   \param[in] uni2lan      UNI to LAN mapping info
+   \param[in] mib_on_reset   MIB on reset handler
+   \param[in] cli_on_exec    Routine which will be called upon CLI command
+                             execute request from ONU remote debug ME
+   \param[in] mib            Select default MIB
+   \param[in] omcc_version   OMCC version byte (0xA0 = G.988 baseline)
+   \param[in] iop_mask       Interoperability option mask
+   \param[in] lct_port       LCT port number (0xFF = not configured)
 */
 enum omci_error omci_init(struct omci_context **ref_context,
-			  omci_mib_on_reset * mib_on_reset,
+			  omci_mib_on_reset *mib_on_reset,
 			  omci_cli_on_exec *cli_on_exec,
 			  enum omci_olt mib,
-			  const char *remote_ip,
-			  const char *uni2lan);
+			  uint8_t omcc_version,
+			  uint32_t iop_mask,
+			  uint8_t lct_port);
 #endif
+
+/** Set IOP mask
+
+   \param[in] context  OMCI context pointer
+   \param[in] mask     IOP mask value
+*/
+enum omci_error omci_iop_mask_set(struct omci_context *context,
+				  uint32_t mask);
+
+/** Get IOP mask
+
+   \param[in]  context OMCI context pointer
+   \param[out] mask    Returns IOP mask value
+*/
+enum omci_error omci_iop_mask_get(struct omci_context *context,
+				  uint32_t *mask);
+
+/** Check if an IOP option is set
+
+   \param[in] context OMCI context pointer
+   \param[in] option  IOP option number (bit position)
+
+   \return true if option is set, false otherwise
+*/
+bool omci_iop_mask_isset(struct omci_context *context, unsigned int option);
+
+/** Get OMCC version
+
+   \param[in]  context      OMCI context pointer
+   \param[out] omcc_version Returns OMCC version byte
+*/
+enum omci_error omci_omcc_version_get(struct omci_context *context,
+				      uint8_t *omcc_version);
 
 #ifndef SWIG
 /** Shutdown OMCI context
@@ -377,6 +412,40 @@ enum omci_error omci_me_attr_offset_get(struct omci_context *context,
 					uint16_t class_id,
 					unsigned int attr,
 					size_t *attr_offset);
+
+/** Get a single Managed Entity attribute by class/instance/attr number
+
+   \param[in]  context     OMCI context pointer
+   \param[in]  class_id    Managed Entity class identifier
+   \param[in]  instance_id Managed Entity instance identifier
+   \param[in]  attr        Attribute number [1 .. OMCI_ATTRIBUTES_NUM]
+   \param[out] data        Buffer to receive attribute data
+   \param[in]  data_size   Size of buffer (must match attribute size)
+*/
+enum omci_error omci_me_attr_get(struct omci_context *context,
+				 uint16_t class_id,
+				 uint16_t instance_id,
+				 unsigned int attr,
+				 void *data,
+				 size_t data_size);
+
+/** Set a single Managed Entity attribute by class/instance/attr number
+
+   \param[in]  context      OMCI context pointer
+   \param[in]  class_id     Managed Entity class identifier
+   \param[in]  instance_id  Managed Entity instance identifier
+   \param[in]  attr         Attribute number [1 .. OMCI_ATTRIBUTES_NUM]
+   \param[in]  data         Attribute data to write
+   \param[in]  data_size    Size of data (must match attribute size)
+   \param[in]  suppress_avc If true, suppress Attribute Value Change notification
+*/
+enum omci_error omci_me_attr_set(struct omci_context *context,
+				 uint16_t class_id,
+				 uint16_t instance_id,
+				 unsigned int attr,
+				 const void *data,
+				 size_t data_size,
+				 bool suppress_avc);
 
 #ifndef SWIG
 /** Get Managed Entity alarm bitmap
