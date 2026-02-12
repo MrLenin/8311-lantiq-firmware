@@ -23,6 +23,11 @@
 #include "me/omci_onu_g.h"
 #include "me/omci_api_onu_g.h"
 
+#ifdef LINUX
+#include <unistd.h>
+#include <time.h>
+#include <sys/time.h>
+#endif
 
 /** \addtogroup OMCI_ME_ONU_G
    @{
@@ -140,6 +145,9 @@ static enum omci_error sync_time_action_handle(struct omci_context *context,
 					       union omci_msg *rsp)
 {
 	enum omci_error error = OMCI_SUCCESS;
+	uint16_t year;
+	struct tm tm;
+	struct timeval tv;
 
 	dbg_in(__func__, "%p, %p, %p, %p", (void *)context, (void *)me,
 	       (void *)msg, (void *)rsp);
@@ -155,6 +163,50 @@ static enum omci_error sync_time_action_handle(struct omci_context *context,
 		dbg_err("ERROR(%d) while cleaning TCA data", error);
 	}
 #endif
+
+	/* 8311 mod: Parse G.988 Synchronize Time date/time fields and set
+	   the system clock. The SDK never implemented this (was a TODO). */
+	year = ntoh16(msg->sync_time.year);
+
+	if (year >= 2020 && year <= 2099 &&
+	    msg->sync_time.month >= 1 && msg->sync_time.month <= 12 &&
+	    msg->sync_time.day >= 1 && msg->sync_time.day <= 31 &&
+	    msg->sync_time.hour <= 23 &&
+	    msg->sync_time.minute <= 59 &&
+	    msg->sync_time.second <= 59) {
+		memset(&tm, 0, sizeof(tm));
+		tm.tm_year = year - 1900;
+		tm.tm_mon = msg->sync_time.month - 1;
+		tm.tm_mday = msg->sync_time.day;
+		tm.tm_hour = msg->sync_time.hour;
+		tm.tm_min = msg->sync_time.minute;
+		tm.tm_sec = msg->sync_time.second;
+
+		tv.tv_sec = timegm(&tm);
+		tv.tv_usec = 0;
+
+		if (tv.tv_sec != (time_t)-1 &&
+		    settimeofday(&tv, NULL) == 0) {
+			dbg_msg("Clock set: %04u-%02u-%02u %02u:%02u:%02u",
+				year,
+				msg->sync_time.month,
+				msg->sync_time.day,
+				msg->sync_time.hour,
+				msg->sync_time.minute,
+				msg->sync_time.second);
+		} else {
+			dbg_err("settimeofday failed (errno %d)", errno);
+		}
+	} else if (year != 0) {
+		dbg_wrn("Sync time: invalid date from OLT "
+			"(%u-%u-%u %u:%u:%u)",
+			year,
+			msg->sync_time.month,
+			msg->sync_time.day,
+			msg->sync_time.hour,
+			msg->sync_time.minute,
+			msg->sync_time.second);
+	}
 
 	rsp->sync_time_rsp.result = OMCI_MR_CMD_SUCCESS;
 

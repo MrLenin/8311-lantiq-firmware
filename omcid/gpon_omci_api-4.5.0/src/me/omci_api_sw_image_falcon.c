@@ -31,6 +31,92 @@
    @{
 */
 
+/* ---- 8311 mod: firmware update guard ----
+ *
+ * When enabled (UCI 8311.config.fw_update_guard=1), intercepts OLT-triggered
+ * firmware updates at the source:
+ *   - Flash writes (mtd) are blocked
+ *   - committed_image is shadowed in memory (real fwenv unchanged)
+ *   - Activate skips U-Boot SRAM register writes
+ *   - Version queries check UCI sw_verA/sw_verB overrides first
+ *
+ * This replaces the shell wrapper scripts (fw_setenv, fw_printenv, mtd)
+ * that previously intercepted these operations externally.
+ */
+
+/** Firmware update guard enabled flag */
+static bool fw_guard_enabled = false;
+static bool fw_guard_initialized = false;
+
+/** Shadow committed_image: -1 = not shadowed, 0 or 1 = shadowed value */
+static int shadow_committed = -1;
+
+/** Read a UCI option value via popen("uci -q get ...")
+ *
+ *  Returns 0 on success, -1 on failure (option not set or error).
+ */
+static int uci_option_get(const char *path, char *value,
+			  unsigned int value_size)
+{
+	FILE *fp;
+	char cmd[128];
+	size_t len;
+
+	if (IFXOS_SNPrintf(cmd, sizeof(cmd), "uci -q get %s", path) <= 0)
+		return -1;
+
+	fp = popen(cmd, "r");
+	if (!fp)
+		return -1;
+
+	len = fread(value, 1, value_size - 1, fp);
+	(void)pclose(fp);
+
+	if (len == 0)
+		return -1;
+
+	/* null-terminate and strip trailing newline */
+	value[len] = '\0';
+	if (len > 0 && value[len - 1] == '\n')
+		value[len - 1] = '\0';
+
+	return 0;
+}
+
+/** Write a UCI option and commit */
+static void uci_option_set(const char *path, const char *value)
+{
+	char cmd[256];
+
+	if (IFXOS_SNPrintf(cmd, sizeof(cmd),
+			   "uci set '%s=%s' && uci commit 8311",
+			   path, value) <= 0)
+		return;
+
+	(void)system(cmd);
+}
+
+/** Initialize firmware update guard from UCI (lazy, called once) */
+static void fw_guard_init(void)
+{
+	char val[8];
+
+	if (fw_guard_initialized)
+		return;
+
+	fw_guard_initialized = true;
+	fw_guard_enabled = false;
+
+	if (uci_option_get("8311.config.fw_update_guard", val,
+			   sizeof(val)) == 0) {
+		fw_guard_enabled = (val[0] == '1');
+	}
+
+	if (fw_guard_enabled) {
+		DBG(OMCI_API_ERR, ("8311: Firmware update guard ENABLED\n"));
+	}
+}
+
 /** Image invalidate thread priority */
 #  define OMCI_API_SWIMAGE_INVALIDATE_THREAD_PRIO       IFXOS_THREAD_PRIO_LOWEST
 /** Image invalidate thread stack size */
@@ -410,13 +496,29 @@ omci_api_falcon_sw_image_store(struct omci_api_sw_image *sw_image)
 {
 	enum omci_api_return ret;
 
-	/* store image to flash */
-	ret = omci_api_falcon_sw_image_nvm_store(sw_image->id,
-						 sw_image->p_filepath);
-	if (ret)
-		return OMCI_API_ERROR;
+	fw_guard_init();
 
-	/* store image version to fwenv */
+	if (fw_guard_enabled) {
+		/* 8311 mod: block the flash write but still record the
+		   version so the OLT sees the "new" image metadata */
+		DBG(OMCI_API_ERR,
+		    ("8311: Blocked flash write for image #%u\n",
+		     sw_image->id));
+
+		/* capture version to UCI for user visibility */
+		uci_option_set((sw_image->id == 0)
+			       ? "8311.config.sw_verA"
+			       : "8311.config.sw_verB",
+			       sw_image->p_version);
+	} else {
+		/* store image to flash */
+		ret = omci_api_falcon_sw_image_nvm_store(sw_image->id,
+							 sw_image->p_filepath);
+		if (ret)
+			return OMCI_API_ERROR;
+	}
+
+	/* store image version to fwenv (harmless, persists for reporting) */
 	if (omci_api_falcon_uboot_env_set((sw_image->id == 0) ? "image0_version"
 					: "image1_version",
 					sw_image->p_version)) {
@@ -449,6 +551,18 @@ enum omci_api_return omci_api_falcon_sw_image_activate(struct omci_api_ctx *ctx,
 	enum omci_api_return ret;
 	struct onu_reg_addr_val reg;
 
+	fw_guard_init();
+
+	if (fw_guard_enabled) {
+		/* 8311 mod: don't write U-Boot SRAM registers — we're not
+		   actually switching images, so telling U-Boot to boot a
+		   different bank would be wrong */
+		DBG(OMCI_API_ERR,
+		    ("8311: Skipped activate registers for image #%u\n",
+		     sw_image_id));
+		return OMCI_API_SUCCESS;
+	}
+
 	reg.form = 32;
 	reg.address = OMCI_API_UBOOT_RAM_ACT_IMAGE_MAGIC_ADDR;
 	reg.value = OMCI_API_UBOOT_RAM_ACT_IMAGE_MAGIC_VAL;
@@ -468,6 +582,19 @@ enum omci_api_return omci_api_falcon_sw_image_activate(struct omci_api_ctx *ctx,
 
 enum omci_api_return omci_api_falcon_sw_image_commit(unsigned int sw_image_id)
 {
+	fw_guard_init();
+
+	if (fw_guard_enabled) {
+		/* 8311 mod: shadow committed_image in memory instead of
+		   writing to fwenv. U-Boot always boots the real committed
+		   bank; omcid sees the shadow via is_committed below. */
+		shadow_committed = (sw_image_id == 0) ? 0 : 1;
+		DBG(OMCI_API_ERR,
+		    ("8311: Shadowed committed_image=%d\n",
+		     shadow_committed));
+		return OMCI_API_SUCCESS;
+	}
+
 	return omci_api_falcon_uboot_env_set("committed_image",
 					   (sw_image_id == 0) ? "0" : "1");
 }
@@ -536,6 +663,14 @@ omci_api_falcon_sw_image_is_committed(unsigned int sw_image_id,
 {
 	char variable[5];
 
+	fw_guard_init();
+
+	/* 8311 mod: if committed_image has been shadowed, use the shadow */
+	if (fw_guard_enabled && shadow_committed >= 0) {
+		*is_committed = ((unsigned int)shadow_committed == sw_image_id);
+		return OMCI_API_SUCCESS;
+	}
+
 	if (omci_api_falcon_uboot_env_get
 	    ("committed_image", variable, sizeof(variable))) {
 		*is_committed = false;
@@ -572,6 +707,22 @@ enum omci_api_return
 omci_api_falcon_sw_image_version_get(unsigned int sw_image_id,
 				     char p_version[OMCI_API_SWIMAGE_VERSION_LEN])
 {
+	char uci_ver[OMCI_API_SWIMAGE_VERSION_LEN + 1];
+
+	fw_guard_init();
+
+	/* 8311 mod: check UCI sw_verA/sw_verB override first.
+	   These can be set by the user to report a specific version
+	   regardless of what's in fwenv. */
+	if (uci_option_get((sw_image_id == 0)
+			   ? "8311.config.sw_verA"
+			   : "8311.config.sw_verB",
+			   uci_ver, sizeof(uci_ver)) == 0
+	    && uci_ver[0] != '\0') {
+		strncpy(p_version, uci_ver, OMCI_API_SWIMAGE_VERSION_LEN);
+		return OMCI_API_SUCCESS;
+	}
+
 	if (omci_api_falcon_uboot_env_get((sw_image_id == 0) ? "image0_version"
 					: "image1_version", p_version,
 					OMCI_API_SWIMAGE_VERSION_LEN)) {

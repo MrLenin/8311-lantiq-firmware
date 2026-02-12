@@ -45,10 +45,16 @@ static enum omci_error me_update(struct omci_context *context,
 	     & attr_mask) == 0)
 		return OMCI_SUCCESS;
 
+	/* 8311 mod: On an SFP ONU, the PPTP Ethernet UNI and PPTP LCT UNI
+	   share the same physical port. If the OLT locks admin_state, the
+	   user loses all management access (web UI, SSH) with no recovery
+	   path other than serial console. Always pass admin_state=0
+	   (unlocked) to the driver so the port stays up. The ME data still
+	   stores the OLT-requested value, so Get queries return "locked". */
 	if (me->is_initialized)
 		ret = omci_api_pptp_ethernet_uni_update(context->api,
 							me->instance_id,
-							upd_data->admin_state,
+							0, /* force unlocked */
 							upd_data->expected_type,
 							upd_data->
 							auto_detect_config,
@@ -63,7 +69,7 @@ static enum omci_error me_update(struct omci_context *context,
 	else
 		ret = omci_api_pptp_ethernet_uni_create(context->api,
 							me->instance_id,
-							upd_data->admin_state,
+							0, /* force unlocked */
 							upd_data->expected_type,
 							upd_data->
 							auto_detect_config,

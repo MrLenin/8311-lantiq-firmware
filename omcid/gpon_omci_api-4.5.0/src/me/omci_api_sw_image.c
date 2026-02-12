@@ -175,7 +175,10 @@ enum omci_api_return omci_api_sw_image_activate(struct omci_api_ctx *ctx,
 
 #ifdef INCLUDE_SW_IMAGE_SUPPORT
 	(void)omci_api_falcon_sw_image_activate(ctx, sw_image_id);
-	omci_api_reboot(ctx, reboot_timeout);
+	/* 8311 mod: Do not reboot on SW Image Activate.
+	   Our fw_update_guard blocks the actual flash write, so rebooting
+	   would just restart with the same image and trigger OLT retry loops.
+	   The OLT can still reboot via the OMCI Reboot action if needed. */
 #else
 	/* don't reboot while simulating software */
 #endif
