@@ -1112,4 +1112,18 @@ enum omci_api_return omci_api_uni2lan(struct omci_api_ctx *ctx,
 	return OMCI_API_ERR;
 }
 
+int omci_api_onu_fd_get(struct omci_api_ctx *ctx)
+{
+	if (!ctx)
+		return -1;
+	return ctx->onu_fd;
+}
+
+bool omci_api_remote_get(struct omci_api_ctx *ctx)
+{
+	if (!ctx)
+		return false;
+	return ctx->remote;
+}
+
 /** @} */

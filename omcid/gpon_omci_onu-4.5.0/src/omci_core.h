@@ -231,6 +231,11 @@ struct omci_context {
 	/** OMCI message action timeout after which BUSY response is sent */
 	uint32_t action_timeout;
 
+#ifdef INCLUDE_MCC
+	/** Multicast Control context (struct mcc_ctx *) */
+	void *mcc;
+#endif
+
 	/** IOP (Interoperability Option) mask */
 	uint32_t iop_mask;
 

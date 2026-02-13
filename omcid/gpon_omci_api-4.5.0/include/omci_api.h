@@ -299,6 +299,22 @@ enum omci_api_return omci_api_uni2lan(struct omci_api_ctx *ctx,
 				      const uint16_t me_id,
 				      uint8_t *lan_port);
 
+/** Get /dev/onu0 file descriptor from API context.
+
+   \param[in] ctx OMCI API context pointer
+
+   \return File descriptor, or -1 on error.
+*/
+int omci_api_onu_fd_get(struct omci_api_ctx *ctx);
+
+/** Get remote flag from API context.
+
+   \param[in] ctx OMCI API context pointer
+
+   \return true if remote ONU, false otherwise.
+*/
+bool omci_api_remote_get(struct omci_api_ctx *ctx);
+
 /** @} */
 
 __END_DECLS

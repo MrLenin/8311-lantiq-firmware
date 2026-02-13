@@ -246,7 +246,14 @@ libomci_a_SOURCES = \
    me/omci_stub_mes.c \
    uci/omci_uci_config.c \
    me/omci_me_65529.c \
-   me/omci_me_65530.c
+   me/omci_me_65530.c \
+   mcc/omci_mcc.c \
+   mcc/omci_mcc_core.c \
+   mcc/omci_mcc_dev.c \
+   mcc/omci_mcc_igmp.c \
+   mcc/omci_mcc_mld.c \
+   mcc/omci_mcc_omci.c \
+   mcc/omci_mcc_pkt.c
 
 libomcidaemon_a_extra = \
    @top_srcdir@/src/daemon/omci_daemon.h
@@ -321,7 +328,9 @@ endif
 
 AM_CFLAGS = -DLINUX -D__LINUX__ \
             -D_GNU_SOURCE \
+            -DINCLUDE_MCC \
             -I@top_srcdir@/include/ \
+            -I@top_srcdir@/src/ \
             @IFXOS_INCLUDE_PATH@ \
             @CLI_INCLUDE_PATH@ \
             @OMCI_API_INCLUDE_PATH@

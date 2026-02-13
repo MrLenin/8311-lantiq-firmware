@@ -258,7 +258,13 @@ am_libomci_a_OBJECTS = $(am__objects_1) libomci_a-omci_alarm.$(OBJEXT) \
 	libomci_a-omci_stub_mes.$(OBJEXT) \
 	libomci_a-omci_uci_config.$(OBJEXT) \
 	libomci_a-omci_me_65529.$(OBJEXT) \
-	libomci_a-omci_me_65530.$(OBJEXT)
+	libomci_a-omci_me_65530.$(OBJEXT) libomci_a-omci_mcc.$(OBJEXT) \
+	libomci_a-omci_mcc_core.$(OBJEXT) \
+	libomci_a-omci_mcc_dev.$(OBJEXT) \
+	libomci_a-omci_mcc_igmp.$(OBJEXT) \
+	libomci_a-omci_mcc_mld.$(OBJEXT) \
+	libomci_a-omci_mcc_omci.$(OBJEXT) \
+	libomci_a-omci_mcc_pkt.$(OBJEXT)
 libomci_a_OBJECTS = $(am_libomci_a_OBJECTS)
 libomcidaemon_a_AR = $(AR) $(ARFLAGS)
 libomcidaemon_a_RANLIB = $(RANLIB)
@@ -336,6 +342,13 @@ am__depfiles_remade = ./$(DEPDIR)/libomci_a-omci_alarm.Po \
 	./$(DEPDIR)/libomci_a-omci_mac_bridge_port_pmhd.Po \
 	./$(DEPDIR)/libomci_a-omci_mac_bridge_service_profile.Po \
 	./$(DEPDIR)/libomci_a-omci_managed_entity.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_core.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_dev.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_igmp.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_mld.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_omci.Po \
+	./$(DEPDIR)/libomci_a-omci_mcc_pkt.Po \
 	./$(DEPDIR)/libomci_a-omci_me.Po \
 	./$(DEPDIR)/libomci_a-omci_me_240.Po \
 	./$(DEPDIR)/libomci_a-omci_me_241.Po \
@@ -817,7 +830,14 @@ libomci_a_SOURCES = \
    me/omci_stub_mes.c \
    uci/omci_uci_config.c \
    me/omci_me_65529.c \
-   me/omci_me_65530.c
+   me/omci_me_65530.c \
+   mcc/omci_mcc.c \
+   mcc/omci_mcc_core.c \
+   mcc/omci_mcc_dev.c \
+   mcc/omci_mcc_igmp.c \
+   mcc/omci_mcc_mld.c \
+   mcc/omci_mcc_omci.c \
+   mcc/omci_mcc_pkt.c
 
 libomcidaemon_a_extra = \
    @top_srcdir@/src/daemon/omci_daemon.h
@@ -864,7 +884,9 @@ libomciapi_library = -lomciapi $(am__append_1) $(am__append_2)
 @INCLUDE_CLI_SUPPORT_TRUE@cli_library = -lcli
 AM_CFLAGS = -DLINUX -D__LINUX__ \
             -D_GNU_SOURCE \
+            -DINCLUDE_MCC \
             -I@top_srcdir@/include/ \
+            -I@top_srcdir@/src/ \
             @IFXOS_INCLUDE_PATH@ \
             @CLI_INCLUDE_PATH@ \
             @OMCI_API_INCLUDE_PATH@
@@ -1096,6 +1118,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mac_bridge_port_pmhd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mac_bridge_service_profile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_managed_entity.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_core.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_dev.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_igmp.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_mld.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_omci.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_mcc_pkt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_240.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomci_a-omci_me_241.Po@am__quote@ # am--include-marker
@@ -2816,6 +2845,104 @@ libomci_a-omci_me_65530.obj: me/omci_me_65530.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_me_65530.obj `if test -f 'me/omci_me_65530.c'; then $(CYGPATH_W) 'me/omci_me_65530.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_me_65530.c'; fi`
 
+libomci_a-omci_mcc.o: mcc/omci_mcc.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc.Tpo -c -o libomci_a-omci_mcc.o `test -f 'mcc/omci_mcc.c' || echo '$(srcdir)/'`mcc/omci_mcc.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc.Tpo $(DEPDIR)/libomci_a-omci_mcc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc.c' object='libomci_a-omci_mcc.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc.o `test -f 'mcc/omci_mcc.c' || echo '$(srcdir)/'`mcc/omci_mcc.c
+
+libomci_a-omci_mcc.obj: mcc/omci_mcc.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc.Tpo -c -o libomci_a-omci_mcc.obj `if test -f 'mcc/omci_mcc.c'; then $(CYGPATH_W) 'mcc/omci_mcc.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc.Tpo $(DEPDIR)/libomci_a-omci_mcc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc.c' object='libomci_a-omci_mcc.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc.obj `if test -f 'mcc/omci_mcc.c'; then $(CYGPATH_W) 'mcc/omci_mcc.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc.c'; fi`
+
+libomci_a-omci_mcc_core.o: mcc/omci_mcc_core.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_core.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_core.Tpo -c -o libomci_a-omci_mcc_core.o `test -f 'mcc/omci_mcc_core.c' || echo '$(srcdir)/'`mcc/omci_mcc_core.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_core.Tpo $(DEPDIR)/libomci_a-omci_mcc_core.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_core.c' object='libomci_a-omci_mcc_core.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_core.o `test -f 'mcc/omci_mcc_core.c' || echo '$(srcdir)/'`mcc/omci_mcc_core.c
+
+libomci_a-omci_mcc_core.obj: mcc/omci_mcc_core.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_core.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_core.Tpo -c -o libomci_a-omci_mcc_core.obj `if test -f 'mcc/omci_mcc_core.c'; then $(CYGPATH_W) 'mcc/omci_mcc_core.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_core.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_core.Tpo $(DEPDIR)/libomci_a-omci_mcc_core.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_core.c' object='libomci_a-omci_mcc_core.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_core.obj `if test -f 'mcc/omci_mcc_core.c'; then $(CYGPATH_W) 'mcc/omci_mcc_core.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_core.c'; fi`
+
+libomci_a-omci_mcc_dev.o: mcc/omci_mcc_dev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_dev.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_dev.Tpo -c -o libomci_a-omci_mcc_dev.o `test -f 'mcc/omci_mcc_dev.c' || echo '$(srcdir)/'`mcc/omci_mcc_dev.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_dev.Tpo $(DEPDIR)/libomci_a-omci_mcc_dev.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_dev.c' object='libomci_a-omci_mcc_dev.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_dev.o `test -f 'mcc/omci_mcc_dev.c' || echo '$(srcdir)/'`mcc/omci_mcc_dev.c
+
+libomci_a-omci_mcc_dev.obj: mcc/omci_mcc_dev.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_dev.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_dev.Tpo -c -o libomci_a-omci_mcc_dev.obj `if test -f 'mcc/omci_mcc_dev.c'; then $(CYGPATH_W) 'mcc/omci_mcc_dev.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_dev.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_dev.Tpo $(DEPDIR)/libomci_a-omci_mcc_dev.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_dev.c' object='libomci_a-omci_mcc_dev.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_dev.obj `if test -f 'mcc/omci_mcc_dev.c'; then $(CYGPATH_W) 'mcc/omci_mcc_dev.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_dev.c'; fi`
+
+libomci_a-omci_mcc_igmp.o: mcc/omci_mcc_igmp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_igmp.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_igmp.Tpo -c -o libomci_a-omci_mcc_igmp.o `test -f 'mcc/omci_mcc_igmp.c' || echo '$(srcdir)/'`mcc/omci_mcc_igmp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_igmp.Tpo $(DEPDIR)/libomci_a-omci_mcc_igmp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_igmp.c' object='libomci_a-omci_mcc_igmp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_igmp.o `test -f 'mcc/omci_mcc_igmp.c' || echo '$(srcdir)/'`mcc/omci_mcc_igmp.c
+
+libomci_a-omci_mcc_igmp.obj: mcc/omci_mcc_igmp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_igmp.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_igmp.Tpo -c -o libomci_a-omci_mcc_igmp.obj `if test -f 'mcc/omci_mcc_igmp.c'; then $(CYGPATH_W) 'mcc/omci_mcc_igmp.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_igmp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_igmp.Tpo $(DEPDIR)/libomci_a-omci_mcc_igmp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_igmp.c' object='libomci_a-omci_mcc_igmp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_igmp.obj `if test -f 'mcc/omci_mcc_igmp.c'; then $(CYGPATH_W) 'mcc/omci_mcc_igmp.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_igmp.c'; fi`
+
+libomci_a-omci_mcc_mld.o: mcc/omci_mcc_mld.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_mld.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_mld.Tpo -c -o libomci_a-omci_mcc_mld.o `test -f 'mcc/omci_mcc_mld.c' || echo '$(srcdir)/'`mcc/omci_mcc_mld.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_mld.Tpo $(DEPDIR)/libomci_a-omci_mcc_mld.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_mld.c' object='libomci_a-omci_mcc_mld.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_mld.o `test -f 'mcc/omci_mcc_mld.c' || echo '$(srcdir)/'`mcc/omci_mcc_mld.c
+
+libomci_a-omci_mcc_mld.obj: mcc/omci_mcc_mld.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_mld.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_mld.Tpo -c -o libomci_a-omci_mcc_mld.obj `if test -f 'mcc/omci_mcc_mld.c'; then $(CYGPATH_W) 'mcc/omci_mcc_mld.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_mld.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_mld.Tpo $(DEPDIR)/libomci_a-omci_mcc_mld.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_mld.c' object='libomci_a-omci_mcc_mld.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_mld.obj `if test -f 'mcc/omci_mcc_mld.c'; then $(CYGPATH_W) 'mcc/omci_mcc_mld.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_mld.c'; fi`
+
+libomci_a-omci_mcc_omci.o: mcc/omci_mcc_omci.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_omci.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_omci.Tpo -c -o libomci_a-omci_mcc_omci.o `test -f 'mcc/omci_mcc_omci.c' || echo '$(srcdir)/'`mcc/omci_mcc_omci.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_omci.Tpo $(DEPDIR)/libomci_a-omci_mcc_omci.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_omci.c' object='libomci_a-omci_mcc_omci.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_omci.o `test -f 'mcc/omci_mcc_omci.c' || echo '$(srcdir)/'`mcc/omci_mcc_omci.c
+
+libomci_a-omci_mcc_omci.obj: mcc/omci_mcc_omci.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_omci.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_omci.Tpo -c -o libomci_a-omci_mcc_omci.obj `if test -f 'mcc/omci_mcc_omci.c'; then $(CYGPATH_W) 'mcc/omci_mcc_omci.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_omci.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_omci.Tpo $(DEPDIR)/libomci_a-omci_mcc_omci.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_omci.c' object='libomci_a-omci_mcc_omci.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_omci.obj `if test -f 'mcc/omci_mcc_omci.c'; then $(CYGPATH_W) 'mcc/omci_mcc_omci.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_omci.c'; fi`
+
+libomci_a-omci_mcc_pkt.o: mcc/omci_mcc_pkt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_pkt.o -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_pkt.Tpo -c -o libomci_a-omci_mcc_pkt.o `test -f 'mcc/omci_mcc_pkt.c' || echo '$(srcdir)/'`mcc/omci_mcc_pkt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_pkt.Tpo $(DEPDIR)/libomci_a-omci_mcc_pkt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_pkt.c' object='libomci_a-omci_mcc_pkt.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_pkt.o `test -f 'mcc/omci_mcc_pkt.c' || echo '$(srcdir)/'`mcc/omci_mcc_pkt.c
+
+libomci_a-omci_mcc_pkt.obj: mcc/omci_mcc_pkt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -MT libomci_a-omci_mcc_pkt.obj -MD -MP -MF $(DEPDIR)/libomci_a-omci_mcc_pkt.Tpo -c -o libomci_a-omci_mcc_pkt.obj `if test -f 'mcc/omci_mcc_pkt.c'; then $(CYGPATH_W) 'mcc/omci_mcc_pkt.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_pkt.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomci_a-omci_mcc_pkt.Tpo $(DEPDIR)/libomci_a-omci_mcc_pkt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mcc/omci_mcc_pkt.c' object='libomci_a-omci_mcc_pkt.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomci_a_CFLAGS) $(CFLAGS) -c -o libomci_a-omci_mcc_pkt.obj `if test -f 'mcc/omci_mcc_pkt.c'; then $(CYGPATH_W) 'mcc/omci_mcc_pkt.c'; else $(CYGPATH_W) '$(srcdir)/mcc/omci_mcc_pkt.c'; fi`
+
 libomcidaemon_a-omci_cli_access.o: cli/omci_cli_access.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomcidaemon_a_CFLAGS) $(CFLAGS) -MT libomcidaemon_a-omci_cli_access.o -MD -MP -MF $(DEPDIR)/libomcidaemon_a-omci_cli_access.Tpo -c -o libomcidaemon_a-omci_cli_access.o `test -f 'cli/omci_cli_access.c' || echo '$(srcdir)/'`cli/omci_cli_access.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomcidaemon_a-omci_cli_access.Tpo $(DEPDIR)/libomcidaemon_a-omci_cli_access.Po
@@ -3044,6 +3171,13 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_mac_bridge_port_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_mac_bridge_service_profile.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_managed_entity.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_core.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_dev.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_igmp.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_mld.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_omci.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_pkt.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_240.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_241.Po
@@ -3210,6 +3344,13 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomci_a-omci_mac_bridge_port_pmhd.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_mac_bridge_service_profile.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_managed_entity.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_core.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_dev.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_igmp.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_mld.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_omci.Po
+	-rm -f ./$(DEPDIR)/libomci_a-omci_mcc_pkt.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_240.Po
 	-rm -f ./$(DEPDIR)/libomci_a-omci_me_241.Po

@@ -21,6 +21,9 @@
 #include "me/omci_pptp_ethernet_uni.h"
 #include "me/omci_onu_power_shedding.h"
 #include "mcc/omci_api_mcc.h"
+#ifdef INCLUDE_MCC
+#include "mcc/omci_mcc.h"
+#endif
 
 /** \addtogroup OMCI_API
    @{
@@ -406,10 +409,19 @@ enum omci_error omci_init(struct omci_context **ref_context,
 		goto do_mib_destroy;
 	}
 
+#ifdef INCLUDE_MCC
+	/* initialize multicast control */
+	error = omci_mcc_init(context);
+	if (error) {
+		dbg_err("ERROR(%d) MCC init error", error);
+		goto do_mib_destroy;
+	}
+#endif
+
 	/* start core thread */
 	error = core_thread_start(context);
 	if (error)
-		goto do_mib_destroy;
+		goto do_mcc_shutdown;
 
 	/* start message handler thread */
 	error = action_thread_start(context);
@@ -447,6 +459,11 @@ do_action_thread_destroy:
 do_core_thread_stop:
 	(void)IFXOS_EventWakeUp(&context->msg_event);
 	(void)core_thread_stop(context);
+
+do_mcc_shutdown:
+#ifdef INCLUDE_MCC
+	(void)omci_mcc_exit(context);
+#endif
 
 do_mib_destroy:
 	(void)mib_destroy(context);
@@ -492,6 +509,9 @@ enum omci_error omci_shutdown(struct omci_context *context)
 
 #ifdef INCLUDE_PM
 	(void)pm_shutdown(context);
+#endif
+#ifdef INCLUDE_MCC
+	(void)omci_mcc_exit(context);
 #endif
 	(void)IFXOS_EventWakeUp(&context->msg_event);
 	(void)IFXOS_EventWakeUp(&context->action_handled_event);
