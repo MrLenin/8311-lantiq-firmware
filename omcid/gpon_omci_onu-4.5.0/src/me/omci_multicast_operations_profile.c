@@ -22,6 +22,7 @@
 #include "me/omci_multicast_operations_profile.h"
 #include "me/omci_api_multicast_operations_profile.h"
 #include "mcc/omci_api_mcc.h"
+#include "mcc/omci_mcc.h"
 
 /** \addtogroup OMCI_ME_MULTICAST_OPERATIONS_PROFILE
    @{
@@ -371,6 +372,80 @@ static inline enum omci_error static_acl_table_entry_set(struct omci_context
 	}
 }
 
+/* ---- tbl_ops: allow MCC bridge layer to iterate DACL/SACL entries ---- */
+
+/** Get next DACL entry for tbl_ops iteration.
+    prev=NULL returns first entry, prev=entry returns next.
+    Returns *data=NULL when no more entries.
+    Note: table_entry is at offset 0 of acl_list_entry so cast is valid. */
+static enum omci_error dacl_tbl_get(struct omci_context *context,
+				    const struct me *me,
+				    void **data,
+				    uint16_t data_size,
+				    const void *prev)
+{
+	struct internal_data *idata = (struct internal_data *)me->internal_data;
+	struct acl_list_entry *entry;
+
+	if (!prev) {
+		entry = idata->dynamic_list_head.next;
+	} else {
+		entry = ((struct acl_list_entry *)prev)->next;
+	}
+
+	if (entry == &idata->dynamic_list_head) {
+		*data = NULL;
+		return OMCI_SUCCESS;
+	}
+
+	*data = &entry->table_entry;
+	return OMCI_SUCCESS;
+}
+
+/** Get next SACL entry for tbl_ops iteration. */
+static enum omci_error sacl_tbl_get(struct omci_context *context,
+				    const struct me *me,
+				    void **data,
+				    uint16_t data_size,
+				    const void *prev)
+{
+	struct internal_data *idata = (struct internal_data *)me->internal_data;
+	struct acl_list_entry *entry;
+
+	if (!prev) {
+		entry = idata->static_list_head.next;
+	} else {
+		entry = ((struct acl_list_entry *)prev)->next;
+	}
+
+	if (entry == &idata->static_list_head) {
+		*data = NULL;
+		return OMCI_SUCCESS;
+	}
+
+	*data = &entry->table_entry;
+	return OMCI_SUCCESS;
+}
+
+static const struct tbl_ops dacl_tbl_ops = { NULL, dacl_tbl_get, NULL };
+static const struct tbl_ops sacl_tbl_ops = { NULL, sacl_tbl_get, NULL };
+
+static const struct tbl_ops *me_tbl_ops(struct omci_context *context,
+					struct me *me,
+					unsigned int attr)
+{
+	switch (attr) {
+	case omci_me_multicast_operations_profile_dynamic_acl_table:
+		return &dacl_tbl_ops;
+	case omci_me_multicast_operations_profile_static_acl_table:
+		return &sacl_tbl_ops;
+	default:
+		return NULL;
+	}
+}
+
+/* ---- API-layer helpers ------------------------------------------------- */
+
 static enum omci_error dacl_table_fill(struct me *me,
 				       struct omci_api_multicast_operations_profile_acl *acl)
 {
@@ -531,12 +606,7 @@ static enum omci_error me_tbl_copy(struct omci_context *context,
 				   unsigned int attr,
 				   struct tbl_copy_entry *tbl_copy)
 {
-	enum omci_api_return ret;
 	unsigned int i;
-	unsigned int lost_group_table_entries_num;
-	struct omci_api_multicast_operations_profile_lost_group_list_table_entry
-		*lost_group_table;
-	struct omci_lost_groups_table *lost_group_table_entry;
 	struct internal_data *me_internal_data;
 	struct acl_list_entry *list_entry;
 	struct omci_acl_table *tbl_entry;
@@ -640,62 +710,48 @@ static enum omci_error me_tbl_copy(struct omci_context *context,
 		error = OMCI_SUCCESS;
 		break;
 
-	case omci_me_multicast_operations_profile_lost_groups_table:
-		ret = omci_api_multicast_operations_profile_lost_group_list_table_get(
-			context->api,
-			me->instance_id, &lost_group_table_entries_num,
-			&lost_group_table);
+	case omci_me_multicast_operations_profile_lost_groups_table: {
+		struct mcc_lost_group *lgl = NULL;
+		uint32_t lgl_num = 0;
+		struct omci_lost_groups_table *lgl_entry;
 
-		if (ret != OMCI_API_SUCCESS) {
-			me_dbg_err(me, "DRV ERR(%d) Can't get "
-				   "Lost groups list table", ret);
-
-			dbg_out_ret(__func__, OMCI_ERROR_DRV);
-			return OMCI_ERROR_DRV;
-		}
-
-		if (lost_group_table_entries_num && !lost_group_table) {
-			me_dbg_err(me, "DRV ERR Can't get "
-				   "Lost groups list table, "
-				   "NULL table pointer");
-
-			dbg_out_ret(__func__, OMCI_ERROR_DRV);
-			return OMCI_ERROR_DRV;
+		error = mcc_policy_lgl_get(context, me->instance_id,
+					   &lgl, &lgl_num);
+		if (error != OMCI_SUCCESS) {
+			me_dbg_err(me, "MCC ERR(%d) Can't get "
+				   "Lost groups list table", error);
+			dbg_out_ret(__func__, error);
+			return error;
 		}
 
 		tbl_copy->data_size =
-			sizeof(struct omci_lost_groups_table)
-			* lost_group_table_entries_num;
+			sizeof(struct omci_lost_groups_table) * lgl_num;
 
-		if (!tbl_copy->data_size)
+		if (!tbl_copy->data_size) {
+			IFXOS_MemFree(lgl);
 			break;
+		}
 
 		tbl_copy->data = IFXOS_MemAlloc(tbl_copy->data_size);
 		if (!tbl_copy->data) {
-			IFXOS_MemFree(lost_group_table);
-
+			IFXOS_MemFree(lgl);
 			RETURN_IF_MALLOC_ERROR(tbl_copy->data);
 		}
 
-		lost_group_table_entry =
-			(struct omci_lost_groups_table *)tbl_copy->data;
+		lgl_entry = (struct omci_lost_groups_table *)tbl_copy->data;
 
-		for (i = 0; i < lost_group_table_entries_num; i++) {
-			lost_group_table_entry[i].vlan_id =
-				hton16(lost_group_table[i].vlan_id);
-
-			memcpy(lost_group_table_entry[i].source_ip,
-			       lost_group_table[i].src_ip_addr,
-			       sizeof(lost_group_table_entry[i].source_ip));
-
-			memcpy(lost_group_table_entry[i].dest_ip,
-			       lost_group_table[i].mc_dest_ip_addr,
-			       sizeof(lost_group_table_entry[i].dest_ip));
+		/* Convert mcc_lost_group → omci_lost_groups_table:
+		 * dest_ip is 16 bytes in MCC (IPv4 in bytes 12-15),
+		 * 4 bytes in OMCI table */
+		for (i = 0; i < lgl_num; i++) {
+			lgl_entry[i].vlan_id = hton16(lgl[i].vlan_id);
+			memcpy(lgl_entry[i].source_ip, lgl[i].src_ip, 4);
+			memcpy(lgl_entry[i].dest_ip, &lgl[i].dest_ip[12], 4);
 		}
 
-		IFXOS_MemFree(lost_group_table);
-		error = OMCI_SUCCESS;
+		IFXOS_MemFree(lgl);
 		break;
+	}
 
 	default:
 		error = OMCI_ERROR_INVALID_ME_ATTR;
@@ -1043,7 +1099,7 @@ struct me_class me_multicast_operations_profile_class = {
 	/* Table Attribute Copy Handler */
 	me_tbl_copy,
 	/* Table Attribute Operations Handler */
-	NULL,
+	me_tbl_ops,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,

@@ -21,6 +21,7 @@
 #include "me/omci_mac_bridge_port_config_data.h"
 #include "me/omci_multicast_subscriber_monitor.h"
 #include "me/omci_api_multicast_subscr_monitor.h"
+#include "mcc/omci_mcc.h"
 
 /** \addtogroup OMCI_ME_MULTICAST_SUBSCRIBER_MONITOR
    @{
@@ -52,19 +53,10 @@ static enum omci_error current_mc_bw_get(struct omci_context *context,
 					 void *data,
 					 size_t data_size)
 {
-	enum omci_api_return ret;
-	struct omci_api_multicast_subscriber_monitor_data monitor;
-
 	assert(data_size == 4);
-
-	ret = omci_api_multicast_subscriber_monitor_data_get(
-				context->api, me->instance_id, &monitor);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_ERROR_DRV;
-
-	*((uint32_t*)data) = monitor.curr_mc_bw;
-
-	return OMCI_SUCCESS;
+	return mcc_port_monitor_data_get(context, me->instance_id,
+					 MCC_MONITOR_TYPE_CURRENT_MC_BANDWIDTH,
+					 (uint32_t *)data);
 }
 
 static enum omci_error join_msg_cnt_get(struct omci_context *context,
@@ -72,19 +64,10 @@ static enum omci_error join_msg_cnt_get(struct omci_context *context,
 					void *data,
 					size_t data_size)
 {
-	enum omci_api_return ret;
-	struct omci_api_multicast_subscriber_monitor_data monitor;
-
 	assert(data_size == 4);
-
-	ret = omci_api_multicast_subscriber_monitor_data_get(
-				context->api, me->instance_id, &monitor);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_ERROR_DRV;
-
-	*((uint32_t*)data) = monitor.join_msg_cnt;
-
-	return OMCI_SUCCESS;
+	return mcc_port_monitor_data_get(context, me->instance_id,
+					 MCC_MONITOR_TYPE_JOIN_MSG_COUNTER,
+					 (uint32_t *)data);
 }
 
 static enum omci_error bw_exc_cnt_get(struct omci_context *context,
@@ -92,19 +75,10 @@ static enum omci_error bw_exc_cnt_get(struct omci_context *context,
 				      void *data,
 				      size_t data_size)
 {
-	enum omci_api_return ret;
-	struct omci_api_multicast_subscriber_monitor_data monitor;
-
 	assert(data_size == 4);
-
-	ret = omci_api_multicast_subscriber_monitor_data_get(
-				context->api, me->instance_id, &monitor);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_ERROR_DRV;
-
-	*((uint32_t*)data) = monitor.bw_exc_cnt;
-
-	return OMCI_SUCCESS;
+	return mcc_port_monitor_data_get(context, me->instance_id,
+					 MCC_MONITOR_TYPE_BW_EXCESS_COUNTER,
+					 (uint32_t *)data);
 }
 
 static enum omci_error me_tbl_copy(struct omci_context *context,
@@ -112,66 +86,29 @@ static enum omci_error me_tbl_copy(struct omci_context *context,
 				   unsigned int attr,
 				   struct tbl_copy_entry *tbl_copy)
 {
-	enum omci_api_return ret;
-	unsigned int i;
-	unsigned int agl_table_entries_num;
-	struct omci_api_multicast_subscriber_monitor_agl_table_entry *agl_table;
-	struct omci_agl_table *agl_table_entry;
-	struct internal_data *me_internal_data;
-	struct omci_me_multicast_subscriber_monitor *me_data;
-	enum omci_error error = OMCI_SUCCESS;
+	struct omci_ipv4_agl_table *agl = NULL;
+	uint32_t agl_num = 0;
+	enum omci_error error;
 
 	dbg_in(__func__, "%p, %p, %u, %p", (void *)context, (void *)me, attr,
 	       (void *)tbl_copy);
 
-	me_internal_data = (struct internal_data *)me->internal_data;
-	me_data = (struct omci_me_multicast_subscriber_monitor *) me->data;
-
 	if (attr == omci_me_multicast_subscriber_monitor_agl_table) {
-		ret = omci_api_multicast_subscriber_monitor_agl_table_get(
-			context->api, me->instance_id,
-			me_data->me_type,
-			&agl_table_entries_num, &agl_table);
-
-		if (ret != OMCI_API_SUCCESS) {
-			me_dbg_err(me, "DRV ERR(%d) Can't get "
-				   "Active group list table", ret);
-
-			dbg_out_ret(__func__, OMCI_ERROR_DRV);
-			return OMCI_ERROR_DRV;
+		error = mcc_port_monitor_ipv4_agl_get(context,
+						      me->instance_id,
+						      &agl, &agl_num);
+		if (error != OMCI_SUCCESS) {
+			me_dbg_err(me, "MCC ERR(%d) Can't get "
+				   "Active group list table", error);
+			dbg_out_ret(__func__, error);
+			return error;
 		}
 
-		if (agl_table_entries_num && !agl_table) {
-			me_dbg_err(me, "DRV ERR Can't get "
-				   "Active group list table, "
-				   "NULL table pointer");
-
-			dbg_out_ret(__func__, OMCI_ERROR_DRV);
-			return OMCI_ERROR_DRV;
-		}
-
+		/* omci_ipv4_agl_table and omci_agl_table have identical
+		 * packed layout (24 bytes each) — use buffer directly */
 		tbl_copy->data_size =
-			sizeof(struct omci_agl_table)
-			* agl_table_entries_num;
-
-		if (tbl_copy->data_size) {
-			tbl_copy->data = IFXOS_MemAlloc(tbl_copy->data_size);
-			if (!tbl_copy->data) {
-				IFXOS_MemFree(agl_table);
-	
-				RETURN_IF_MALLOC_ERROR(tbl_copy->data);
-			}
-	
-			agl_table_entry =
-					(struct omci_agl_table *)tbl_copy->data;
-	
-			for (i = 0; i < agl_table_entries_num; i++)
-				memcpy(&agl_table_entry[i], &agl_table[i],
-				       sizeof(agl_table[i]));
-	
-			IFXOS_MemFree(agl_table);
-			error = OMCI_SUCCESS;
-		}
+			sizeof(struct omci_agl_table) * agl_num;
+		tbl_copy->data = agl;
 	} else {
 		error = OMCI_ERROR_INVALID_ME_ATTR;
 	}

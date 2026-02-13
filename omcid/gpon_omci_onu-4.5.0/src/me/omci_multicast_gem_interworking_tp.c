@@ -20,6 +20,7 @@
 #include "omci_me_handlers.h"
 #include "me/omci_multicast_gem_interworking_tp.h"
 #include "me/omci_api_multicast_gem_interworking_tp.h"
+#include "me/omci_api_gem_interworking_tp.h"
 #include "me/omci_gem_port_network_ctp.h"
 
 /* Programming hint:
@@ -225,6 +226,48 @@ static inline enum omci_error mc_addr_table_entry_set(struct omci_context
 	dbg_out_ret(__func__, OMCI_SUCCESS);
 	return OMCI_SUCCESS;
 }
+
+/* ---- tbl_ops: allow MCC bridge layer to iterate MC address table ----- */
+
+/** Get next MC address table entry for tbl_ops iteration.
+    Note: table_entry is at offset 0 of mc_addr_list_entry so cast is valid. */
+static enum omci_error mc_addr_tbl_get(struct omci_context *context,
+				       const struct me *me,
+				       void **data,
+				       uint16_t data_size,
+				       const void *prev)
+{
+	struct internal_data *idata = (struct internal_data *)me->internal_data;
+	struct mc_addr_list_entry *entry;
+
+	if (!prev) {
+		entry = idata->list_head.next;
+	} else {
+		entry = ((struct mc_addr_list_entry *)prev)->next;
+	}
+
+	if (entry == &idata->list_head) {
+		*data = NULL;
+		return OMCI_SUCCESS;
+	}
+
+	*data = &entry->table_entry;
+	return OMCI_SUCCESS;
+}
+
+static const struct tbl_ops mc_addr_tbl_ops = { NULL, mc_addr_tbl_get, NULL };
+
+static const struct tbl_ops *me_tbl_ops(struct omci_context *context,
+					struct me *me,
+					unsigned int attr)
+{
+	if (attr ==
+	    omci_me_multicast_gem_interworking_tp_mc_address_table)
+		return &mc_addr_tbl_ops;
+	return NULL;
+}
+
+/* -------------------------------------------------------------------- */
 
 static enum omci_error me_update(struct omci_context *context,
 				 struct me *me,
@@ -632,7 +675,7 @@ struct me_class me_multicast_get_interworking_tp_class = {
 	/* Table Attribute Copy Handler */
 	me_tbl_copy,
 	/* Table Attribute Operations Handler */
-	NULL,
+	me_tbl_ops,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,

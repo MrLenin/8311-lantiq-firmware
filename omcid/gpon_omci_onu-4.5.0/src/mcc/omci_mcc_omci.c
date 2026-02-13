@@ -5,7 +5,7 @@
  *
  * OMCI bridge layer: reads ME data for MCC multicast policy decisions.
  * Ported from gpon_omci_onu-8.6.3 with v4.5.0 adaptations:
- *   - No EMOP (ME 420) — only MOP (ME 309)
+ *   - No ZTE EMOP (ME 65282) — only MOP (ME 309)
  *   - No service package table on ME 310 — direct MOP pointer
  *   - Single MC address table on ME 281 (IPv4 only, no split IPv4/IPv6)
  *   - tbl_ops infrastructure for table iteration (registered in Step 7)
