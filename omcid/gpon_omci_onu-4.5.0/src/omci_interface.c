@@ -507,6 +507,8 @@ enum omci_error omci_shutdown(struct omci_context *context)
 
 	dbg_in(__func__, "%p", (void *)context);
 
+	context->omci_shutdown_in_progress = true;
+
 #ifdef INCLUDE_PM
 	(void)pm_shutdown(context);
 #endif

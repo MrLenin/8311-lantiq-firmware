@@ -299,13 +299,13 @@ static inline uint32_t uint64_lo(uint64_t val)
 	} while (0)
 
 /** Return with \ref omci_error::OMCI_ERROR_BOUNDS
-    if DATA_SIZE < REQ_SIZE */
-#define RETURN_IF_BOUNDS_ERROR(DATA_SIZE, REQ_SIZE) \
+    if DATA_SIZE > MAX_SIZE */
+#define RETURN_IF_BOUNDS_ERROR(DATA_SIZE, MAX_SIZE) \
 	do { \
-		if ((DATA_SIZE) < (REQ_SIZE)) { \
+		if ((DATA_SIZE) > (MAX_SIZE)) { \
 			dbg_err("ERROR(%d) " \
 				"Bounds error (" #DATA_SIZE \
-				" > " #REQ_SIZE ")" \
+				" > " #MAX_SIZE ")" \
 				" in %s", \
 				OMCI_ERROR_BOUNDS, \
 				__func__); \

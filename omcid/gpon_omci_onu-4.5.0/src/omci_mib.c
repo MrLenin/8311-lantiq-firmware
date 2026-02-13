@@ -944,6 +944,8 @@ enum omci_error mib_reset(struct omci_context *context, bool force)
 
 	dbg_msg("MIB reset occurred");
 
+	context->mib_reset_in_progress = true;
+
 	retransmit_flush(context);
 
 #ifndef OMCI_DEBUG_DISABLE
@@ -985,6 +987,8 @@ enum omci_error mib_reset(struct omci_context *context, bool force)
 
 	} else
 		mib_unlock(context);
+
+	context->mib_reset_in_progress = false;
 
 exit:
 #ifndef OMCI_DEBUG_DISABLE
