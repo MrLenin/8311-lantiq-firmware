@@ -72,6 +72,8 @@ struct mcc_dev_ctx {
 	int exc_sock;
 	/** "exc" interface index */
 	int exc_ifindex;
+	/** VLAN-unaware mode flag (use default FID for all multicast) */
+	bool vlan_unaware;
 };
 
 /* Device layer functions — implemented in omci_mcc_dev.c */

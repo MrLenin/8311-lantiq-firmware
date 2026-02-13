@@ -94,6 +94,7 @@ make -j"$(nproc)"
 echo "=== Building omcid ==="
 cd "$OMCI_ONU_SRC"
 if [ ! -f Makefile ]; then
+	CPPFLAGS="-I${ONU_DRV_INC}" \
 	./configure \
 		--host="$HOST" \
 		--build="$BUILD" \
