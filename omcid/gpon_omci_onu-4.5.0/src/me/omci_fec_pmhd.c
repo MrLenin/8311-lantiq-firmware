@@ -272,6 +272,8 @@ struct me_class me_fec_pmhd_class = {
 	default_me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
+	/* Table Attribute Operations Handler */
+	NULL,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	me_counters_get,

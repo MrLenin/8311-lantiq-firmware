@@ -282,6 +282,8 @@ struct me_class me_dot1p_rate_limiter_class = {
 	me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
+	/* Table Attribute Operations Handler */
+	NULL,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,

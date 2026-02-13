@@ -399,6 +399,66 @@ typedef enum omci_error (me_tbl_copy_handler) (struct omci_context *context,
 					       unsigned int attr,
 					       struct tbl_copy_entry *tbl_copy);
 
+/** Table SET operation
+
+   \param[in] context   OMCI context pointer
+   \param[in] me        Managed Entity pointer
+   \param[in] data      Data to set
+   \param[in] data_size Data size
+*/
+typedef enum omci_error (me_tbl_op_set)(struct omci_context *context,
+					struct me *me,
+					const void *data,
+					uint16_t data_size);
+
+/** Table GET operation
+
+   \param[in]  context   OMCI context pointer
+   \param[in]  me        Managed Entity pointer
+   \param[out] data      Pointer to data which will be filled
+   \param[in]  data_size Data size
+   \param[in]  prev      Previous entry pointer (NULL for first)
+*/
+typedef enum omci_error (me_tbl_op_get)(struct omci_context *context,
+					const struct me *me,
+					void **data,
+					uint16_t data_size,
+					const void *prev);
+
+/** Table SWAP handler
+
+   \param[in] context   OMCI context pointer
+   \param[in] me        Managed Entity pointer
+   \param[in] data      Data to swap
+   \param[in] data_size Data size
+*/
+typedef enum omci_error (me_tbl_op_swp)(struct omci_context *context,
+					struct me *me,
+					void *data,
+					uint16_t data_size);
+
+/** Table operations structure */
+struct tbl_ops {
+	/** Set handler */
+	me_tbl_op_set *set;
+	/** Get handler */
+	me_tbl_op_get *get;
+	/** Swap handler */
+	me_tbl_op_swp *swap;
+};
+
+/** Managed Entity table attribute operations handler
+
+   \param[in] context  OMCI context pointer
+   \param[in] me       Managed Entity pointer
+   \param[in] attr     Attribute position
+
+   \return Attribute operations pointer
+*/
+typedef const struct tbl_ops *(me_tbl_ops_handler)(struct omci_context *context,
+						   struct me *me,
+						   unsigned int attr);
+
 /** Managed Entity attribute structure */
 struct me_attr {
 	/** Offset of the attribute from the beginning of the data (in bytes).
@@ -507,6 +567,9 @@ struct me_class {
 	/** Managed Entity table attribute copy handler*/
 	me_tbl_copy_handler *const tbl_copy;
 
+	/** Managed Entity table attribute operations handler*/
+	me_tbl_ops_handler *const tbl_ops;
+
 #ifdef INCLUDE_PM
 	/** PM Managed Entity counters get handler */
 	pm_counters_get_handler *const counters_get;
@@ -604,6 +667,23 @@ const struct me_attr *me_attr_get(const struct me_class *me_class,
 				  unsigned int attr)
 {
 	return &me_class->attrs[attr - 1];
+}
+
+/** Get table attribute operations
+
+   \param[in] context  OMCI context pointer
+   \param[in] me       Managed Entity pointer
+   \param[in] attr     Attribute position
+
+   \return Table Attribute operations pointer
+*/
+static inline
+const struct tbl_ops *me_tbl_ops_get(struct omci_context *context,
+				     struct me *me, unsigned int attr)
+{
+	if (me->class->tbl_ops)
+		return me->class->tbl_ops(context, me, attr);
+	return NULL;
 }
 
 /** Get attribute size

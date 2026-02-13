@@ -417,6 +417,16 @@ void retransmit_flush(struct omci_context *context);
 
 void omci_handler_install(void);
 
+/** Convert UNI ME instance ID to LAN port index
+
+   UNI ME instances encode the port number in the low byte
+   (e.g. ME ID 0x0101 = slot 1, port 1 -> port index 0).
+
+   \param[in]  me_id  Managed Entity instance identifier
+   \param[out] port   Returns LAN port index (0-based)
+*/
+enum omci_error uni2port(const uint16_t me_id, uint8_t *port);
+
 /** @} */
 
 #endif

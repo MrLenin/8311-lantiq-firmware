@@ -198,6 +198,8 @@ struct me_class me_omci_class = {
 	default_me_update,
 	/* Table Attribute Copy Handler */
 	me_tbl_copy,
+	/* Table Attribute Operations Handler */
+	NULL,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,

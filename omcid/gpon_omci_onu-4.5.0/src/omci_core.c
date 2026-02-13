@@ -1343,4 +1343,16 @@ enum omci_error attr_swap(const struct me_class *me_class,
 }
 #endif
 
+enum omci_error uni2port(const uint16_t me_id, uint8_t *port)
+{
+	if ((me_id & 0xFF) == 0) {
+		/* port index can't be 0 */
+		return OMCI_ERROR;
+	}
+
+	*port = (me_id & 0xFF) - 1;
+
+	return OMCI_SUCCESS;
+}
+
 /** @} */

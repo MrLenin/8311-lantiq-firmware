@@ -279,6 +279,8 @@ struct me_class me_vlan_tagging_filter_data_class = {
 	me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
+	/* Table Attribute Operations Handler */
+	NULL,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,

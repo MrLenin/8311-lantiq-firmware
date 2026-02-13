@@ -36,6 +36,13 @@ __BEGIN_DECLS
     @{
 */
 
+/** MOP IGMP/MLD version code points */
+#define OMCI_MOP_IGMP_V1		1
+#define OMCI_MOP_IGMP_V2		2
+#define OMCI_MOP_IGMP_V3		3
+#define OMCI_MOP_MLD_V1		16
+#define OMCI_MOP_MLD_V2		17
+
 /** Dynamic/Static ACL table entry delete operation */
 #define OMCI_ACL_TABLE_ENTRY_DELETE                              (1 << 15)
 

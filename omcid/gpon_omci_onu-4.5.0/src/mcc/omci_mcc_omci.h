@@ -7,9 +7,8 @@
  * this software module.
  *
  * Ported from gpon_omci_onu-8.6.3 — OMCI bridge layer.
- * These functions read ME data directly using v4.5.0 ME access patterns
- * (me_data_read, mib_get, mib_walk_by_class) instead of v8.6.3's
- * me_attr_read.
+ * These functions read ME data for MCC multicast policy decisions
+ * using me_attr_read, mib_me_find, mib_walk_by_class, and tbl_ops.
  ******************************************************************************/
 #ifndef _omci_mcc_omci_h
 #define _omci_mcc_omci_h

@@ -431,6 +431,8 @@ struct me_class me_gem_port_network_ctp_class = {
 	me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
+	/* Table Attribute Operations Handler */
+	NULL,
 #ifdef INCLUDE_PM
 	/* Counters get Handler */
 	NULL,
