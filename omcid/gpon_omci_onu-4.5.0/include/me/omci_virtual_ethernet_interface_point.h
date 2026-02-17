@@ -86,6 +86,17 @@ struct omci_me_virtual_ethernet_interface_point {
 	uint16_t iana_assigned_port;
 } __PACKED__;
 
+/** This enumerator holds the attribute numbers of the Virtual Ethernet
+    interface point Managed Entity.
+*/
+enum {
+	omci_me_veip_admin_state = 1,
+	omci_me_veip_oper_state = 2,
+	omci_me_veip_interdomain_name = 3,
+	omci_me_veip_tcp_udp_pointer = 4,
+	omci_me_veip_iana_assigned_port = 5
+};
+
 /** @} */
 
 /** @} */

@@ -10,6 +10,8 @@
  * v8.6.3, using our mcc_list infrastructure and DLIST macros for headless
  * chain iteration. Per-port locking on all flow/monitor operations.
  ******************************************************************************/
+#include <unistd.h>
+
 #define OMCI_DBG_MODULE OMCI_DBG_MODULE_ME
 
 #include "omci_core.h"
@@ -201,7 +203,12 @@ static enum omci_error mcc_port_monitor_agl_get(struct omci_context *context,
 						void **agl,
 						uint32_t *agl_num)
 {
-	struct mcc_ctx *mcc = (struct mcc_ctx *)context->mcc;
+	struct mcc_ctx *mcc;
+
+	if (!context || !context->mcc || !agl || !agl_num)
+		return OMCI_ERROR;
+
+	mcc = (struct mcc_ctx *)context->mcc;
 	uint32_t str_max;
 	uint8_t port_idx;
 	enum omci_error error;
@@ -347,6 +354,7 @@ enum omci_error omci_mcc_init(struct omci_context *context)
 	mcc->vlan_mode = MCC_VLAN_MODE_UNAWARE;
 
 	/* Initialize device layer with shared /dev/onu0 fd */
+	write(STDERR_FILENO, "[omcid] MCC: mcc_dev_init...\n", 29);
 	error = mcc_dev_init(&mcc->dev,
 			     omci_api_onu_fd_get(context->api),
 			     omci_api_remote_get(context->api),
@@ -356,6 +364,7 @@ enum omci_error omci_mcc_init(struct omci_context *context)
 		IFXOS_MemFree(mcc);
 		return error;
 	}
+	write(STDERR_FILENO, "[omcid] MCC: mcc_dev_init ok\n", 29);
 
 	if (max_ports == 0)
 		max_ports = 4; /* Falcon default: 4 UNI ports */
@@ -386,6 +395,7 @@ enum omci_error omci_mcc_init(struct omci_context *context)
 	context->mcc = mcc;
 
 	/* Start packet receiving thread */
+	write(STDERR_FILENO, "[omcid] MCC: mcc_thread_start...\n", 33);
 	error = mcc_thread_start(mcc);
 	if (error != OMCI_SUCCESS) {
 		dbg_err("MCC: thread start failed (%d)", error);

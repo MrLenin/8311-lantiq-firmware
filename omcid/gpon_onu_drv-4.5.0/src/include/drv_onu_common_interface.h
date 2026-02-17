@@ -64,8 +64,8 @@ struct fio_exchange {
     Used by \ref FIO_ONU_DEBUG_LEVEL_SET and \ref FIO_ONU_DEBUG_LEVEL_GET.
 */
 struct onu_dbg_level {
-	/** Debug level.*/
-	uint8_t level;
+	/** Debug level. Widened from uint8_t in v7.5.1. */
+	uint32_t level;
 } __PACKED__;
 
 /** Structure for test mode setting.
@@ -114,8 +114,8 @@ struct onu_version_string {
     Used by \ref  FIO_ONU_REGISTER_GET.
 */
 struct onu_reg_addr {
-	/** 8, 16, 32 bit access.*/
-	uint8_t form;
+	/** 8, 16, 32 bit access. Widened from uint8_t in v7.5.1. */
+	uint32_t form;
 	/** Register address.*/
 	ulong_t address;
 } __PACKED__;
@@ -123,8 +123,8 @@ struct onu_reg_addr {
 /** Structure specifies HW register value.
 */
 struct onu_reg_val {
-	/** 8, 16, 32 bit access.*/
-	uint8_t form;
+	/** 8, 16, 32 bit access. Widened from uint8_t in v7.5.1. */
+	uint32_t form;
 	/** Register value.*/
 	uint32_t value;
 } __PACKED__;
@@ -142,8 +142,8 @@ union onu_register_get_u {
 /** Structure for register access (Write access).
 */
 struct onu_reg_addr_val {
-	/** 8, 16, 32 bit access.*/
-	uint8_t form;
+	/** 8, 16, 32 bit access. Widened from uint8_t in v7.5.1. */
+	uint32_t form;
 	/** Register address.*/
 	ulong_t address;
 	/** Register value.*/
@@ -292,6 +292,19 @@ struct onu_sync_time {
 
 */
 #define FIO_ONU_COUNTERS_RESET _IOW(ONU_MAGIC, 14, struct onu_cnt_reset)
+
+/**
+   v7.5.1: Retrieve the LAN port-to-UNI mapping from the kernel.
+
+   Returns a 12-byte structure:
+     byte 0:   number of defined LAN ports (count)
+     bytes 1+: UNI ID for each LAN port index (count entries)
+
+   The kernel provides the hardware-specific mapping between GPE LAN port
+   indices and OMCI UNI ME instance IDs. This replaced the v4.5.0 file-based
+   uni2lan mapping (the -u command line option).
+*/
+#define FIO_ONU_LAN_PORTMAP_GET _IOR(ONU_MAGIC, 0x11, char[12])
 
 /**
    CLI access

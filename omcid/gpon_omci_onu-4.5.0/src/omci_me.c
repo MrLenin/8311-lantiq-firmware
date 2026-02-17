@@ -10,11 +10,17 @@
 ******************************************************************************/
 #include "ifxos_memory_alloc.h"
 #include "ifxos_time.h"
+#include <stdio.h>
 
 #define OMCI_DBG_MODULE OMCI_DBG_MODULE_CORE
 
 #include "omci_core.h"
 #include "omci_debug.h"
+
+#define DLOG(fmt, ...) do { \
+	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
+	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
+} while (0)
 
 /** \addtogroup OMCI_MIB
    @{
@@ -312,10 +318,15 @@ enum omci_error me_data_fetch(struct omci_context *context,
 		attr_get_handler = me_attr_get_handler_get(me->class,
 							   attr);
 		if (attr_get_handler) {
+			DLOG("  fetch: cls=%u attr=%u handler=%p",
+			     me->class->class_id, attr,
+			     (void *)attr_get_handler);
 			error = attr_get_handler(context, me,
 						 (uint8_t *)fetched_data +
 						 attr_data_offset,
 						 attr_size);
+			DLOG("  fetch: cls=%u attr=%u done err=%d",
+			     me->class->class_id, attr, error);
 
 			if (error) {
 				me_dbg_err(me, "ME attribute get handler error "

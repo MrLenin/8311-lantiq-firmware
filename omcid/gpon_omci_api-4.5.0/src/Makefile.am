@@ -53,6 +53,8 @@ libomciapi_a_extra = \
    @top_srcdir@/include/me/omci_api_onu2_g.h \
    @top_srcdir@/include/me/omci_api_dot1x_port_ext_pkg.h \
    @top_srcdir@/include/me/omci_api_pptp_ethernet_uni.h \
+   @top_srcdir@/include/me/omci_api_pptp_lct_uni.h \
+   @top_srcdir@/include/me/omci_api_veip.h \
    @top_srcdir@/include/me/omci_api_priority_queue.h \
    @top_srcdir@/include/me/omci_api_sw_image.h \
    @top_srcdir@/include/me/omci_api_sw_image_falcon.h \
@@ -119,6 +121,8 @@ libomciapi_a_SOURCES = \
    me/omci_api_onu_g.c \
    me/omci_api_onu2_g.c \
    me/omci_api_pptp_ethernet_uni.c \
+   me/omci_api_pptp_lct_uni.c \
+   me/omci_api_veip.c \
    me/omci_api_priority_queue.c \
    me/omci_api_sw_image.c \
    me/omci_api_sw_image_falcon.c \

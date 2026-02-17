@@ -400,65 +400,77 @@ union gpe_acl_table_entry_u {
 };
 
 /** Structure to define the firmware constants of the SCE.
-   Used by \ref FIO_GPE_SCE_CONSTANTS_GET and \ref FIO_GPE_SCE_CONSTANTS_SET. */
+   Used by \ref FIO_GPE_SCE_CONSTANTS_GET and \ref FIO_GPE_SCE_CONSTANTS_SET.
+
+   8311 mod: Rewritten to match v7.5.1 kernel module layout (176 bytes).
+   Field names from mod_onu.ko CLI help text. v4.5.0 names noted where changed.
+   Key differences from v4.5.0:
+   - local_cpu_mac[6] removed
+   - 4 new uint32_t fields inserted after pcp_max_prio (was unused1)
+   - policer thresholds renamed to exception masks (different semantics)
+   - 19 new trailing fields added */
 struct gpe_sce_constants {
 	/** Enable the firmware to process data. Do not change this value!!! */
-	uint32_t packet_processing_enable;
-	/** The default FID is used for untagged or unknown packets.
-	The eight leftmost bits of the value are used,
-	the 24 rightmost bits are set to 0. */
-	uint32_t default_fid;
+	uint32_t packet_processing_enable;                      /* offset  0 */
+	/** EAPoL transparent enable. v4.5.0: default_fid */
+	uint32_t eapol_transparent_enable;                      /* offset  4 */
 	/** Default outer VID. */
-	uint16_t default_outer_vid;
+	uint16_t default_outer_vid;                             /* offset  8 */
 	/** Default inner VID. */
-	uint16_t default_inner_vid;
-	/** Default DSCP value. The six leftmost bits of the value are used,
-	the 26 rightmost bits are set to 0. */
-	uint32_t default_dscp;
-	/** unused */
-	uint32_t unused0;
-	/** Forwarding table size. This value is used by the aging process. */
-	uint32_t fwd_table_size;
-	/** TPID value A. Used to identify a VLAN tag. */
-	uint16_t tpid_a;
-	/** TPID value B. Used to identify a VLAN tag. */
-	uint16_t tpid_b;
-	/** TPID value C. Used to identify a VLAN tag. */
-	uint16_t tpid_c;
-	/** TPID value D. Used to identify a VLAN tag. */
-	uint16_t tpid_d;
-	/** Unused data value. Do not change this value. */
-	uint32_t unused;
+	uint16_t default_inner_vid;                             /* offset 10 */
+	/** Default DSCP value. */
+	uint32_t default_dscp;                                  /* offset 12 */
+	/** VLAN-unaware L3 multicast. v4.5.0: unused0 */
+	uint32_t vlan_unaware_l3_mc;                            /* offset 16 */
+	/** Forwarding table size. Used by the aging process. */
+	uint32_t fwd_table_size;                                /* offset 20 */
+	/** TPID values A-D. Used to identify VLAN tags. */
+	uint16_t tpid_a;                                        /* offset 24 */
+	uint16_t tpid_b;                                        /* offset 26 */
+	uint16_t tpid_c;                                        /* offset 28 */
+	uint16_t tpid_d;                                        /* offset 30 */
+	/** Global timer. v4.5.0: unused */
+	uint32_t global_timer;                                  /* offset 32 */
 	/** Internal firmware timing control. Do not change this value. */
-	uint32_t added_latency;
-	/** unused */
-	uint32_t unused1;
-	/** MAC Address of Local CPU, used for LCT.
-	    MAC=aa:bb:cc:dd:ee:ff corresponds to
-	    local_cpu_mac[0]=aa,local_cpu_mac[1]=bb,local_cpu_mac[2]=cc,
-	    local_cpu_mac[3]=dd,local_cpu_mac[4]=ee,local_cpu_mac[5]=ff */
-	uint8_t local_cpu_mac[6];
-	/** Dual token bucket meter ID for ANI exception traffic for both
-	    the ANI ingress as well as the ANI egress.
-	    Must be less than \ref ONU_GPE_MAX_SHAPER.*/
-	uint32_t ani_exception_meter_id;
-	/** Enable bit for both ingress and egress dual token bucket meter
-	    selection for ANI exception traffic. */
-	uint32_t ani_exception_enable;
-	/** Threshold for ANI exceptions including IGMP for both directions
-	    the ANI Ingress and ANI egress, Unit: packets/28 ms, 0: policer is disabled */
-	uint32_t ani_except_policer_threshold;
-	/** Threshold for non-IGMP UNI exceptions excluding IGMP for both directions
-	    the UNI Ingress and UNI egress, Unit: packets/28 ms, 0: policer is disabled */
-	uint32_t uni_except_policer_threshold;
-	/** Threshold for IGMP exceptions for both directions UNI Ingress
-	    and UNI Egress, Unit: packets/28 ms, 0: policer is disabled */
-	uint32_t igmp_except_policer_threshold;
-	/** Policer/meter mode selection:
-	    0: Use layer 2 packet size information, if available; else use
-	         layer 2
-	    1: Use layer 2 packet length information always. */
-	uint32_t meter_l2_only_enable;
+	uint32_t added_latency;                                 /* offset 36 */
+	/** PCP max priority. v4.5.0: unused1 */
+	uint32_t pcp_max_prio;                                  /* offset 40 */
+	/* --- v7.5.1 inserted fields (replaced local_cpu_mac[6]) --- */
+	uint32_t pcp_max_prio_enable;                           /* offset 44 */
+	uint32_t unused2;                                       /* offset 48 */
+	uint32_t tci_disable;                                   /* offset 52 */
+	uint32_t dual_if_enable;                                /* offset 56 */
+	/* --- end inserted fields --- */
+	/** Dual token bucket meter ID for ANI exception traffic.
+	    Must be less than \ref ONU_GPE_MAX_SHAPER. */
+	uint32_t ani_exception_meter_id;                        /* offset 60 */
+	/** Enable bit for ANI exception traffic meter. */
+	uint32_t ani_exception_enable;                          /* offset 64 */
+	/** Exception drop mask. v4.5.0: ani_except_policer_threshold */
+	uint32_t drop_mask;                                     /* offset 68 */
+	/** Exception transparent mask. v4.5.0: uni_except_policer_threshold */
+	uint32_t transparent_mask;                              /* offset 72 */
+	/** Exception extraction mask. v4.5.0: igmp_except_policer_threshold */
+	uint32_t extraction_mask;                               /* offset 76 */
+	/** Policer/meter mode: 0=L2 if available, 1=always L2. */
+	uint32_t meter_l2_only_enable;                          /* offset 80 */
+	/* --- v7.5.1 new trailing fields --- */
+	uint32_t vinax_tag;                                     /* offset 84 */
+	uint32_t l4_disable;                                    /* offset 88 */
+	uint32_t l3_disable;                                    /* offset 92 */
+	uint32_t common_ip_handling_en;                         /* offset 96 */
+	uint32_t lrn_full_fwd;                                  /* offset 100 */
+	uint32_t default_outer_pbit_enable;                     /* offset 104 */
+	uint32_t default_outer_pbit;                            /* offset 108 */
+	uint32_t ani_pcp_en;                                    /* offset 112 */
+	uint32_t uxc_meter_id;                                  /* offset 116 */
+	uint32_t uxc_meter_enable;                              /* offset 120 */
+	uint32_t vlan_meter_offset;                             /* offset 124 */
+	uint32_t trunking_enable;                               /* offset 128 */
+	uint32_t triple_trunking;                               /* offset 132 */
+	uint32_t tcp_pingpong;                                  /* offset 136 */
+	uint32_t vlan_trunking;                                 /* offset 140 */
+	uint32_t traffic_class_map[8];                          /* offset 144-175 */
 } __PACKED__;
 
 /** Structure to add a LAN port to a multicast flow.
@@ -498,6 +510,8 @@ struct gpe_mac_mc_port_modify {
 	    mc_mac[0]=aa,mc_mac[1]=bb,mc_mac[2]=cc,
 	    mc_mac[3]=dd,mc_mac[4]=ee,mc_mac[5]=ff */
 	uint8_t mc_mac[6];
+	/** v7.5.1 reserved padding (22->26 bytes) */
+	uint32_t _v751_reserved;
 } __PACKED__;
 
 /** Structure to add a LAN port to a multicast flow.
@@ -516,6 +530,8 @@ struct gpe_ipv4_mc_port {
 	    IP=aaa.bbb:ccc:ddd corresponds to
 	    ip[0]=aaa,ip[1]=bbb,ip[2]=ccc,ip[3]=ddd*/
 	uint8_t ip[4];
+	/** v7.5.1 reserved padding (16->20 bytes) */
+	uint32_t _v751_reserved;
 } __PACKED__;
 
 /** Structure to add a LAN port to a multicast flow.
@@ -535,6 +551,8 @@ struct gpe_ipv4_mc_port_modify {
 	    IP=aaa.bbb:ccc:ddd corresponds to
 	    ip[0]=aaa,ip[1]=bbb,ip[2]=ccc,ip[3]=ddd*/
 	uint8_t ip[4];
+	/** v7.5.1 reserved padding (20->28 bytes) */
+	uint32_t _v751_reserved[2];
 } __PACKED__;
 
 /** Structure to define the SCE Local CPU MAC address.
@@ -545,6 +563,22 @@ struct gpe_sce_mac {
 	    local_cpu_mac[0]=aa,local_cpu_mac[1]=bb,local_cpu_mac[2]=cc,
 	    local_cpu_mac[3]=dd,local_cpu_mac[4]=ee,local_cpu_mac[5]=ff */
 	uint8_t local_cpu_mac[6];
+} __PACKED__;
+
+/** Structure for MAC DA filter entry add/remove operations.
+    Used by \ref FIO_GPE_MAC_DA_FILTER_ENTRY_ADD and
+    \ref FIO_GPE_MAC_DA_FILTER_ENTRY_REMOVE.
+
+    v7.5.1 addition: These ioctls manage the GPE MAC DA filter table
+    entries used for LOCAL_MAC exception matching. The filter_index is
+    passed in as a hint (or -1 for first call) and returned with the
+    actual table index after the coprocessor processes the request. */
+struct gpe_mac_da_filter_entry {
+	/** Filter table index. Set to -1 on first add.
+	    Updated by kernel with actual index on return. */
+	uint32_t filter_index;
+	/** MAC address (6 bytes, network byte order). */
+	uint8_t mac_address[6];
 } __PACKED__;
 
 /** Structure to handle input data for FID assignment.
@@ -864,7 +898,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
 #define FIO_GPE_LONG_FWD_ADD _IOW(GPE_TABLE_MAGIC, \
-				       0xD, struct gpe_table_entry)
+				       0xD, char[48])
 
 /**
    Delete IPv6 multicast table entry.
@@ -882,43 +916,15 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
 #define FIO_GPE_LONG_FWD_DELETE _IOW(GPE_TABLE_MAGIC, \
-					0xE, struct gpe_table_entry)
+					0xE, char[48])
 
-/**
-   Get a VLAN tagging filter table entry.
-   This is a dedicated function to access the VLAN tagging filter table entries.
-   The table is selected by its table index. Multiple instances of a table
-   must be read one by one, one function call each.
-
-   \param gpe_tagging_filter_get_u Pointer to \ref gpe_tagging_filter_get_u.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - 0: if successful
-   - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
-*/
+/* Removed in v7.5.1: FIO_GPE_TAGGING_FILTER_GET (was cmd 0x0F)
 #define FIO_GPE_TAGGING_FILTER_GET _IOWR(GPE_TABLE_MAGIC, \
 				  0xF, union gpe_tagging_filter_get_u)
-
-/**
-   Set a VLAN tagging filter table entry.
-   This is a dedicated function to access the VLAN tagging filter table entries.
-   The table is selected by its table index. Multiple instances of a table
-   must be read one by one, one function call each.
-
-   \param gpe_tagging Pointer to \ref gpe_tagging.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - 0: if successful
-   - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
-#define FIO_GPE_TAGGING_FILTER_SET _IOW(GPE_TABLE_MAGIC, \
-				 0x10, struct gpe_tagging)
+
+/* Removed in v7.5.1 — dead ioctl, will return ENOTTY at runtime */
+#define FIO_GPE_TAGGING_FILTER_SET _IOW(0xFF, 0x03, struct gpe_tagging)
 
 /**
    Read table0 table entry.
@@ -937,7 +943,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
 #define FIO_GPE_COP_TABLE0_READ _IOW(GPE_TABLE_MAGIC, \
-				 0x11, struct gpe_table_entry)
+				 0x0F, struct gpe_table_entry)
 
 /**
    Add SHORT FWD MAC table entry. This is a dedicated function to access the
@@ -954,7 +960,7 @@ union gpe_vlan_fid_u {
    - 0: if successful
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
-#define FIO_GPE_SHORT_FWD_ADD _IOW(GPE_TABLE_MAGIC, 0x12, \
+#define FIO_GPE_SHORT_FWD_ADD _IOW(GPE_TABLE_MAGIC, 0x10, \
 				   struct gpe_table_entry)
 
 /**
@@ -972,7 +978,7 @@ union gpe_vlan_fid_u {
    - 0: if successful
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
-#define FIO_GPE_SHORT_FWD_DELETE _IOW(GPE_TABLE_MAGIC, 0x13, \
+#define FIO_GPE_SHORT_FWD_DELETE _IOW(GPE_TABLE_MAGIC, 0x11, \
 				      struct gpe_table_entry)
 
 /**
@@ -987,7 +993,7 @@ union gpe_vlan_fid_u {
    - 0: if successful
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
-#define FIO_GPE_COP_DEBUG_SET _IOW(GPE_TABLE_MAGIC, 0x14, \
+#define FIO_GPE_COP_DEBUG_SET _IOW(GPE_TABLE_MAGIC, 0x12, \
 					    struct gpe_cop_tracing)
 
 /**
@@ -998,7 +1004,7 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SHORT_FWD_RELEARN _IOW(GPE_TABLE_MAGIC, 0x15, \
+#define FIO_GPE_SHORT_FWD_RELEARN _IOW(GPE_TABLE_MAGIC, 0x13, \
 						struct gpe_table_entry)
 
 
@@ -1027,7 +1033,7 @@ union gpe_vlan_fid_u {
    - 0: if successful
    - ONU_STATUS_ERR: if the write access was corrupted
 */
-#define FIO_GPE_EXT_VLAN_CUSTOM_SET _IOW(GPE_TABLE_MAGIC, 0x16, \
+#define FIO_GPE_EXT_VLAN_CUSTOM_SET _IOW(GPE_TABLE_MAGIC, 0x14, \
 						struct gpe_ext_vlan_custom)
 
 /**
@@ -1038,7 +1044,7 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_COP_DEBUG_SERVER _IOW(GPE_TABLE_MAGIC, 0x17, \
+#define FIO_GPE_COP_DEBUG_SERVER _IOW(GPE_TABLE_MAGIC, 0x15, \
 		uint32_t)
 
 /**
@@ -1049,7 +1055,7 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SHORT_FWD_FORWARD _IOW(GPE_TABLE_MAGIC, 0x18, \
+#define FIO_GPE_SHORT_FWD_FORWARD _IOW(GPE_TABLE_MAGIC, 0x16, \
 						struct gpe_table_entry)
 
 
@@ -1071,18 +1077,12 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NO_SUPPORT: if the given table index is invalid
 */
 #define FIO_GPE_TABLE_ENTRY_SEARCH _IOW(GPE_TABLE_MAGIC, \
-					 0x19, struct gpe_table_entry)
+					 0x17, struct gpe_table_entry)
 
-/**
-   Activate a VLAN tagging filter entry.
-
-   \param gpe_tagg_filter Pointer to \ref gpe_tagg_filter.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
-*/
+/* Removed in v7.5.1: FIO_GPE_TAGGING_FILTER_DO (was cmd 0x1A)
 #define FIO_GPE_TAGGING_FILTER_DO _IOWR(GPE_TABLE_MAGIC, 0x1A, \
 						struct gpe_tagg_filter)
+*/
 
 /**
    Re-initialize a configuration table.
@@ -1093,7 +1093,7 @@ union gpe_vlan_fid_u {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TABLE_REINIT _IOW(GPE_TABLE_MAGIC, \
-				     0x1B, struct gpe_reinit_table)
+				     0x18, struct gpe_reinit_table)
 
 /**
    Change an entry of the IPv6 forwarding table.
@@ -1103,8 +1103,8 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_LONG_FWD_FORWARD _IOW(GPE_TABLE_MAGIC, 0x1C, \
-						struct gpe_table_entry)
+#define FIO_GPE_LONG_FWD_FORWARD _IOW(GPE_TABLE_MAGIC, 0x19, \
+						char[48])
 
 /**
    Get custom EXTVLAN match values.
@@ -1119,7 +1119,7 @@ union gpe_vlan_fid_u {
    - 0: if successful
    - ONU_STATUS_ERR: if the write access was corrupted
 */
-#define FIO_GPE_EXT_VLAN_CUSTOM_GET _IOR(GPE_TABLE_MAGIC, 0x1D, \
+#define FIO_GPE_EXT_VLAN_CUSTOM_GET _IOR(GPE_TABLE_MAGIC, 0x1A, \
 						struct gpe_ext_vlan_custom)
 
 /**
@@ -1134,7 +1134,7 @@ union gpe_vlan_fid_u {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_VALUE_RANGE_ERR: if the aging time is invalid
 */
-#define FIO_GPE_AGING_TIME_SET _IOW(GPE_TABLE_MAGIC, 0x1E, \
+#define FIO_GPE_AGING_TIME_SET _IOW(GPE_TABLE_MAGIC, 0x1B, \
 						struct sce_aging_time)
 
 /**
@@ -1149,7 +1149,7 @@ union gpe_vlan_fid_u {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_VALUE_RANGE_ERR: if the aging time is invalid
 */
-#define FIO_GPE_AGING_TIME_GET _IOWR(GPE_TABLE_MAGIC, 0x1F, \
+#define FIO_GPE_AGING_TIME_GET _IOWR(GPE_TABLE_MAGIC, 0x1C, \
 						struct sce_aging_time)
 
 /**
@@ -1164,7 +1164,7 @@ union gpe_vlan_fid_u {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_VALUE_RANGE_ERR: if the aging time is invalid
 */
-#define FIO_GPE_AGE_GET _IOWR(GPE_TABLE_MAGIC, 0x20, struct sce_mac_entry_age)
+#define FIO_GPE_AGE_GET _IOWR(GPE_TABLE_MAGIC, 0x1D, struct sce_mac_entry_age)
 
 /**
    Trigger a MAC table entry aging.
@@ -1177,7 +1177,7 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_AGE _IOW(GPE_TABLE_MAGIC, 0x21, struct gpe_table_entry)
+#define FIO_GPE_AGE _IOW(GPE_TABLE_MAGIC, 0x1E, struct gpe_table_entry)
 
 /**
    Set the MAC bridge aging time in debug mode (for debugging only).
@@ -1191,53 +1191,23 @@ union gpe_vlan_fid_u {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_VALUE_RANGE_ERR: if the aging time is invalid
 */
-#define FIO_GPE_AGING_TIME_SET_DEBUG _IOW(GPE_TABLE_MAGIC, 0x22, \
+#define FIO_GPE_AGING_TIME_SET_DEBUG _IOW(GPE_TABLE_MAGIC, 0x1F, \
 						struct sce_aging_time)
 
-/**
-   Define an access control rule.
-
-   \param gpe_acl_table_entry Pointer to \ref gpe_acl_table_entry.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
-   - GPE_STATUS_VALUE_RANGE_ERR: if the table index is invalid
-*/
+/* Removed in v7.5.1: FIO_GPE_ACL_TABLE_ENTRY_SET (was cmd 0x23, replaced by ACL_RULE_ADD)
 #define FIO_GPE_ACL_TABLE_ENTRY_SET _IOW(GPE_TABLE_MAGIC, 0x23, \
 						struct gpe_acl_table_entry)
-
-/**
-   Read an access control rule back.
-
-   \param gpe_acl_table_entry_u Pointer to \ref gpe_acl_table_entry_u.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
-   - GPE_STATUS_VALUE_RANGE_ERR: if the table index is invalid
 */
+
+/* Removed in v7.5.1: FIO_GPE_ACL_TABLE_ENTRY_GET (was cmd 0x24, replaced by ACL_FILTER_CFG_GET)
 #define FIO_GPE_ACL_TABLE_ENTRY_GET _IOWR(GPE_TABLE_MAGIC, 0x24, \
 						union gpe_acl_table_entry_u)
-
-/**
-   Clear (invalidate) an access control rule.
-
-   \param gpe_acl_table_entry_idx Pointer to \ref gpe_acl_table_entry_idx.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
-   - GPE_STATUS_VALUE_RANGE_ERR: if the table index is invalid
 */
+
+/* Removed in v7.5.1: FIO_GPE_ACL_TABLE_ENTRY_DELETE (was cmd 0x25, replaced by ACL_INIT)
 #define FIO_GPE_ACL_TABLE_ENTRY_DELETE _IOW(GPE_TABLE_MAGIC, 0x25, \
 						struct gpe_acl_table_entry_idx)
+*/
 
 /**
    Read the firmware constants of the Shared Classification Engine (SCE).
@@ -1250,7 +1220,7 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_CONSTANTS_GET _IOWR(GPE_TABLE_MAGIC, 0x26, \
+#define FIO_GPE_SCE_CONSTANTS_GET _IOR(GPE_TABLE_MAGIC, 0x24, \
 						struct gpe_sce_constants)
 
 /**
@@ -1264,34 +1234,16 @@ union gpe_vlan_fid_u {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_CONSTANTS_SET _IOW(GPE_TABLE_MAGIC, 0x27, \
+#define FIO_GPE_SCE_CONSTANTS_SET _IOW(GPE_TABLE_MAGIC, 0x25, \
 						struct gpe_sce_constants)
 
-/**
-   Read SCE Local CPU MAC address.
-
-   \param gpe_sce_mac Pointer to \ref gpe_sce_mac.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
-*/
+/* Removed in v7.5.1: FIO_GPE_SCE_MAC_GET (was cmd 0x28, folded into SCE_CONSTANTS)
 #define FIO_GPE_SCE_MAC_GET _IOR(GPE_TABLE_MAGIC, 0x28, struct gpe_sce_mac)
-
-/**
-   Update SCE Local CPU MAC address.
-
-   \param gpe_sce_mac Pointer to \ref gpe_sce_mac.
-
-   \remarks The function returns an error code in case of error.
-            The error code is described in \ref onu_errorcode.
-
-   \return Return value as follows:
-   - ONU_STATUS_OK: if successful
 */
+
+/* Removed in v7.5.1: FIO_GPE_SCE_MAC_SET (was cmd 0x29, folded into SCE_CONSTANTS)
 #define FIO_GPE_SCE_MAC_SET _IOW(GPE_TABLE_MAGIC, 0x29, struct gpe_sce_mac)
+*/
 
 /**
    Add a LAN port to a multicast group by MAC multicast table modification.
@@ -1307,7 +1259,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_VALUE_RANGE_ERR: if the MAC address is not multicast
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match an existing entry
 */
-#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_ADD _IOW(GPE_TABLE_MAGIC, 0x2A, \
+#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_ADD _IOW(GPE_TABLE_MAGIC, 0x26, \
                                             struct gpe_mac_mc_port)
 
 /**
@@ -1325,7 +1277,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if the MAC address does not exist
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match
 */
-#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_DELETE _IOW(GPE_TABLE_MAGIC, 0x2B, \
+#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_DELETE _IOW(GPE_TABLE_MAGIC, 0x27, \
                                             struct gpe_mac_mc_port)
 
 
@@ -1344,7 +1296,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if the MAC address does not exist
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match
 */
-#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_MODIFY _IOW(GPE_TABLE_MAGIC, 0x2C, \
+#define FIO_GPE_SHORT_FWD_MAC_MC_PORT_MODIFY _IOW(GPE_TABLE_MAGIC, 0x28, \
                                             struct gpe_mac_mc_port_modify)
 
 /**
@@ -1361,7 +1313,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if the FID table is full
    - GPE_STATUS_ERR: in case of any other error
 */
-#define FIO_GPE_VLAN_FID_ADD _IOWR(GPE_TABLE_MAGIC, 0x2D, union gpe_vlan_fid_u)
+#define FIO_GPE_VLAN_FID_ADD _IOWR(GPE_TABLE_MAGIC, 0x29, char[4])
 
 /**
    Read the FID definition for a given VLAN tag.
@@ -1377,7 +1329,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if there is no FID assigned for the given VLAN
    - GPE_STATUS_ERR: in case of any other error
 */
-#define FIO_GPE_VLAN_FID_GET _IOWR(GPE_TABLE_MAGIC, 0x2E, union gpe_vlan_fid_u)
+#define FIO_GPE_VLAN_FID_GET _IOWR(GPE_TABLE_MAGIC, 0x2A, char[4])
 
 /**
    Delete the FID definition for a given VLAN tag.
@@ -1393,8 +1345,8 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if there is no FID assigned for the given VLAN
    - GPE_STATUS_ERR: in case of any other error
 */
-#define FIO_GPE_VLAN_FID_DELETE _IOW(GPE_TABLE_MAGIC, 0x2F, \
-					struct gpe_vlan_fid_in)
+#define FIO_GPE_VLAN_FID_DELETE _IOW(GPE_TABLE_MAGIC, 0x2B, \
+					char[4])
 
 
 /**
@@ -1410,7 +1362,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_VALUE_RANGE_ERR: if the lan_port_index is invalid
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match an existing entry
 */
-#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_ADD _IOW(GPE_TABLE_MAGIC, 0x30, \
+#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_ADD _IOW(GPE_TABLE_MAGIC, 0x2C, \
                                             struct gpe_ipv4_mc_port)
 
 /**
@@ -1428,7 +1380,7 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if the IPv4 address does not exist
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match
 */
-#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_DELETE _IOW(GPE_TABLE_MAGIC, 0x31, \
+#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_DELETE _IOW(GPE_TABLE_MAGIC, 0x2D, \
                                             struct gpe_ipv4_mc_port)
 
 
@@ -1446,8 +1398,35 @@ union gpe_vlan_fid_u {
    - GPE_STATUS_NOT_AVAILABLE: if the IPv4 address does not exist
    - GPE_STATUS_NOT_AVAILABLE: if the IGMP flag does not match
 */
-#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_MODIFY _IOW(GPE_TABLE_MAGIC, 0x32, \
+#define FIO_GPE_SHORT_FWD_IPV4_MC_PORT_MODIFY _IOW(GPE_TABLE_MAGIC, 0x2E, \
                                             struct gpe_ipv4_mc_port_modify)
+
+/**
+   Add a MAC DA filter entry to the GPE MAC filter table.
+   v7.5.1 addition (cmd 0x40). The coprocessor handles hash placement.
+   The filter_index is updated on return with the actual table index.
+
+   \param gpe_mac_da_filter_entry Pointer to \ref gpe_mac_da_filter_entry.
+
+   \return Return value as follows:
+   - 0: if successful
+   - GPE_STATUS_VALUE_RANGE_ERR: if one of the given values is invalid
+*/
+#define FIO_GPE_MAC_DA_FILTER_ENTRY_ADD _IOWR(GPE_TABLE_MAGIC, \
+					      0x40, struct gpe_mac_da_filter_entry)
+
+/**
+   Remove a MAC DA filter entry from the GPE MAC filter table.
+   v7.5.1 addition (cmd 0x41). Mirror of ADD.
+
+   \param gpe_mac_da_filter_entry Pointer to \ref gpe_mac_da_filter_entry.
+
+   \return Return value as follows:
+   - 0: if successful
+   - GPE_STATUS_VALUE_RANGE_ERR: if one of the given values is invalid
+*/
+#define FIO_GPE_MAC_DA_FILTER_ENTRY_REMOVE _IOWR(GPE_TABLE_MAGIC, \
+						  0x41, struct gpe_mac_da_filter_entry)
 
 /*! @} */
 

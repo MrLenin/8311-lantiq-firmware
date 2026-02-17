@@ -113,35 +113,33 @@ enum omci_api_bridge_or_router_cfg {
 	OMCI_API_PARENT_DEPEND
 };
 
-/** Enable Managed Entity identifier mapping to driver index and initialize
-    corresponding driver structures
+/** Register ME ID to driver index mapping (v7.5.1: mapping only, no ioctls).
 
-   \param[in] ctx                  OMCI API context pointer
-   \param[in] me_id                Managed Entity identifier
-   \param[in] admin_state          Administrative state
-   \param[in] expected_type        Expected type
-   \param[in] auto_detect_cfg      Auto detection configuration
-   \param[in] ethernet_loopback    Ethernet loopback configuration
-   \param[in] max_frame_size       Max frame size
-   \param[in] dte_dce_ind          DTE or DCE ind
-   \param[in] pause_time           Pause time
-   \param[in] bridge_or_router_cfg Bridged or IP ind
-   \param[in] pppoe_filter         PPPoE filter
-   \param[in] power_control        Power control
+   \param[in] ctx   OMCI API context pointer
+   \param[in] me_id Managed Entity identifier
 */
 enum omci_api_return
 omci_api_pptp_ethernet_uni_create(struct omci_api_ctx *ctx,
-				  uint16_t me_id,
-				  uint8_t admin_state,
-				  uint8_t expected_type,
-				  uint8_t auto_detect_cfg,
-				  uint8_t ethernet_loopback,
-				  uint16_t max_frame_size,
-				  uint8_t dte_dce_ind,
-				  uint16_t pause_time,
-				  uint8_t bridge_or_router_cfg,
-				  uint8_t pppoe_filter,
-				  uint8_t power_control);
+				  uint16_t me_id);
+
+/** Enable the LAN port hardware and set GPE LAN Port Table valid bit.
+    Called after _config has set up port parameters.
+
+   \param[in] ctx   OMCI API context pointer
+   \param[in] me_id Managed Entity identifier
+*/
+enum omci_api_return
+omci_api_pptp_ethernet_uni_enabled(struct omci_api_ctx *ctx,
+				   uint16_t me_id);
+
+/** Disable the LAN port hardware and clear GPE LAN Port Table valid bit.
+
+   \param[in] ctx   OMCI API context pointer
+   \param[in] me_id Managed Entity identifier
+*/
+enum omci_api_return
+omci_api_pptp_ethernet_uni_disabled(struct omci_api_ctx *ctx,
+				    uint16_t me_id);
 
 /** Disable Managed Entity identifier mapping to driver index and clear
     corresponding driver structures

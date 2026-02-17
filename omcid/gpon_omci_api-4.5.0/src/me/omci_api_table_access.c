@@ -1672,21 +1672,33 @@ enum omci_api_return omci_api_lan_port_enable(struct omci_api_ctx *ctx,
 					      const uint16_t port_index,
 					      const uint8_t enable)
 {
+	struct lan_port_index idx;
 	enum omci_api_return ret;
-	struct gpe_table_entry entry;
 
-	ret = table_read(ctx, ONU_GPE_LAN_PORT_TABLE_ID, port_index,
-			 sizeof(struct gpe_lan_port_table), &entry);
-	if (ret != 0) return OMCI_API_ERROR;
+	if (ctx->remote)
+		return OMCI_API_SUCCESS;
 
-	DBG(OMCI_API_MSG, ("LAN_PORT_TABLE[%d]: enable %d\n",
-							port_index, enable));
+	DBG(OMCI_API_MSG, ("LAN port %d: %s\n", port_index,
+			   enable ? "enable" : "disable"));
 
-	entry.data.lan_port.valid = enable;
+	idx.index = port_index;
 
-	if (!ctx->remote)
-		ret = table_write(ctx, sizeof(struct gpe_lan_port_table),
-				  &entry);
+	ret = dev_ctl(ctx->remote, ctx->onu_fd,
+		      enable ? FIO_LAN_PORT_ENABLE : FIO_LAN_PORT_DISABLE,
+		      &idx, sizeof(idx));
+
+	{
+		FILE *_f = fopen("/tmp/8311_carrier.log", "a");
+		if (_f) {
+			fprintf(_f, "lan_port_enable: port=%u en=%u "
+				"ioctl=0x%x ret=%d\n",
+				port_index, enable,
+				enable ? FIO_LAN_PORT_ENABLE
+				       : FIO_LAN_PORT_DISABLE,
+				ret);
+			fclose(_f);
+		}
+	}
 
 	return ret;
 }

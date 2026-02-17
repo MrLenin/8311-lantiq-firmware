@@ -68,8 +68,7 @@ struct omci_dot1ag_mep_status {
 	uint8_t fault_state;        /* 1B R */
 	uint8_t hp_defect;          /* 1B R */
 	uint8_t curr_defects;       /* 1B R */
-	uint8_t err_ccm_table[1];   /* table R */
-	uint8_t xcon_ccm_table[1];  /* table R */
+	/* attrs 5-6 (err_ccm_table, xcon_ccm_table) are NOT_DEF tables */
 	uint32_t ccm_oos_cnt;       /* 4B R optional */
 	uint32_t ccm_tx_cnt;        /* 4B R */
 	uint32_t unexp_ltr_cnt;     /* 4B R */
@@ -97,8 +96,7 @@ struct omci_dot1ag_mep_ccm_db {
 /* ---- ME 305: Dot1ag CFM Stack ---- */
 struct omci_dot1ag_cfm_stack {
 	uint8_t l2_type;             /* 1B R */
-	uint8_t mp_status_table[18]; /* table R */
-	uint8_t cfg_err_table[5];    /* table R */
+	/* attrs 2-3 (mp_status_table, cfg_err_table) are NOT_DEF tables */
 } __PACKED__;
 
 /* ---- ME 306: Dot1ag Chassis-Management Info ---- */

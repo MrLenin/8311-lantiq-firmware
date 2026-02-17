@@ -212,6 +212,8 @@ struct gtc_cfg {
 	uint32_t emergency_stop_state;
 	/** PLOAM password.*/
 	uint8_t password[10];
+	/** v7.5.1: reserved (appended, exact semantics unknown). */
+	uint32_t _v751_reserved;
 } __PACKED__;
 
 /** GPON TC layer hardware alarm information.
@@ -279,6 +281,8 @@ struct gtc_status {
 	    This value represents the Delay of the MSB Bit of the PSYNC Word in
 	    the 32 Bit Data In Word.*/
 	uint32_t gtc_ds_delay;
+	/** v7.5.1: two additional status fields (exact semantics unknown). */
+	uint32_t _v751_reserved[2];
 } __PACKED__;
 
 /** GPON upstream frame header configuration.
@@ -365,6 +369,9 @@ struct gtc_no_msg_msg {
 struct gtc_op_mode {
 	/** GPON power saving modes.*/
 	enum gtc_power_saving_mode gpon_op_mode;
+	/** v7.5.1: power saving timing parameters (9 fields, 36 bytes).
+	    Exact field names unknown — padded to match v7.5.1 size of 40. */
+	uint32_t _v751_reserved[9];
 } __PACKED__;
 
 /** PLOAM receive message structure.
@@ -558,6 +565,8 @@ struct gtc_cnt_value {
 	uint64_t allocations_total;
 	/** GTC Rejected TCONT Counter.*/
 	uint64_t allocations_lost;
+	/** v7.5.1: additional counter (exact semantics unknown). */
+	uint64_t _v751_reserved;
 };
 
 /** GPON TC layer hardware counter access.
@@ -908,7 +917,9 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_PLOAM_RECEIVE _IOR(GTC_MAGIC, 0x0E, struct gtc_ploamd)
+/* REMOVED in v7.5.1 — FIO_GTC_PLOAM_RECEIVE no longer exists in the
+   shipping kernel. All subsequent cmd numbers shifted by -1. */
+/* #define FIO_GTC_PLOAM_RECEIVE _IOR(GTC_MAGIC, 0x0E, struct gtc_ploamd) */
 
 /**
    Read the GPON TC layer counters.
@@ -945,7 +956,7 @@ struct gtc_pon_id {
    - GTC_STATUS_COUNTER_ERR: if one of the counters suffered from an overflow
                                  event
 */
-#define FIO_GTC_COUNTER_GET _IOWR(GTC_MAGIC, 0x0F, union gtc_counter_get_u)
+#define FIO_GTC_COUNTER_GET _IOWR(GTC_MAGIC, 0x0E, union gtc_counter_get_u)
 
 /**
    This function writes the counter thresholds that are related
@@ -962,7 +973,7 @@ struct gtc_pon_id {
 
 */
 #define FIO_GTC_COUNTER_THRESHOLD_SET \
-				_IOW(GTC_MAGIC, 0x10, struct gtc_cnt_value)
+				_IOW(GTC_MAGIC, 0x0F, struct gtc_cnt_value)
 
 /**
    This function reads back the counter threshold values that are
@@ -979,7 +990,7 @@ struct gtc_pon_id {
 
 */
 #define FIO_GTC_COUNTER_THRESHOLD_GET \
-				_IOR(GTC_MAGIC, 0x11, struct gtc_cnt_value)
+				_IOR(GTC_MAGIC, 0x10, struct gtc_cnt_value)
 
 /**
    This function reads the counter threshold alarms that are related to the
@@ -995,7 +1006,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_TCA_GET _IOR(GTC_MAGIC, 0x12, struct gtc_cnt_value)
+#define FIO_GTC_TCA_GET _IOR(GTC_MAGIC, 0x11, struct gtc_cnt_value)
 
 /**
    GPON counter reset.
@@ -1010,7 +1021,7 @@ struct gtc_pon_id {
    \return Return value as follows:
    - 0: if successful
 */
-#define FIO_GTC_COUNTER_RESET _IOW(GTC_MAGIC, 0x13, struct gtc_cnt_interval)
+#define FIO_GTC_COUNTER_RESET _IOW(GTC_MAGIC, 0x12, struct gtc_cnt_interval)
 
 /**
    Set the serial number.
@@ -1027,7 +1038,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_SERIAL_NUMBER_SET _IOW(GTC_MAGIC, 0x14, struct gtc_serial_num)
+#define FIO_GTC_SERIAL_NUMBER_SET _IOW(GTC_MAGIC, 0x13, struct gtc_serial_num)
 
 /**
    Get the serial number.
@@ -1044,7 +1055,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_SERIAL_NUMBER_GET _IOR(GTC_MAGIC, 0x15, struct gtc_serial_num)
+#define FIO_GTC_SERIAL_NUMBER_GET _IOR(GTC_MAGIC, 0x14, struct gtc_serial_num)
 
 /**
    Set the password string in the GTC hardware. This function is used if the
@@ -1064,7 +1075,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_PASSWORD_SET _IOW(GTC_MAGIC, 0x16, struct gtc_password)
+#define FIO_GTC_PASSWORD_SET _IOW(GTC_MAGIC, 0x15, struct gtc_password)
 
 /**
    Read back the password string from the hardware. This is a debug function.
@@ -1081,7 +1092,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_PASSWORD_GET _IOR(GTC_MAGIC, 0x17, struct gtc_password)
+#define FIO_GTC_PASSWORD_GET _IOR(GTC_MAGIC, 0x16, struct gtc_password)
 
 /**
    Set a fixed upstream allocation time slot. This can be used for system debug
@@ -1100,7 +1111,7 @@ struct gtc_pon_id {
 
 */
 #define FIO_GTC_FORCED_ALLOC_SET \
-				_IOW(GTC_MAGIC, 0x18, struct gtc_forced_alloc)
+				_IOW(GTC_MAGIC, 0x17, struct gtc_forced_alloc)
 
 /**
    Read the setting of the fixed upstream allocation time slot.
@@ -1116,7 +1127,7 @@ struct gtc_pon_id {
 
 */
 #define FIO_GTC_FORCED_ALLOC_GET \
-				_IOR(GTC_MAGIC, 0x19, struct gtc_forced_alloc)
+				_IOR(GTC_MAGIC, 0x18, struct gtc_forced_alloc)
 
 /**
    Configure the bandwidth map trace function (BWMT).
@@ -1133,7 +1144,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_BWMT_CFG_SET _IOW(GTC_MAGIC, 0x1A, struct gtc_bwmt_cfg)
+#define FIO_GTC_BWMT_CFG_SET _IOW(GTC_MAGIC, 0x19, struct gtc_bwmt_cfg)
 
 /**
    Read back the setting of the bandwidth map trace configuration.
@@ -1148,7 +1159,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_BWMT_CFG_GET _IOR(GTC_MAGIC, 0x1B, struct gtc_bwmt_cfg)
+#define FIO_GTC_BWMT_CFG_GET _IOR(GTC_MAGIC, 0x1A, struct gtc_bwmt_cfg)
 
 /**
    Arm the bandwidth map trace function (BWMT).
@@ -1164,7 +1175,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_BWMT_NEXT _IOW(GTC_MAGIC, 0x1C, struct gtc_bwmt_next_data)
+#define FIO_GTC_BWMT_NEXT _IOW(GTC_MAGIC, 0x1B, struct gtc_bwmt_next_data)
 
 /**
    Get the result of the bandwidth map trace function.
@@ -1181,7 +1192,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_BWMT_STATUS_GET _IOR(GTC_MAGIC, 0x1D, struct gtc_bwmt_status)
+#define FIO_GTC_BWMT_STATUS_GET _IOR(GTC_MAGIC, 0x1C, struct gtc_bwmt_status)
 
 /**
    This function provides the time since the last PLOAM status change into or
@@ -1201,7 +1212,7 @@ struct gtc_pon_id {
 
 */
 #define FIO_GTC_LAST_CHANGE_TIME_GET \
-			_IOR(GTC_MAGIC, 0x1E, struct gtc_last_change_time)
+			_IOR(GTC_MAGIC, 0x1D, struct gtc_last_change_time)
 
 /**
    This function provides the information received through the latest PON ID
@@ -1217,7 +1228,7 @@ struct gtc_pon_id {
    - An error code in case of error.
 
 */
-#define FIO_GTC_PON_ID_GET _IOR(GTC_MAGIC, 0x1F, struct gtc_pon_id)
+#define FIO_GTC_PON_ID_GET _IOR(GTC_MAGIC, 0x1E, struct gtc_pon_id)
 
 /*! @} */
 

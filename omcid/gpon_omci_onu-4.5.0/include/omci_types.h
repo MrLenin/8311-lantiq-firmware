@@ -1146,7 +1146,10 @@ enum {
 	/** Circuit pack type is 10/100/1000 BaseT Ethernet LAN IF */
 	OMCI_CIRCUIT_PACK_TYPE_101001000BASET = 47,
 
-	/* 48 - 242 reserved */
+	/** Virtual Ethernet interface point (G.988 Table 9.1.5-1) */
+	OMCI_CIRCUIT_PACK_TYPE_VEIP = 48,
+
+	/* 49 - 242 reserved */
 
 	/** Circuit pack type is G-PON interface,
 	   1244 MB/s ds and 155 Mb/s us */

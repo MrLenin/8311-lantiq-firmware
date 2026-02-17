@@ -125,16 +125,19 @@ omci_api_priority_queue_create(struct omci_api_ctx *ctx,
 
 	if (!is_upstream) {
 		/*
-		- the related port is PPTP Ethernet UNI (DS)
-		- get LAN index
-		- we would like to start the UNI egress port range with 0x40
-		- so, add 0x40 to epn
-		*/
+		 * DS: related port is PPTP Ethernet UNI.
+		 * Stock v7.5.1 uses: egress_port = 0x43 - uni2port(uni2lan(me_id))
+		 * GPE UNI egress ports are numbered in reverse:
+		 *   physical 0 → egress 0x43 (UNI3)
+		 *   physical 3 → egress 0x40 (UNI0)
+		 * Our uni2lan already returns the physical port index.
+		 */
 		ret = omci_api_uni2lan(ctx, related_port >> 16, &epn);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
 
-		equeue_create.egress_port_number = 0x40 + epn;
+		equeue_create.egress_port_number =
+			ONU_GPE_UNI3_EGRESS_PORT_NUMBER - epn;
 	}
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EGRESS_QUEUE_CREATE,
@@ -327,25 +330,32 @@ omci_api_priority_queue_update(struct omci_api_ctx *ctx,
 	}
 
 	update.enable = true;
+	/* v7.5.1: sbin_enable = 1 */
+	update.sbin_enable = 1;
 	update.weight = weight;
+	/* v7.5.1: avg_weight clamped to max 14, defaults to 3 if exceeded */
 	update.avg_weight = queue_drop_averaging_coefficient;
-	/* GEM block length / 64 (bytes per segment) */
-	update.size = alloc_queue_size * gpe_cfg.gem_blk_len / 64;
-	update.drop_threshold_yellow_min =
-		packet_drop_queue_threshold_yellow_min * gpe_cfg.gem_blk_len / 64;
+	if (update.avg_weight > 14)
+		update.avg_weight = 3;
+	/* v7.5.1: threshold scaling uses gem_blk_len >> 9 (not / 64).
+	   With gem_blk_len=48: 5462 * 48 / 512 = 512 (within range)
+	   vs v4.5.0:            5462 * 48 / 64  = 4097 (exceeds max 2304) */
 	update.drop_threshold_green_min =
-		packet_drop_queue_threshold_green_min * gpe_cfg.gem_blk_len / 64;
-	update.drop_threshold_yellow_max =
-		packet_drop_queue_threshold_yellow_max * gpe_cfg.gem_blk_len / 64;
+		packet_drop_queue_threshold_green_min * gpe_cfg.gem_blk_len >> 9;
 	update.drop_threshold_green_max =
-		packet_drop_queue_threshold_green_max * gpe_cfg.gem_blk_len / 64;
+		packet_drop_queue_threshold_green_max * gpe_cfg.gem_blk_len >> 9;
+	update.drop_threshold_yellow_min =
+		packet_drop_queue_threshold_yellow_min * gpe_cfg.gem_blk_len >> 9;
+	update.drop_threshold_yellow_max =
+		packet_drop_queue_threshold_yellow_max * gpe_cfg.gem_blk_len >> 9;
 	update.drop_probability_green = packet_drop_probability_green * 16 +
 		(15 * packet_drop_probability_green + 256 - 1) / 256;
 	update.drop_probability_yellow = packet_drop_probability_yellow * 16 +
 		(15 * packet_drop_probability_yellow + 256 - 1) / 256;
 	update.coloring_mode =
 			(enum gpe_coloring_mode)drop_precedence_color_marking;
-	update.reservation_threshold = 0;
+	/* v7.5.1: reservation_threshold = 0x28 (40 segments) */
+	update.reservation_threshold = 0x28;
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EGRESS_QUEUE_CFG_SET,
 		      &update, sizeof(update));

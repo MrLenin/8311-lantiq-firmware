@@ -8,6 +8,8 @@
  * GPE multicast forwarding table ioctls for port add/remove/modify.
  * VLAN FID management and exception queue configuration.
  ******************************************************************************/
+#include <unistd.h>
+
 #define OMCI_DBG_MODULE OMCI_DBG_MODULE_ME
 
 #include "omci_core.h"
@@ -40,9 +42,6 @@ extern enum omci_api_return dev_ctl(const uint8_t remote, const int fd,
 
 /** Exception queue ID for IGMP/MLD (must match what shipping binary uses) */
 #define MCC_EXCEPTION_QID	0xb0
-
-/** Wait timeout for "exc" interface to come UP (milliseconds) */
-#define MCC_IF_WAIT_TIMEOUT	5000
 
 /** Size of the exception packet header prepended by GPE */
 #define MCC_EXC_HDR_SIZE	sizeof(union u_onu_exception_pkt_hdr)
@@ -95,7 +94,6 @@ enum omci_error mcc_dev_init(struct mcc_dev_ctx *dev,
 	struct ifreq ifr;
 	struct sockaddr_ll sll;
 	enum omci_error error;
-	int i;
 
 	dev->onu_fd = onu_fd;
 	dev->remote = remote;
@@ -103,6 +101,7 @@ enum omci_error mcc_dev_init(struct mcc_dev_ctx *dev,
 	dev->exc_ifindex = -1;
 
 	/* Open raw socket on "exc" exception interface */
+	write(STDERR_FILENO, "[omcid] MCC dev: socket...\n", 28);
 	dev->exc_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (dev->exc_sock < 0) {
 		dbg_err("MCC dev: raw socket open failed, %d", errno);
@@ -110,6 +109,7 @@ enum omci_error mcc_dev_init(struct mcc_dev_ctx *dev,
 	}
 
 	/* Get "exc" interface index */
+	write(STDERR_FILENO, "[omcid] MCC dev: SIOCGIFINDEX...\n", 33);
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, MCC_EXC_IF_NAME, IFNAMSIZ - 1);
 	if (ioctl(dev->exc_sock, SIOCGIFINDEX, &ifr) < 0) {
@@ -121,31 +121,44 @@ enum omci_error mcc_dev_init(struct mcc_dev_ctx *dev,
 	}
 	dev->exc_ifindex = ifr.ifr_ifindex;
 
-	/* Wait for interface to be UP and RUNNING */
-	for (i = 0; i < MCC_IF_WAIT_TIMEOUT / 100; i++) {
-		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, MCC_EXC_IF_NAME, IFNAMSIZ - 1);
-		if (ioctl(dev->exc_sock, SIOCGIFFLAGS, &ifr) < 0)
-			break;
-		if ((ifr.ifr_flags & IFF_UP) &&
-		    (ifr.ifr_flags & IFF_RUNNING))
-			break;
-		usleep(100000); /* 100ms */
-	}
-
-	/* Ensure interface is UP and set promiscuous mode */
+	/* Bring interface UP with promiscuous mode.
+	   No wait loop — exc may not have link yet but PF_PACKET bind
+	   and recvfrom work fine on UP-but-not-RUNNING interfaces. */
+	write(STDERR_FILENO, "[omcid] MCC dev: SIOCSIFFLAGS...\n", 33);
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, MCC_EXC_IF_NAME, IFNAMSIZ - 1);
 	if (ioctl(dev->exc_sock, SIOCGIFFLAGS, &ifr) == 0) {
-		if (!(ifr.ifr_flags & (IFF_UP | IFF_RUNNING))) {
-			ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
-			ioctl(dev->exc_sock, SIOCSIFFLAGS, &ifr);
+		{
+			char _buf[128];
+			int _n = snprintf(_buf, sizeof(_buf),
+				"[omcid] MCC dev: exc flags before=0x%x\n",
+				(unsigned)ifr.ifr_flags);
+			if (_n > 0) write(STDERR_FILENO, _buf, _n);
 		}
-		ifr.ifr_flags |= IFF_PROMISC;
-		ioctl(dev->exc_sock, SIOCSIFFLAGS, &ifr);
+		ifr.ifr_flags |= IFF_UP | IFF_PROMISC;
+		if (ioctl(dev->exc_sock, SIOCSIFFLAGS, &ifr) < 0) {
+			char _buf[128];
+			int _n = snprintf(_buf, sizeof(_buf),
+				"[omcid] MCC dev: SIOCSIFFLAGS failed errno=%d\n",
+				errno);
+			if (_n > 0) write(STDERR_FILENO, _buf, _n);
+		} else {
+			char _buf[128];
+			int _n = snprintf(_buf, sizeof(_buf),
+				"[omcid] MCC dev: exc flags after=0x%x\n",
+				(unsigned)ifr.ifr_flags);
+			if (_n > 0) write(STDERR_FILENO, _buf, _n);
+		}
+	} else {
+		char _buf[128];
+		int _n = snprintf(_buf, sizeof(_buf),
+			"[omcid] MCC dev: SIOCGIFFLAGS failed errno=%d\n",
+			errno);
+		if (_n > 0) write(STDERR_FILENO, _buf, _n);
 	}
 
 	/* Bind to "exc" interface */
+	write(STDERR_FILENO, "[omcid] MCC dev: bind...\n", 25);
 	memset(&sll, 0, sizeof(sll));
 	sll.sll_family = AF_PACKET;
 	sll.sll_protocol = htons(ETH_P_ALL);
@@ -159,6 +172,7 @@ enum omci_error mcc_dev_init(struct mcc_dev_ctx *dev,
 	}
 
 	/* Configure IGMP/MLD exception queue */
+	write(STDERR_FILENO, "[omcid] MCC dev: exc_queue_ctrl...\n", 35);
 	error = mcc_exc_queue_ctrl(dev, true);
 	if (error != OMCI_SUCCESS)
 		dbg_wrn("MCC dev: exception queue setup failed (non-fatal)");

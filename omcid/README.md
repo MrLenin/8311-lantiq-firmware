@@ -14,7 +14,6 @@ maintainable source-level modifications.
 | `gpon_optic_drv/` | Optic driver headers (from [Osmocom mirror](https://gitea.osmocom.org/gpon/gpon_optic_drv)) |
 | `lib_ifxos/` | OS abstraction layer v1.5.19 (from [xdarklight/lib_ifxos](https://github.com/xdarklight/lib_ifxos)) |
 | `libcli/` | CLI pipe library headers + static lib (from OpenWRT SDK) |
-| `drv_onu_compat.h` | Compat header fixing ioctl struct sizes for shipping v7.5.1 kernel |
 | `IOCTL_COMPAT.md` | Full ioctl compatibility analysis |
 
 ## 8311 Source Modifications
@@ -82,10 +81,9 @@ Output: `gpon_omci_onu-4.5.0/src/omcid` (~3.7MB unstripped, ~1MB stripped)
 
 ## Ioctl Compatibility
 
-The shipping kernel modules (v7.5.1) have different ioctl struct sizes
-than the v4.5.0 SDK headers. `drv_onu_compat.h` fixes all 7 mismatches
-and 3 direction changes. See `IOCTL_COMPAT.md` for the full analysis.
-
-The compat header must be included **after** `drv_onu_interface.h` in any
-source file that issues ioctls. It uses `#undef` + redefine with
-compile-time size assertions.
+The shipping kernel modules (v7.5.1) have different ioctl struct sizes,
+command numbers, directions, and even magic numbers compared to the v4.5.0
+SDK headers. The original v4.5.0 headers have been updated in-place with
+`_v751_reserved` padding, corrected FIO_ macros, and shifted command
+numbers. See `IOCTL_COMPAT.md` for the full analysis covering all 6
+subsystems (ONU, GTC, GPE, GPE_TABLE, LAN, Event).

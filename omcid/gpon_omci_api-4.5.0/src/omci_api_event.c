@@ -300,14 +300,35 @@ enum omci_api_return event_handling_start(struct omci_api_ctx *ctx)
 {
 	struct onu_event_mask fifo_mask;
 	struct event_ctx *event = &ctx->event;
+	uint32_t psm_mask;
+	enum optic_activation optic_evt;
+	struct onu_test_mode test_mode;
 
 	event->init = false;
 
-	fifo_mask.val = (1 << ONU_EVENT_OMCI_RECEIVE) |
-			(1 << ONU_EVENT_STATE_CHANGE) |
-			(1 << ONU_EVENT_LINK_STATE_CHANGE);
+	/* v7.5.1 stock event mask = 0x00346018. Includes v4.5.0 events plus:
+	   bit 14 (15MIN_INTERVAL_END), bit 18/20/21 (v7.5.1-only events). */
+	fifo_mask.val = 0x00346018;
 	dev_ctl(ctx->remote, ctx->onu_fd_nfc, FIO_ONU_EVENT_ENABLE_SET,
 		&fifo_mask, sizeof(fifo_mask));
+
+	/* v7.5.1 stock: psm_fsm_event_mask_set(0xFFFFFFFF) during event init.
+	   Enables all PSM FSM event types. Result not checked (fire-and-forget). */
+	psm_mask = 0xFFFFFFFF;
+	dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_PSM_FSM_EVENT_MASK_SET,
+		&psm_mask, sizeof(psm_mask));
+
+	/* v7.5.1 stock: enable optic event FIFO on goi_fd_nfc.
+	   Must be the fd the event thread selects on for optic alarms. */
+	optic_evt = OPTIC_ENABLE;
+	dev_ctl(ctx->remote, ctx->goi_fd_nfc, FIO_OPTIC_EVENT_SET,
+		&optic_evt, sizeof(optic_evt));
+
+	/* v7.5.1 stock: "omci_download_enable=1" — enables OMCI SW download. */
+	memset(&test_mode, 0, sizeof(test_mode));
+	strncpy(test_mode.mode, "omci_download_enable=1", sizeof(test_mode.mode) - 1);
+	dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_TEST_MODE_SET,
+		&test_mode, sizeof(test_mode));
 
 	if (IFXOS_ThreadInit((IFXOS_ThreadCtrl_t *)
 			     &event->thread_ctrl,

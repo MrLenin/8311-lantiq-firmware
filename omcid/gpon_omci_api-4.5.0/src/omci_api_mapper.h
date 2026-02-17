@@ -223,6 +223,19 @@ enum mapper_id_type {
 	/** Priority queue ME Identifier to Token bucket shaper index */
 	MAPPER_PQUEUE_MEID_TO_TBS_IDX,
 
+	/** OMCI Virtual Ethernet Interface Point ME Identifier
+	    to ONU Driver Index mapping
+	*/
+	MAPPER_VEIP_MEID_TO_IDX,
+
+	/** PPTP LCT UNI ME Identifier to LAN port index.
+	    v7.5.1 stock uses mapper table 0x1c for this. */
+	MAPPER_LCT_MEID_TO_LAN_IDX,
+
+	/** PPTP LCT UNI ME Identifier to meter index.
+	    v7.5.1 stock uses mapper table 0x1d for this. */
+	MAPPER_LCT_MEID_TO_METER_IDX,
+
 	MAPPER_IDTYPE_MAX
 };
 

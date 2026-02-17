@@ -92,6 +92,86 @@ When adding a new file to the firmware:
 - Custom views in `view/8311/` use Lua template syntax (`<%...%>`)
 - A patched `cbi.lua` and `dispatcher.lua` are included for custom UI features
 
+## Custom omcid Build
+
+The `omcid/` directory contains the Lantiq GPON OMCI daemon built from the v4.5.0 SDK
+source code, targeting the v7.5.1 kernel modules that ship on the device.
+
+### Development Philosophy
+
+**The goal is to bring the v4.5.0 SDK code in line with v7.5.1 stock binary behavior.**
+This is NOT about bolting on minimal fixes to make v4.5.0 "not crash." The stock binary
+represents 5 years of evolution — function signatures changed, parameters were added or
+removed, entire subsystems were restructured. Every change has a reason.
+
+**Before modifying any function:**
+1. Decompile the corresponding v7.5.1 function using pyghidra
+2. Understand what changed and WHY (new ioctls, removed parameters, restructured flows)
+3. Implement the v7.5.1 behavior in our source code
+4. Document findings in `internals.md`
+
+**Do not:**
+- Make minimal patches to v4.5.0 code without checking what v7.5.1 actually does
+- Assume v4.5.0 behavior is correct — it's a 5-year-old tech demo SDK
+- Skip decompilation to save time — guessing leads to repeated reboots and wasted hours
+
+### Source Layout
+
+```
+omcid/
+  gpon_omci_api-4.5.0/     # OMCI API library (ioctl wrappers, ME API functions)
+  gpon_omci_onu-4.5.0/     # OMCI ONU daemon (ME handlers, MIB parser, CLI, main)
+  gpon_onu_drv-4.5.0/      # Kernel driver headers (ioctls, structs) — updated for v7.5.1
+  IOCTL_COMPAT.md          # Ioctl compatibility documentation
+```
+
+### Build and Deploy
+
+```sh
+# Build API library (if API source changed)
+cd omcid/gpon_omci_api-4.5.0 && rm -f src/me/lib_a-<changed>.o && make
+
+# Build omcid (force relink if API changed)
+cd omcid/gpon_omci_onu-4.5.0 && rm -f src/omcid && make
+
+# Strip and deploy
+/tmp/owrt-tc/bin/mips-openwrt-linux-uclibc-strip.bin src/omcid -o ../../8311-mods/opt/lantiq/bin/omcid
+
+# Build firmware image
+cd ~/dev && ./build.sh
+# Output: out/alcatel-g010sp_8311.img → copy to C:\temp for flashing
+```
+
+### Decompilation Workflow (pyghidra)
+
+```sh
+# Venv: /tmp/pyghidra-env/
+# Ghidra: /mnt/c/devel/ghidra_12.0.2_PUBLIC
+# Stock binary: ~/dev-orig/opt/lantiq/bin/omcid (stripped v7.5.1)
+/tmp/pyghidra-env/bin/python3 /tmp/decompile_pptp4.py
+# Output: /tmp/pptp_uni_decompiled.c
+```
+
+Find functions by their `__FUNCTION__` string references (file offsets via `strings -t x`),
+convert to VA (base 0x400000 + offset), cross-reference in Ghidra.
+Detailed findings go in `internals.md` (memory file).
+
+### Logging
+
+Use the DLOG macro for debug logging (syslog is unreliable at boot):
+```c
+#define DLOG(fmt, ...) do { \
+    FILE *_f = fopen("/tmp/8311_<component>.log", "a"); \
+    if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
+} while (0)
+```
+
+### Cross-Compilation Toolchain
+
+- OpenWRT Barrier Breaker 14.07 xrx200: GCC 4.8.3 + uClibc 0.9.33.2
+- Location: `/tmp/owrt-tc/` — use `.bin` binaries directly
+- Target: soft-float MIPS32r2 big-endian (Falcon SoC has NO FPU)
+
 ## Key Domain Concepts
 
 - **PLOAM:** Physical Layer OAM - handles ONU registration with OLT

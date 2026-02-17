@@ -50,6 +50,26 @@ struct bosa_tx_status {
 	_IOR(OPTIC_BOSA_MAGIC, 13, struct bosa_tx_status)
 
 /*
+ * BOSA RX status — 32 bytes in v7.5.1 (was 14 packed in v4.5.0).
+ * All fields widened to uint32_t. loss_of_lock removed.
+ * meas_power_1490_rssi now scaled by FLOAT2INTSHIFT 17 (was 14 in v4.5.0).
+ * Layout from pyghidra decompilation of stock v7.5.1 omcid.
+ */
+struct bosa_rx_status {
+	uint32_t rx_enable;
+	uint32_t meas_power_1490_rssi;	/* [mW] << 17 */
+	uint32_t meas_voltage_1490_rssi;
+	uint32_t meas_current_1490_rssi;
+	uint32_t meas_current_1490_rssi_is_positive;
+	uint32_t meas_voltage_1550_rf;
+	uint32_t meas_voltage_1550_rssi;
+	uint32_t loss_of_signal;
+};
+
+#define FIO_BOSA_RX_STATUS_GET_751 \
+	_IOR(OPTIC_BOSA_MAGIC, 12, struct bosa_rx_status)
+
+/*
  * Supply voltage — new in v7.5.1, ioctl #10 in MM block.
  * Not present in v4.5.0 SDK.  Single uint32_t value.
  */
@@ -220,11 +240,12 @@ omci_api_ani_g_optical_signal_level_get(struct omci_api_ctx *ctx,
 					int16_t *optical_signal_level)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
-	struct optic_bosa_rx_status status;
+	struct bosa_rx_status status;
 	float pwr_mw;
 
+	memset(&status, 0, sizeof(status));
 	ret = dev_ctl(ctx->remote, ctx->goi_fd,
-		      FIO_BOSA_RX_STATUS_GET, &status, sizeof(status));
+		      FIO_BOSA_RX_STATUS_GET_751, &status, sizeof(status));
 	if (ret != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR,
 			("omci_api_ani_g_optical_signal_level_get failed\n"));
@@ -232,10 +253,12 @@ omci_api_ani_g_optical_signal_level_get(struct omci_api_ctx *ctx,
 	}
 
 	if (status.meas_power_1490_rssi == 0) {
-		*optical_signal_level = 0;
+		/* G.988: 0x8000 = below measurement capability */
+		*optical_signal_level = (int16_t)0x8000;
 	} else {
-		pwr_mw = optic_uin16t_to_float(status.meas_power_1490_rssi,
-					       OPTIC_FLOAT2INTSHIFT_POWER);
+		/* v7.5.1: meas_power_1490_rssi scaled by 2^17 (was 2^14) */
+		pwr_mw = ((float)status.meas_power_1490_rssi) /
+			  (float)(1 << 17);
 
 		*optical_signal_level =
 			(int16_t)(10.0 * log10(pwr_mw) / 0.002);

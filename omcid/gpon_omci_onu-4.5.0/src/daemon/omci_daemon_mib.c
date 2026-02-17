@@ -16,8 +16,14 @@
 #include "ifxos_std_defs.h"
 #include "ifxos_file_access.h"
 #include "ifxos_print_io.h"
+#include <stdio.h>
 
 #include <memory.h>
+
+#define DLOG(fmt, ...) do { \
+	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
+	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
+} while (0)
 #include "daemon/omci_daemon.h"
 
 #ifdef WIN32
@@ -151,7 +157,8 @@ enum omci_error mib_on_reset(struct omci_context *context)
 	uint16_t instance_id, class_id;
 	unsigned int attr;
 	char data[OMCI_ME_DATA_SIZE_MAX];
-	bool use_section = false;
+	unsigned int me_count = 0;
+	bool use_section = true;
 	unsigned int line = 0;
 	unsigned int len;
 	bool active;
@@ -166,12 +173,15 @@ enum omci_error mib_on_reset(struct omci_context *context)
 
 	error = omci_olt_get(context, &olt);
 	if (error) {
+		DLOG("mib_on_reset: olt_get FAILED err=%d", error);
 		omci_printfe(OMCID "Can't get OLT type\n");
 		return error;
 	}
 
 	sprintf(olt_str, "%u", olt);
 
+	DLOG("mib_on_reset: olt=%u path=%s", olt,
+	     omci_config.mib_config_path ? omci_config.mib_config_path : mib_default_path);
 	omci_printf( OMCID "Reading MIB configuration from '%s'...\n",
 		      (omci_config.mib_config_path ?
 				omci_config.mib_config_path :
@@ -272,6 +282,7 @@ enum omci_error mib_on_reset(struct omci_context *context)
 
 		error = omci_me_is_supported(context, class_id);
 		if (error == OMCI_ERROR_ME_NOT_SUPPORTED) {
+			DLOG("mib_parse: cls=%u UNSUPPORTED (line %d)", class_id, line);
 			omci_printfe(OMCID "Pass non-supported Managed Entity"
 					   " with id=%u (line %d)\n", class_id,
 								      line);
@@ -384,19 +395,24 @@ enum omci_error mib_on_reset(struct omci_context *context)
 			}
 		}
 
+		DLOG("mib_parse: creating cls=%u inst=0x%04x act=%d", class_id, instance_id, active);
 		error = omci_me_create(context, active, class_id, instance_id,
 				       data, 0xffff);
 
 		if (error) {
+			DLOG("mib_parse: cls=%u inst=0x%04x FAILED err=%d", class_id, instance_id, error);
 			omci_printfe(OMCID "Managed Entity %u@%u creation "
 					   "error %d\n", class_id, instance_id,
 							 error);
 			goto RESET_ERROR;
 		}
+		me_count++;
+		DLOG("mib_parse: cls=%u inst=0x%04x OK", class_id, instance_id);
 	}
 
 RESET_ERROR:
 	omci_fclose(f);
+	DLOG("mib_on_reset: %u MEs created", me_count);
 
 	return OMCI_SUCCESS;
 }

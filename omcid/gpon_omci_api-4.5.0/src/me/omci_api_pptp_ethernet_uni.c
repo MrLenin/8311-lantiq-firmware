@@ -9,7 +9,13 @@
 
 ******************************************************************************/
 #include "ifxos_memory_alloc.h"
+#include <stdio.h>
 #include "omci_api_common.h"
+
+#define DLOG(fmt, ...) do { \
+	FILE *_f = fopen("/tmp/8311_me11.log", "a"); \
+	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
+} while (0)
 #include "omci_api_debug.h"
 #include "me/omci_api_pptp_ethernet_uni.h"
 
@@ -52,10 +58,14 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	if (ctx->remote)
 		return ret;
 
+	DLOG("ME11 config: port=%u create=%d admin=%u",
+	     port_idx, create, admin_state);
+
 	lan_cap_cfg_old.in.index = port_idx;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CAPABILITY_CFG_GET,
 		      &lan_cap_cfg_old, sizeof(lan_cap_cfg_old));
 	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 config: CAP_GET failed ret=%d", ret);
 		DBG(OMCI_API_ERR, ("%s lan port capability cfg get error\n",
 			__FUNCTION__));
 		return ret;
@@ -67,6 +77,7 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CFG_GET,
 		      &lan_cfg_old, sizeof(union lan_port_cfg_get_u));
 	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 config: CFG_GET failed ret=%d", ret);
 		DBG(OMCI_API_ERR, ("%s lan port cfg get error\n",
 			__FUNCTION__));
 		return ret;
@@ -74,7 +85,14 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 
 	memcpy(&lan_cfg, &lan_cfg_old.out, sizeof(struct lan_port_cfg));
 
+	DLOG("ME11 config: mode=%u uni_port_en=%u "
+	     "speed=%u duplex=%u mfs=%u",
+	     lan_cfg.mode, lan_cfg.uni_port_en,
+	     lan_cfg.speed_mode, lan_cfg.duplex_mode,
+	     lan_cfg.max_frame_size);
+
 	if (lan_cfg.mode == LAN_MODE_OFF) {
+		DLOG("ME11 config: mode=OFF, SKIPPING port %u", port_idx);
 		DBG(OMCI_API_ERR, ("lan port %d isn't configured yet, "
 				   "skip configuration\n", port_idx ));
 		return OMCI_API_SUCCESS;
@@ -169,6 +187,13 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 		lan_cap_cfg.mbit_10 = false;
 		lan_cap_cfg.mbit_100 = false;
 		lan_cap_cfg.mbit_1000 = true;
+		/* v7.5.1: TBI_MAC at 1000, no autoneg */
+		lan_cfg.mode = LAN_MODE_TBI_MAC;
+		lan_cfg.speed_mode = LAN_MODE_SPEED_1000;
+		lan_cfg.duplex_mode = LAN_PHY_MODE_DUPLEX_FULL;
+		lan_cfg.flow_control_mode = LAN_FLOW_CONTROL_MODE_NONE;
+		lan_cfg.autoneg_mode = SGMII_MAC_ANEG;
+		lan_cfg.gmux_mode = LAN_MODE_GMUX_SGMII;
 		break;
 
 	case OMCI_API_PPPTPETHUNI_DETECT_AUTO:
@@ -177,6 +202,13 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 		lan_cap_cfg.mbit_10 = true;
 		lan_cap_cfg.mbit_100 = true;
 		lan_cap_cfg.mbit_1000 = true;
+		/* v7.5.1: TBI_PHY at 2500 with SERDES autoneg */
+		lan_cfg.mode = LAN_MODE_TBI_PHY;
+		lan_cfg.speed_mode = LAN_MODE_SPEED_2500;
+		lan_cfg.duplex_mode = LAN_PHY_MODE_DUPLEX_FULL;
+		lan_cfg.flow_control_mode = LAN_FLOW_CONTROL_MODE_NONE;
+		lan_cfg.autoneg_mode = SGMII_SERDES_ANEG;
+		lan_cfg.gmux_mode = LAN_MODE_GMUX_SGMII;
 		break;
 
 	case OMCI_API_PPPTPETHUNI_DETECT_AUTO_FULL:
@@ -249,24 +281,55 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 		return OMCI_API_ERROR;
 	}
 
-	omci_api_lan_port_ppoe_modify(ctx, port_idx, pppoe_filter);
-	loop_cfg.index = port_idx;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_LOOP_CFG_SET,
-		      &loop_cfg, sizeof(struct lan_loop_cfg));
-	if (ret != OMCI_API_SUCCESS) {
-		DBG(OMCI_API_ERR,
-			("%s: lan port loop cfg set error %d, enable %d\n",
-						__FUNCTION__, ret,
-						loop_cfg.phy_ingress_loop_en));
-		goto lan_loop_restore;
-	}
+	DLOG("ME11 config: after auto_detect=%u: mode=%u speed=%u "
+	     "duplex=%u flow=%u autoneg=%u gmux=%u",
+	     auto_detect_cfg, lan_cfg.mode, lan_cfg.speed_mode,
+	     lan_cfg.duplex_mode, lan_cfg.flow_control_mode,
+	     lan_cfg.autoneg_mode, lan_cfg.gmux_mode);
 
-	lan_cfg.uni_port_en = admin_state == 0;
+	omci_api_lan_port_ppoe_modify(ctx, port_idx, pppoe_filter);
+
+	/* v7.5.1 ioctl order (confirmed by decompilation):
+	   1. PORT_CFG_SET  2. CAPABILITY_CFG_SET
+	   3. GPE_CFG_SET   4. LOOP_CFG_SET
+	   Stock does NOT call FIO_LAN_PORT_ENABLE from _config.
+	   Stock does NOT modify uni_port_en here — it preserves
+	   the value from PORT_CFG_GET.  Actual port enable/disable
+	   is done via FIO_LAN_PORT_ENABLE in _enabled().
+	   Confirmed by ioctl trace: boot sends uni_port_en=0,
+	   stop/start sends uni_port_en=1 (preserved from GET). */
+
+	/* lan_cfg.uni_port_en preserved from PORT_CFG_GET above */
 	lan_cfg.max_frame_size = max_frame_size;
+
+	DLOG("ME11 config: CFG_SET uni_port_en=%u mode=%u "
+	     "speed=%u duplex=%u flow=%u mfs=%u autoneg=%u sizeof=%u",
+	     lan_cfg.uni_port_en, lan_cfg.mode, lan_cfg.speed_mode,
+	     lan_cfg.duplex_mode, lan_cfg.flow_control_mode,
+	     lan_cfg.max_frame_size, lan_cfg.autoneg_mode,
+	     (unsigned)sizeof(struct lan_port_cfg));
+
+	/* Hex dump the exact bytes being sent */
+	{
+		const uint8_t *p = (const uint8_t *)&lan_cfg;
+		unsigned i;
+		FILE *_f = fopen("/tmp/8311_me11.log", "a");
+		if (_f) {
+			fprintf(_f, "ME11 config: CFG_SET hex dump (%u bytes):\n",
+				(unsigned)sizeof(struct lan_port_cfg));
+			for (i = 0; i < sizeof(struct lan_port_cfg); i++) {
+				fprintf(_f, "%02x ", p[i]);
+				if ((i % 16) == 15) fprintf(_f, "\n");
+			}
+			fprintf(_f, "\n");
+			fclose(_f);
+		}
+	}
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CFG_SET,
 		      &lan_cfg, sizeof(struct lan_port_cfg));
 	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 config: CFG_SET FAILED ret=%d", ret);
 		DBG(OMCI_API_ERR,
 			("%s: lan port cfg set error %d\n",
 					__FUNCTION__, ret));
@@ -314,8 +377,18 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	if (ret != OMCI_API_SUCCESS)
 		goto restore;
 
-	omci_api_lan_port_enable(ctx, port_idx, admin_state == 0);
+	loop_cfg.index = port_idx;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_LOOP_CFG_SET,
+		      &loop_cfg, sizeof(struct lan_loop_cfg));
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR,
+			("%s: lan port loop cfg set error %d, enable %d\n",
+						__FUNCTION__, ret,
+						loop_cfg.phy_ingress_loop_en));
+		goto restore;
+	}
 
+	DLOG("ME11 config: DONE port=%u", port_idx);
 	return ret;
 restore:
 	/* Restore GPE config */
@@ -352,63 +425,194 @@ lan_loop_restore:
 	return ret;
 }
 
+/* v7.5.1 GPE LAN Port Table (0x43): 8 data words (32 bytes) + 16-byte header.
+   Stock ioctl total = data_size(0x20) + 0x10 = 48 bytes.
+   Our total = offsetof(data)(16) + sizeof(gpe_lan_port_table)(32) = 48 bytes.
+
+   The 4-byte _v751_padding in gpe_table_entry header contains:
+     - byte 0 bit 3: 802.1x authorize (kernel-managed)
+
+   Data area byte layout (verified from stock v7.5.1 decompilation):
+     data byte 0,  bit 7: valid (entry enable) — word 0 MSB
+     data byte 12:        word 3 — unknown, inserted between ext_vlan and fid_mask
+     data byte 16, bit 2: pppoe_filter_enable — word 4
+     data bytes 20-31:    kernel-managed (includes MAC at bytes 28-31)
+*/
+
 enum omci_api_return
 omci_api_pptp_ethernet_uni_create(struct omci_api_ctx *ctx,
-				  uint16_t me_id,
-				  uint8_t admin_state,
-				  uint8_t expected_type,
-				  uint8_t auto_detect_cfg,
-				  uint8_t ethernet_loopback,
-				  uint16_t max_frame_size,
-				  uint8_t dte_dce_ind,
-				  uint16_t pause_time,
-				  uint8_t bridge_or_router_cfg,
-				  uint8_t pppoe_filter,
-				  uint8_t power_control)
+				  uint16_t me_id)
 {
-	enum omci_api_return ret = OMCI_API_SUCCESS;
+	enum omci_api_return ret;
 	uint8_t lan_port;
 
 	ret = omci_api_uni2lan(ctx, me_id, &lan_port);
-	if(ret != OMCI_API_SUCCESS)
-		return ret;
-
-	DBG(OMCI_API_MSG, ("%s\n"
-		  "   me_id=%u\n" "   expected_type=%u\n"
-		  "   auto_detect_cfg=%u\n" "   ethernet_loopback=%u\n"
-		  "   max_frame_size=%u\n" "   dte_dce_ind=%u\n"
-		  "   pause_time=%u\n" "   bridge_or_router_cfg=%u\n"
-		  "   pppoe_filter=%u\n" "   power_control=%u\n",
-		  __FUNCTION__,
-		  me_id, expected_type,
-		  auto_detect_cfg, ethernet_loopback, max_frame_size,
-		  dte_dce_ind, pause_time, bridge_or_router_cfg, pppoe_filter,
-		  power_control));
-
-	ret = explicit_map(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
-				   me_id, lan_port);
 	if (ret != OMCI_API_SUCCESS)
 		return ret;
 
-	ret = omci_api_pptp_ethernet_uni_config(ctx,
-						lan_port,
-						true,
-						expected_type,
-						auto_detect_cfg,
-						ethernet_loopback,
-						max_frame_size,
-						dte_dce_ind,
-						pause_time,
-						bridge_or_router_cfg,
-						pppoe_filter,
-						power_control,
-						admin_state);
+	DBG(OMCI_API_MSG, ("%s me_id=%u\n", __FUNCTION__, me_id));
+	DLOG("ME11 create: me_id=0x%04x port=%u (mapping only)", me_id,
+	     lan_port);
 
+	/* v7.5.1 stock _create (0x43f300): just uni2port + explicit_map.
+	   No ioctls, no table writes, no LAN port enable.
+	   All hardware init happens in _enabled (called later). */
+	ret = explicit_map(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
+			   me_id, lan_port);
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_pptp_ethernet_uni_enabled(struct omci_api_ctx *ctx,
+				   uint16_t me_id)
+{
+	enum omci_api_return ret;
+	uint32_t port_idx = 0;
+	union lan_port_status_get_u status;
+	struct gpe_table_entry entry;
+	uint8_t *tdata;
+
+	if (ctx->remote)
+		return OMCI_API_SUCCESS;
+
+	ret = index_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
+			me_id, &port_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	DLOG("ME11 enabled: me_id=0x%04x port=%u", me_id, port_idx);
+
+	/* v7.5.1 _enabled (0x43f25c):
+	   1. PORT_STATUS_GET → check if port already enabled
+	   2. If not enabled → LAN_PORT_ENABLE
+	   3. table_0x43_enable(valid=1)
+	   4. table_0x43_auth(0) */
+
+	status.in.index = (uint8_t)port_idx;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
+		      &status, sizeof(status));
 	if (ret != OMCI_API_SUCCESS) {
-		(void)error_notify(ctx, 11, me_id, OMCI_API_ACTION_CREATE, ret);
+		DLOG("ME11 enabled: PORT_STATUS_GET failed ret=%d", ret);
 		return ret;
 	}
 
+	DLOG("ME11 enabled: status mode=%u uni_en=%u link=%u",
+	     status.out.mode, status.out.uni_port_en,
+	     status.out.link_status);
+
+	/* v7.5.1: only enable if not already enabled */
+	if (!status.out.uni_port_en) {
+		struct lan_port_index idx;
+		idx.index = port_idx;
+
+		ret = dev_ctl(ctx->remote, ctx->onu_fd,
+			      FIO_LAN_PORT_ENABLE, &idx, sizeof(idx));
+		if (ret != OMCI_API_SUCCESS) {
+			DLOG("ME11 enabled: LAN_PORT_ENABLE failed ret=%d",
+			     ret);
+			return ret;
+		}
+		DLOG("ME11 enabled: LAN_PORT_ENABLE ok");
+	} else {
+		DLOG("ME11 enabled: already enabled, skip");
+	}
+
+	/* Set valid bit: data word 0 MSB (byte 0 bit 7) */
+	ret = table_read(ctx, ONU_GPE_LAN_PORT_TABLE_ID, port_idx,
+			 sizeof(struct gpe_lan_port_table), &entry);
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 enabled: table_read(valid) failed ret=%d", ret);
+		return ret;
+	}
+
+	tdata = (uint8_t *)&entry.data;
+	DLOG("ME11 enabled: table pre-valid data[0]=0x%02x", tdata[0]);
+	entry.data.lan_port.valid = 1;
+
+	ret = table_write(ctx, sizeof(struct gpe_lan_port_table), &entry);
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 enabled: table_write(valid) failed ret=%d", ret);
+		return ret;
+	}
+	DLOG("ME11 enabled: table post-valid data[0]=0x%02x", tdata[0]);
+
+	/* Clear auth bit: in _v751_padding byte 0, bit 3 (authorize=0) */
+	ret = table_read(ctx, ONU_GPE_LAN_PORT_TABLE_ID, port_idx,
+			 sizeof(struct gpe_lan_port_table), &entry);
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 enabled: table_read(auth) failed ret=%d", ret);
+		return ret;
+	}
+
+	{
+		uint8_t *hdr = (uint8_t *)&entry._v751_padding;
+		hdr[0] = hdr[0] & 0xF7; /* clear auth bit (bit 3 = 0) */
+	}
+
+	ret = table_write(ctx, sizeof(struct gpe_lan_port_table), &entry);
+	if (ret != OMCI_API_SUCCESS)
+		DLOG("ME11 enabled: table_write(auth) failed ret=%d", ret);
+
+	DLOG("ME11 enabled: DONE port=%u", port_idx);
+	return ret;
+}
+
+enum omci_api_return
+omci_api_pptp_ethernet_uni_disabled(struct omci_api_ctx *ctx,
+				    uint16_t me_id)
+{
+	enum omci_api_return ret;
+	uint32_t port_idx = 0;
+	union lan_port_status_get_u status;
+	struct gpe_table_entry entry;
+
+	if (ctx->remote)
+		return OMCI_API_SUCCESS;
+
+	ret = index_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
+			me_id, &port_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	DLOG("ME11 disabled: me_id=0x%04x port=%u", me_id, port_idx);
+
+	/* v7.5.1 _disabled (0x43f1a8):
+	   1. PORT_STATUS_GET → check if port is enabled
+	   2. If enabled → LAN_PORT_DISABLE
+	   3. table_0x43_enable(valid=0) */
+
+	status.in.index = (uint8_t)port_idx;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
+		      &status, sizeof(status));
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("ME11 disabled: PORT_STATUS_GET failed ret=%d", ret);
+		return ret;
+	}
+
+	if (status.out.uni_port_en != 0) {
+		struct lan_port_index idx;
+		idx.index = port_idx;
+		ret = dev_ctl(ctx->remote, ctx->onu_fd,
+			      FIO_LAN_PORT_DISABLE, &idx, sizeof(idx));
+		if (ret != OMCI_API_SUCCESS) {
+			DLOG("ME11 disabled: LAN_PORT_DISABLE failed ret=%d",
+			     ret);
+			return ret;
+		}
+	}
+
+	/* Clear valid bit: data word 0 MSB (byte 0 bit 7) */
+	ret = table_read(ctx, ONU_GPE_LAN_PORT_TABLE_ID, port_idx,
+			 sizeof(struct gpe_lan_port_table), &entry);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	entry.data.lan_port.valid = 0;
+
+	ret = table_write(ctx, sizeof(struct gpe_lan_port_table), &entry);
+
+	DLOG("ME11 disabled: DONE port=%u ret=%d", port_idx, ret);
 	return ret;
 }
 

@@ -394,6 +394,36 @@ struct mapper_entry m_entry[] = {
 		"US PQueue -> Token bucket shaper IDX",
 		NULL
 	},
+	{
+		MAPPER_VEIP_MEID_TO_IDX,
+		1,
+		0,
+		0xffff,
+		0,
+		8,
+		"VEIP -> IDX",
+		NULL
+	},
+	{
+		MAPPER_LCT_MEID_TO_LAN_IDX,
+		1,
+		0,
+		0xffff,
+		0,
+		4,
+		"LCT -> LAN IDX",
+		NULL
+	},
+	{
+		MAPPER_LCT_MEID_TO_METER_IDX,
+		1,
+		0,
+		0xffff,
+		0,
+		0xffff,
+		"LCT -> METER IDX",
+		NULL
+	},
 
 #ifdef INCLUDE_OMCI_API_VOIP
 	{

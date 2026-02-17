@@ -1905,27 +1905,12 @@ mcc_igmp_rate_limiter_attach(struct mcc_ctx *mcc,
 			     const uint8_t lan_idx,
 			     const uint32_t rate_limiter_idx)
 {
-	enum omci_api_return ret;
-	union gpe_lan_exception_cfg_u exc_cfg;
-
-	/* read LAN port exception config*/
-	exc_cfg.in.lan_port_index = lan_idx;
-	ret = dev_ctl(mcc->remote, mcc->onu_fd,
-		      FIO_GPE_LAN_EXCEPTION_CFG_GET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		return ret;
-
-	exc_cfg.in.lan_port_index = lan_idx;
-	exc_cfg.out.igmp_except_meter_id = rate_limiter_idx;
-	exc_cfg.out.igmp_except_meter_enable = 1;
-
-	/* write LAN port exception config*/
-	ret = dev_ctl(mcc->remote, mcc->onu_fd,
-		      FIO_GPE_LAN_EXCEPTION_CFG_SET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		return ret;
-
-	return ret;
+	/* v7.5.1: IGMP meter fields removed from gpe_lan_exception_cfg.
+	   Rate limiter attach is a no-op. */
+	(void)mcc;
+	(void)lan_idx;
+	(void)rate_limiter_idx;
+	return OMCI_API_SUCCESS;
 }
 
 /** Detach Rate Limiter from the specified LAN port.
@@ -1939,26 +1924,11 @@ static enum omci_api_return
 mcc_igmp_rate_limiter_detach(struct mcc_ctx *mcc,
 			     const uint8_t lan_idx)
 {
-	enum omci_api_return ret;
-	union gpe_lan_exception_cfg_u exc_cfg;
-
-	/* read LAN port exception config*/
-	exc_cfg.in.lan_port_index = lan_idx;
-	ret = dev_ctl(mcc->remote, mcc->onu_fd,
-		      FIO_GPE_LAN_EXCEPTION_CFG_GET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		return ret;
-
-	exc_cfg.in.lan_port_index = lan_idx;
-	exc_cfg.out.igmp_except_meter_enable = 0;
-
-	/* write LAN port exception config*/
-	ret = dev_ctl(mcc->remote, mcc->onu_fd,
-		      FIO_GPE_LAN_EXCEPTION_CFG_SET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		return ret;
-
-	return ret;
+	/* v7.5.1: IGMP meter fields removed from gpe_lan_exception_cfg.
+	   Rate limiter detach is a no-op. */
+	(void)mcc;
+	(void)lan_idx;
+	return OMCI_API_SUCCESS;
 }
 
 /** Get multicast profile index for the specified subscribed.

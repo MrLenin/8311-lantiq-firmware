@@ -3304,393 +3304,130 @@ The table instance value shall be set to.
 - 0x3F: for write acces
 */
 struct gpe_lan_port_table {
+	/* 8311 mod: v7.5.1 layout — 8 data words (32 bytes) in kernel.
+	   v4.5.0 had 4 data words (16 bytes). v7.5.1 added:
+	     - word 3: unknown purpose (inserted between ext_vlan and fid_mask)
+	     - words 5-7: appended (kernel-managed, includes MAC)
+	   The original 4 v4.5.0 words map to v7.5.1 data words 0-2 and 4.
+
+	   The 802.1x authorize bit lives in gpe_table_entry._v751_padding
+	   (the 4-byte header padding between index and data), NOT in the
+	   data area. Stock decompilation confirmed buffer layout:
+	     - buffer[12] bit 3: authorize (in _v751_padding)
+	     - buffer[16] bit 7: valid/enable (data word 0 MSB)
+	     - buffer[32] bit 2: pppoe_filter_enable (data word 4)
+
+	   This struct is 32 bytes = stock data_size (0x20). Use sizeof()
+	   for all table_read/table_write calls — the padding in the
+	   gpe_table_entry header provides the missing 4 bytes to match
+	   stock's total ioctl size of data_size + 0x10 = 48. */
+
 #if __BYTE_ORDER == __BIG_ENDIAN
-	/** Entry validity.
-	    - 0: This table entry is void.
-	    - 1: This table entry is valid.
-	*/
+	/* --- word 0: original v4.5.0 word 0 --- */
 	uint32_t valid:1;
-	/** This threshold value defines the maximum ingress data rate that is
-	    accepted by the LAN-port-based ingress policer. See the UMPR document
-	    for rate configuration.
-	*/
 	uint32_t policer_threshold:21;
-	/** Exception ingress meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t uni_except_meter_enable:1;
-	/** Dual token bucket meter selection for exception traffic to the software,
-	    the upper 8 bit of this value are used to address one of up to 256 meter
-	    units, the LSB must be set to 0.
-	*/
 	uint32_t uni_except_meter_id:9;
-	/** Unused, set to 0. */
+
+	/* --- word 2: original v4.5.0 word 1 --- */
 	uint32_t unused3:3;
-	/** IGMP ingress meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t igmp_except_meter_enable:1;
-	/** Dual token bucket meter selection for IGMP control traffic from Ingress
-	    UNI or Egress UNI to the software, the upper 8 bit of this value are
-	    used to address one of up to 256 meter units, the LSB must be set to 0.
-	*/
 	uint32_t igmp_except_meter_id:9;
-	/** Exception profile selection for LAN-side ingress and egress exception
-	    processing.
-	*/
 	uint32_t exception_profile:3;
-	/** Selects the entry point of the ACL table to start the filtering. */
 	uint32_t acl_filter_index:8;
-	/** Selects if the ACL filter function shall be applied.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t acl_filter_enable:1;
-	/** Access Control List Filter operation mode.
-	    - 0: Blacklist (filter works in blacklist mode, drop if at least one
-	    matching rule is found).
-	    - 1: Whitelist (filter works in whitelist mode, pass only if matching
-	    rule is found).
-	*/
 	uint32_t acl_filter_mode:1;
-	/** Selects the decoding rule (1 of 8) for Queue Marking. Used as MSBs of
-	    the DSCP decoding table index (the 5 LSBs are the DSCP value).
-	*/
 	uint32_t dscp_table_pointer:3;
-	/** Queue marking mode, values 0 to 7 are valid.
-	    - 0: No marking.
-	    - 1: Internal marking by meter.
-	    - 2: DEI marking.
-	    - 3: PCP 8P0D marking.
-	    - 4: PCP 7P1D marking.
-	    - 5: PCP 6P2D marking.
-	    - 6: PCP 5P3D marking.
-	    - 7: DSCP marking.
-	*/
 	uint32_t queue_marking_mode:3;
-	/** Ingress Extended VLAN processing enable for multicast packets and
-	    IGMP/MLD control packets. Extended VLAN handling is enabled, if the
-	    condition ((ext_vlan_ingress ==1)||(ext_vlan_mc_enable_ingress==1)) is
-	    met.
-	    If the condition ((ext_vlan_ingress
-	    ==1)&&(ext_vlan_mc_enable_ingress==0)) is met, a dummy rule must be
-	    configured for multicast/IGMP packets in the VLAN rule/treatment tables.
-	    
-	    - 0: Disabled (extended VLAN processing is not applied to multicast and
-	    IGMP/MLD packets).
-	    - 1: Enabled (extended VLAN processing is applied to all packets).
-	*/
+
+	/* --- word 2: original v4.5.0 word 2 (ext_vlan) --- */
 	uint32_t ext_vlan_mc_enable_ingress:1;
-	/** LAN MAC swap enable. Swap MAC DA and MAC SA.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t lan_mac_swap_enable:1;
-	/** Loopback enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t lan_loopback_enable:1;
-	/** Ethertype Filter Enable.
-	    - 0: Disabled (no filtering is performed).
-	    - 1: Enabled (blacklist or whitelist filtering is performed).
-	*/
 	uint32_t ethertype_filter_enable:1;
-	/** Ethertype Filter operation mode:
-	    - 0: Blacklist (block if it matches).
-	    - 1: Whitelist (pass if it matches).
-	*/
 	uint32_t ethertype_filter_mode:1;
-	/** Ethertype Filter Pointer. This is the start pointer into the Ethertype
-	    Filter Table
-	*/
 	uint32_t ethertype_filter_pointer:6;
-	/** Allow an egress extended VLAN operation to be based on the result of an
-	    ingress extended VLAN operation.
-	    - 0: VLAN operation is based on the original received data values.
-	    - 1: VLAN operation is based on the result of an ingress extended VLAN
-	    operation.
-	*/
 	uint32_t ext_vlan_incremental_enable:1;
-	/** Defines the usage of the inner VLAN field in the ingress extended VLAN
-	    rule definition.
-	    - 0: Inner VLAN ID.
-	    - 1: Reserved (do not use).
-	    - 2: Ingress port number (ipn).
-	    - 3: Received DSCP.
-	*/
 	uint32_t ext_vlan_ingress_mode:2;
-	/** Defines the usage of the inner VLAN field in the egress extended VLAN
-	    rule definition.
-	    - 0: Inner VLAN ID.
-	    - 1: GEM port index (gpix).
-	    - 2: Ingress port number (ipn).
-	    - 3: Received DSCP.
-	*/
 	uint32_t ext_vlan_egress_mode:2;
-	/** Extended VLAN enable, enables the VLAN configuration defined by the
-	    Extended VLAN Index.
-	*/
 	uint32_t ext_vlan_enable_egress:1;
-	/** Extended VLAN Index, values 0 to ONU_GPE_EXTENDED_VLAN_TABLE_SIZE - 1
-	    are valid. Points to the ONU_GPE_EXTENDED_VLAN_TABLE.
-	*/
 	uint32_t ext_vlan_index_egress:7;
-	/** Extended VLAN enable, enables the VLAN configuration defined by the
-	    Extended VLAN Index.
-	*/
 	uint32_t ext_vlan_enable_ingress:1;
-	/** Extended VLAN Index, values 0 to ONU_GPE_EXTENDED_VLAN_TABLE_SIZE - 1
-	    are valid; points to the ONU_GPE_EXTENDED_VLAN_TABLE.
-	*/
 	uint32_t ext_vlan_index_ingress:7;
-	/** Forwarding ID mask to enable inner PCP for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
+
+	/** v7.5.1 word 3: unknown purpose. Inserted between ext_vlan
+	    and fid_mask in v7.5.1. Preserved during read-modify-write. */
+	uint32_t _v751_word4;
+
+	/* --- word 4: original v4.5.0 word 3 (fid_mask/interworking) --- */
 	uint32_t fid_mask_pcpi:1;
-	/** Forwarding ID mask to enable outer PCP for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t fid_mask_pcpo:1;
-	/** Forwarding ID mask to enable inner VID for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t fid_mask_vidi:1;
-	/** Forwarding ID mask to enable the outer VID for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t fid_mask_vido:1;
-	/** Egress ExtVLAN_Enable for MC and IGMP/MLD. */
 	uint32_t ext_vlan_mc_enable_egress:1;
-	/** PPPoE filtering enable.
-	    - 0: Disabled (all packets are accepted).
-	    - 1: Enabled (only PPPoE packets are accepted).
-	*/
 	uint32_t pppoe_filter_enable:1;
-	/** CFM meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t cfm_meter_enable:1;
-	/** Dual token bucket meter selection for CFM frames, the upper 8 bit of
-	    this value are used to address one of up to 256 meter units, the LSB
-	    must be set to 0.
-	*/
 	uint32_t cfm_meter_id:9;
-	/** Base queue index of the LAN port's group of egress queues, values 0 to
-	    GPON_MAX_EGRESS_QUEUES - 7 are valid.
-	*/
 	uint32_t base_queue_index:8;
-	/** Interworking Option.
-	    - 0: Bridging, interworking_index is a bridge port index.
-	    - 1: P-Mapper, interworking_index is a P-Mapper index.
-	*/
 	uint32_t interworking_option:1;
-	/** Bridge port index (0 to ONU_GPE_BRIDGE_PORT_TABLE_SIZE - 1) or P-Mapper
-	    index (0 to ONU_GPE_PMAPPER_TABLE_SIZE - 1). Points to an entry of the
-	    ONU_GPE_BRIDGE_PORT_TABLE or of the ONU_GPE_PMAPPER_TABLE.
-	*/
 	uint32_t interworking_index:7;
 #else
-	/** Bridge port index (0 to ONU_GPE_BRIDGE_PORT_TABLE_SIZE - 1) or P-Mapper
-	    index (0 to ONU_GPE_PMAPPER_TABLE_SIZE - 1). Points to an entry of the
-	    ONU_GPE_BRIDGE_PORT_TABLE or of the ONU_GPE_PMAPPER_TABLE.
-	*/
-	uint32_t interworking_index:7;
-	/** Interworking Option.
-	    - 0: Bridging, interworking_index is a bridge port index.
-	    - 1: P-Mapper, interworking_index is a P-Mapper index.
-	*/
-	uint32_t interworking_option:1;
-	/** Base queue index of the LAN port's group of egress queues, values 0 to
-	    GPON_MAX_EGRESS_QUEUES - 7 are valid.
-	*/
-	uint32_t base_queue_index:8;
-	/** Dual token bucket meter selection for CFM frames, the upper 8 bit of
-	    this value are used to address one of up to 256 meter units, the LSB
-	    must be set to 0.
-	*/
-	uint32_t cfm_meter_id:9;
-	/** CFM meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t cfm_meter_enable:1;
-	/** PPPoE filtering enable.
-	    - 0: Disabled (all packets are accepted).
-	    - 1: Enabled (only PPPoE packets are accepted).
-	*/
-	uint32_t pppoe_filter_enable:1;
-	/** Egress ExtVLAN_Enable for MC and IGMP/MLD. */
-	uint32_t ext_vlan_mc_enable_egress:1;
-	/** Forwarding ID mask to enable the outer VID for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t fid_mask_vido:1;
-	/** Forwarding ID mask to enable inner VID for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t fid_mask_vidi:1;
-	/** Forwarding ID mask to enable outer PCP for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t fid_mask_pcpo:1;
-	/** Forwarding ID mask to enable inner PCP for FID calculation.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t fid_mask_pcpi:1;
-	/** Extended VLAN Index, values 0 to ONU_GPE_EXTENDED_VLAN_TABLE_SIZE - 1
-	    are valid; points to the ONU_GPE_EXTENDED_VLAN_TABLE.
-	*/
-	uint32_t ext_vlan_index_ingress:7;
-	/** Extended VLAN enable, enables the VLAN configuration defined by the
-	    Extended VLAN Index.
-	*/
-	uint32_t ext_vlan_enable_ingress:1;
-	/** Extended VLAN Index, values 0 to ONU_GPE_EXTENDED_VLAN_TABLE_SIZE - 1
-	    are valid. Points to the ONU_GPE_EXTENDED_VLAN_TABLE.
-	*/
-	uint32_t ext_vlan_index_egress:7;
-	/** Extended VLAN enable, enables the VLAN configuration defined by the
-	    Extended VLAN Index.
-	*/
-	uint32_t ext_vlan_enable_egress:1;
-	/** Defines the usage of the inner VLAN field in the egress extended VLAN
-	    rule definition.
-	    - 0: Inner VLAN ID.
-	    - 1: GEM port index (gpix).
-	    - 2: Ingress port number (ipn).
-	    - 3: Received DSCP.
-	*/
-	uint32_t ext_vlan_egress_mode:2;
-	/** Defines the usage of the inner VLAN field in the ingress extended VLAN
-	    rule definition.
-	    - 0: Inner VLAN ID.
-	    - 1: Reserved (do not use).
-	    - 2: Ingress port number (ipn).
-	    - 3: Received DSCP.
-	*/
-	uint32_t ext_vlan_ingress_mode:2;
-	/** Allow an egress extended VLAN operation to be based on the result of an
-	    ingress extended VLAN operation.
-	    - 0: VLAN operation is based on the original received data values.
-	    - 1: VLAN operation is based on the result of an ingress extended VLAN
-	    operation.
-	*/
-	uint32_t ext_vlan_incremental_enable:1;
-	/** Ethertype Filter Pointer. This is the start pointer into the Ethertype
-	    Filter Table
-	*/
-	uint32_t ethertype_filter_pointer:6;
-	/** Ethertype Filter operation mode:
-	    - 0: Blacklist (block if it matches).
-	    - 1: Whitelist (pass if it matches).
-	*/
-	uint32_t ethertype_filter_mode:1;
-	/** Ethertype Filter Enable.
-	    - 0: Disabled (no filtering is performed).
-	    - 1: Enabled (blacklist or whitelist filtering is performed).
-	*/
-	uint32_t ethertype_filter_enable:1;
-	/** Loopback enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t lan_loopback_enable:1;
-	/** LAN MAC swap enable. Swap MAC DA and MAC SA.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t lan_mac_swap_enable:1;
-	/** Ingress Extended VLAN processing enable for multicast packets and
-	    IGMP/MLD control packets. Extended VLAN handling is enabled, if the
-	    condition ((ext_vlan_ingress ==1)||(ext_vlan_mc_enable_ingress==1)) is
-	    met.
-	    If the condition ((ext_vlan_ingress
-	    ==1)&&(ext_vlan_mc_enable_ingress==0)) is met, a dummy rule must be
-	    configured for multicast/IGMP packets in the VLAN rule/treatment tables.
-	    
-	    - 0: Disabled (extended VLAN processing is not applied to multicast and
-	    IGMP/MLD packets).
-	    - 1: Enabled (extended VLAN processing is applied to all packets).
-	*/
-	uint32_t ext_vlan_mc_enable_ingress:1;
-	/** Queue marking mode, values 0 to 7 are valid.
-	    - 0: No marking.
-	    - 1: Internal marking by meter.
-	    - 2: DEI marking.
-	    - 3: PCP 8P0D marking.
-	    - 4: PCP 7P1D marking.
-	    - 5: PCP 6P2D marking.
-	    - 6: PCP 5P3D marking.
-	    - 7: DSCP marking.
-	*/
-	uint32_t queue_marking_mode:3;
-	/** Selects the decoding rule (1 of 8) for Queue Marking. Used as MSBs of
-	    the DSCP decoding table index (the 5 LSBs are the DSCP value).
-	*/
-	uint32_t dscp_table_pointer:3;
-	/** Access Control List Filter operation mode.
-	    - 0: Blacklist (filter works in blacklist mode, drop if at least one
-	    matching rule is found).
-	    - 1: Whitelist (filter works in whitelist mode, pass only if matching
-	    rule is found).
-	*/
-	uint32_t acl_filter_mode:1;
-	/** Selects if the ACL filter function shall be applied.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t acl_filter_enable:1;
-	/** Selects the entry point of the ACL table to start the filtering. */
-	uint32_t acl_filter_index:8;
-	/** Exception profile selection for LAN-side ingress and egress exception
-	    processing.
-	*/
-	uint32_t exception_profile:3;
-	/** Dual token bucket meter selection for IGMP control traffic from Ingress
-	    UNI or Egress UNI to the software, the upper 8 bit of this value are
-	    used to address one of up to 256 meter units, the LSB must be set to 0.
-	*/
-	uint32_t igmp_except_meter_id:9;
-	/** IGMP ingress meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
-	uint32_t igmp_except_meter_enable:1;
-	/** Unused, set to 0. */
-	uint32_t unused3:3;
-	/** Dual token bucket meter selection for exception traffic to the software,
-	    the upper 8 bit of this value are used to address one of up to 256 meter
-	    units, the LSB must be set to 0.
-	*/
+	/* --- word 0: little-endian order --- */
 	uint32_t uni_except_meter_id:9;
-	/** Exception ingress meter enable.
-	    - 0: Disabled.
-	    - 1: Enabled.
-	*/
 	uint32_t uni_except_meter_enable:1;
-	/** This threshold value defines the maximum ingress data rate that is
-	    accepted by the LAN-port-based ingress policer. See the UMPR document
-	    for rate configuration.
-	*/
 	uint32_t policer_threshold:21;
-	/** Entry validity.
-	    - 0: This table entry is void.
-	    - 1: This table entry is valid.
-	*/
 	uint32_t valid:1;
+
+	/* --- word 1 --- */
+	uint32_t queue_marking_mode:3;
+	uint32_t dscp_table_pointer:3;
+	uint32_t acl_filter_mode:1;
+	uint32_t acl_filter_enable:1;
+	uint32_t acl_filter_index:8;
+	uint32_t exception_profile:3;
+	uint32_t igmp_except_meter_id:9;
+	uint32_t igmp_except_meter_enable:1;
+	uint32_t unused3:3;
+
+	/* --- word 2 (ext_vlan) --- */
+	uint32_t ext_vlan_index_ingress:7;
+	uint32_t ext_vlan_enable_ingress:1;
+	uint32_t ext_vlan_index_egress:7;
+	uint32_t ext_vlan_enable_egress:1;
+	uint32_t ext_vlan_egress_mode:2;
+	uint32_t ext_vlan_ingress_mode:2;
+	uint32_t ext_vlan_incremental_enable:1;
+	uint32_t ethertype_filter_pointer:6;
+	uint32_t ethertype_filter_mode:1;
+	uint32_t ethertype_filter_enable:1;
+	uint32_t lan_loopback_enable:1;
+	uint32_t lan_mac_swap_enable:1;
+	uint32_t ext_vlan_mc_enable_ingress:1;
+
+	/** v7.5.1 word 3: unknown purpose. */
+	uint32_t _v751_word4;
+
+	/* --- word 4 (fid_mask/interworking) --- */
+	uint32_t interworking_index:7;
+	uint32_t interworking_option:1;
+	uint32_t base_queue_index:8;
+	uint32_t cfm_meter_id:9;
+	uint32_t cfm_meter_enable:1;
+	uint32_t pppoe_filter_enable:1;
+	uint32_t ext_vlan_mc_enable_egress:1;
+	uint32_t fid_mask_vido:1;
+	uint32_t fid_mask_vidi:1;
+	uint32_t fid_mask_pcpo:1;
+	uint32_t fid_mask_pcpi:1;
 #endif
+
+	/* --- words 5-7: v7.5.1 kernel-managed (12 bytes) --- */
+	/* These words are read/written by the kernel during table operations.
+	   Word 7 bytes 0-3 contain the port's MAC address (partial).
+	   Must be preserved during read-modify-write cycles. */
+	uint32_t _v751_reserved5;
+	uint32_t _v751_reserved6;
+	uint32_t _v751_reserved7;
 } __PACKED__;
 
 /** ONU_GPE_PCP_DECODING_TABLE structure definition.
@@ -5308,6 +5045,10 @@ union gpe_table_data {
 	struct gpe_tagg_filter_in tagg_filter_in;
 	/** Tagging filter execute response */
 	struct gpe_tagg_filter_out tagg_filter_out;
+	/* v7.5.1: max table data size is 32 bytes (matches bridge/ipv6 tables).
+	   The ioctl number encodes sizeof(gpe_table_entry) = 84 =
+	   16 (header w/ _v751_padding) + 32 (data) + 32 (hashdata) + 4 (result).
+	   No extra padding needed — the 32-byte members provide the max. */
 } __PACKED__;
 
 /** Structure to specify GPE table access.
@@ -5317,18 +5058,12 @@ struct gpe_table {
 	    Please refer to ONU_GPE_<table_name>_TABLE_ID as defined in
 	    drv_onu_resource_gpe.h */
 	uint32_t id;
-	/** Table instance selection
-	    This parameter provides a bit map for firmware-based tables only 
-	    and ignored for hardware-based tables.
-	    It is used to access one or more hardware instances of the same logical
-	    table. Up to six parallel tables are supported, addressed by bit 
-	    positions 0 to 5. Multiple bits may be set for write accesses, a value 
-	    of 0x3F causes all six tables to be written with the same value. 
-	    If one or more of the six processing elements have not been activated,
-	    the related bits are ignored. */
+	/** Table instance selection */
 	uint32_t instance;
 	/** Table index */
 	uint32_t index;
+	/** v7.5.1: 4-byte padding (see gpe_table_entry) */
+	uint32_t _v751_padding;
 	/** Table data */
 	union gpe_table_data data;
 } __PACKED__;
@@ -5342,17 +5077,24 @@ struct gpe_table_entry {
 	    drv_onu_resource_gpe.h */
 	uint32_t id;
 	/** Table instance selection
-	    This parameter provides a bit map for firmware-based tables only 
+	    This parameter provides a bit map for firmware-based tables only
 	    and ignored for hardware-based tables.
 	    It is used to access one or more hardware instances of the same logical
-	    table. Up to six parallel tables are supported, addressed by bit 
-	    positions 0 to 5. Multiple bits may be set for write accesses, a value 
-	    of 0x3F causes all six tables to be written with the same value. 
+	    table. Up to six parallel tables are supported, addressed by bit
+	    positions 0 to 5. Multiple bits may be set for write accesses, a value
+	    of 0x3F causes all six tables to be written with the same value.
 	    If one or more of the six processing elements have not been activated,
 	    the related bits are ignored. */
 	uint32_t instance;
 	/** Table index */
 	uint32_t index;
+	/** v7.5.1: 4-byte reserved field between header and data.
+	    The v7.5.1 kernel module uses a 16-byte header (id + instance +
+	    index + padding) before the table data, versus the 12-byte header
+	    in v4.5.0. Stock omcid passes data_size + 0x10 to dev_ctl,
+	    confirming the 16-byte header.
+	    For LAN port table (0x43): byte 0 bit 3 = 802.1x authorize. */
+	uint32_t _v751_padding;
 	/** Table data */
 	union gpe_table_data data;
 	/** Hash data in case of using hashed tables */

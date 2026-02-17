@@ -8,7 +8,15 @@
   this software module.
 
 ******************************************************************************/
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include "ifxos_memory_alloc.h"
+
+#define DLOG(fmt, ...) do { \
+	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
+	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
+} while (0)
 
 #define OMCI_DBG_MODULE   OMCI_DBG_MODULE_MIB
 
@@ -126,9 +134,15 @@ enum omci_error mib_copy(struct omci_context *context)
 			attr_size_sum = 0;
 			entity_copy_created = false;
 
+			DLOG("mib_copy: reading %u@0x%04x",
+			     me_entry->me.class->class_id,
+			     me_entry->me.instance_id);
 			me_data_read(context, &me_entry->me, data,
 				     me_entry->me.class->data_size,
 				     OMCI_PM_INTERVAL_CURR);
+			DLOG("mib_copy: read done %u@0x%04x",
+			     me_entry->me.class->class_id,
+			     me_entry->me.instance_id);
 
 			/* for each attribute */
 			for (attr = 1; attr <= OMCI_ATTRIBUTES_NUM; attr++) {
@@ -426,6 +440,8 @@ enum omci_error mib_me_create(struct omci_context *context,
 	       class_id, instance_id, (void *)me, (void *)init_data,
 	       suppress_avc);
 
+	DLOG("mib_me_create: cls=%u inst=0x%04x act=%d", class_id, instance_id, active);
+
 	assert(context);
 
 	if (me != NULL)
@@ -438,6 +454,7 @@ enum omci_error mib_me_create(struct omci_context *context,
 		RETURN_IF_ERROR(error);
 
 	if (me_result != NULL) {
+		DLOG("mib_me_create: cls=%u inst=0x%04x EXISTS", class_id, instance_id);
 		dbg_err("ERROR(%d) ME with class id = "
 			"%u and instance id = %u " "already exists",
 			OMCI_ERROR_ME_EXISTS, class_id, instance_id);
@@ -448,6 +465,9 @@ enum omci_error mib_me_create(struct omci_context *context,
 
 	/* resolve class by class_id */
 	error = mib_me_class_resolve(context, class_id, &me_class);
+	if (error) {
+		DLOG("mib_me_create: cls=%u RESOLVE_FAIL err=%d", class_id, error);
+	}
 	RETURN_IF_ERROR(error);
 
 	assert(me_class->class_id == class_id);
@@ -548,11 +568,18 @@ enum omci_error mib_me_create(struct omci_context *context,
 	/* call init handler if any */
 	if (me_entry->me.class->init != NULL) {
 		if (me_entry->me.active) {
+			DLOG("init: cls=%u inst=0x%04x calling init@%p",
+			     class_id, instance_id,
+			     (void *)me_entry->me.class->init);
 			error = me_entry->me.class->init(context,
 							 &me_entry->me,
 							 init_data,
 							 suppress_avc);
+			DLOG("init: cls=%u inst=0x%04x ret=%d",
+			     class_id, instance_id, error);
 		} else {
+			DLOG("init: cls=%u inst=0x%04x SKIP(inactive)",
+			     class_id, instance_id);
 			omci_hook(context, "init", class_id, instance_id);
 			dbg_wrn("ME class id=%u, instance id=%u skip "
 				"init handler", class_id, instance_id);
@@ -560,11 +587,15 @@ enum omci_error mib_me_create(struct omci_context *context,
 		}
 
 		if (error) {
+			DLOG("init: cls=%u inst=0x%04x FAILED err=%d",
+			     class_id, instance_id, error);
 			dbg_err("ERROR(%d) ME %u@%u init handler error",
 				error, class_id, instance_id);
 
 			goto remove_lock;
 		}
+	} else {
+		DLOG("init: cls=%u inst=0x%04x no_handler", class_id, instance_id);
 	}
 
 	me_entry->me.is_initialized = true;
@@ -743,19 +774,40 @@ enum omci_error mib_create(struct omci_context *context)
 	enum omci_error error;
 	struct me_class *me_class;
 	size_t attr_sum;
+	int _mfd;
+	char _mbuf[80];
+	int _mlen;
 
 	dbg_in(__func__, "%p", (void *)context);
 
 	assert(context);
+
+	_mfd = open("/tmp/omcid_init.log", O_WRONLY | O_APPEND | O_CREAT, 0644);
+#define MLOG(msg) do { \
+	write(STDERR_FILENO, msg, sizeof(msg) - 1); \
+	if (_mfd >= 0) write(_mfd, msg, sizeof(msg) - 1); \
+} while (0)
+#define MLOGF(fmt, ...) do { \
+	_mlen = snprintf(_mbuf, sizeof(_mbuf), fmt, ##__VA_ARGS__); \
+	if (_mlen > 0) { \
+		write(STDERR_FILENO, _mbuf, _mlen); \
+		if (_mfd >= 0) write(_mfd, _mbuf, _mlen); \
+	} \
+} while (0)
+
+	MLOG("[omcid] mib: entered\n");
 
 	memset(&context->mib, 0, sizeof(struct mib));
 
 	dbg_prn("Classes correctness check...");
 
 	if (OMCI_ME_CLASS_NUM != omci_me_def_class_array_size()) {
+		MLOGF("[omcid] mib: CLASS_NUM %u != array_size %u\n",
+		      OMCI_ME_CLASS_NUM, omci_me_def_class_array_size());
 		dbg_err("Please correct the value of "
 			"OMCI_ME_CLASS_NUM definition = %u; it should be %u",
 			OMCI_ME_CLASS_NUM, omci_me_def_class_array_size());
+		if (_mfd >= 0) close(_mfd);
 		return OMCI_ERROR;
 	}
 
@@ -764,9 +816,10 @@ enum omci_error mib_create(struct omci_context *context)
 		me_class = me_def_class_array[i];
 
 		if (!me_class) {
+			MLOGF("[omcid] mib: NULL class at index %u\n", i);
 			dbg_err("Class pointer is null in the "
 				"me_def_class_array array at index %u!", i);
-
+			if (_mfd >= 0) close(_mfd);
 			return OMCI_ERROR;
 		}
 
@@ -813,12 +866,15 @@ enum omci_error mib_create(struct omci_context *context)
 			    attr_sum + me_class->attrs[attr].size >
 			    me_class->data_size)) {
 
+				MLOGF("[omcid] mib: attr#%u off/size bad, class=%u dsz=%u\n",
+				      attr + 1, me_class->class_id,
+				      me_class->data_size);
 				dbg_err("Please correct the offset/size of "
 					"attribute #%u (class id = %u); data "
 					"size is %u",
 					attr + 1, me_class->class_id,
 					me_class->data_size);
-
+				if (_mfd >= 0) close(_mfd);
 				return OMCI_ERROR;
 			}
 
@@ -826,24 +882,31 @@ enum omci_error mib_create(struct omci_context *context)
 		}
 
 		if (attr_sum != me_class->data_size) {
+			MLOGF("[omcid] mib: attr_sum %zu != data_size %u, class=%u\n",
+			      attr_sum,
+			      me_class->data_size, me_class->class_id);
 			dbg_err("Attributes size sum (%u) is not equal to the "
 				"data size (%u) for class id = %u",
 				attr_sum,
 				me_class->data_size, me_class->class_id);
-
+			if (_mfd >= 0) close(_mfd);
 			return OMCI_ERROR;
 		}
 
 		if (OMCI_ME_DATA_SIZE_MAX < me_class->data_size) {
+			MLOGF("[omcid] mib: DATA_SIZE_MAX < %u, class=%u\n",
+			      me_class->data_size, me_class->class_id);
 			dbg_err("Please correct the value of "
 				"OMCI_ME_DATA_SIZE_MAX definition; it should "
 				"be %u (class id = %u)",
 				me_class->data_size, me_class->class_id);
-
+			if (_mfd >= 0) close(_mfd);
 			return OMCI_ERROR;
 		}
 
 		if (!me_class->update) {
+			MLOGF("[omcid] mib: no update handler, class=%u\n",
+			      me_class->class_id);
 #  ifdef INCLUDE_OMCI_SELF_DESCRIPTION
 			dbg_err("Update handler is not specified for "
 				"\"%.25s\" (%u)",
@@ -852,7 +915,7 @@ enum omci_error mib_create(struct omci_context *context)
 			dbg_err("Update handler is not specified for "
 				"class id = %u", me_class->class_id);
 #  endif
-
+			if (_mfd >= 0) close(_mfd);
 			return OMCI_ERROR;
 		}
 #ifdef INCLUDE_PM
@@ -904,6 +967,8 @@ enum omci_error mib_create(struct omci_context *context)
 #endif
 	}
 
+	MLOG("[omcid] mib: validation OK\n");
+
 	/* sort mib.me_class_array[i] by class_id */
 	qsort(context->mib.me_class_array,
 	      ARRAY_SIZE(context->mib.me_class_array),
@@ -913,6 +978,7 @@ enum omci_error mib_create(struct omci_context *context)
 	/* init MIB lock */
 	error = rw_lock_init(&context->mib.lock);
 	if (error) {
+		MLOG("[omcid] mib: lock init failed\n");
 		dbg_err("ERROR(%d) Lock init failed", error);
 
 		dbg_out_ret(__func__, OMCI_ERROR);
@@ -920,14 +986,67 @@ enum omci_error mib_create(struct omci_context *context)
 	}
 
 	/* create required MEs */
+	MLOG("[omcid] mib: mib_reset...\n");
 	error = mib_reset(context, true);
 	if (error) {
+		MLOGF("[omcid] mib: mib_reset FAILED (%d)\n", error);
+		if (_mfd >= 0) close(_mfd);
 		(void)rw_lock_delete(&context->mib.lock);
 		RETURN_IF_ERROR(error);
 	}
 
+	MLOG("[omcid] mib: done\n");
+	if (_mfd >= 0) close(_mfd);
 	dbg_out_ret(__func__, OMCI_SUCCESS);
 	return OMCI_SUCCESS;
+}
+
+/**
+   v7.5.1: Create PPTP LCT UNI ME during MIB reset.
+
+   After mib_on_reset() loads the MIB template, walk PPTP Ethernet UNI
+   instances to find the one corresponding to the LCT port, then create
+   a PPTP LCT UNI ME (class 83) with the matching instance_id.
+
+   The ME init handler configures GPE meters and exception profiles
+   (hardware setup moved from me_update to me_init, matching v7.5.1).
+*/
+static enum omci_error mib_lct_create(struct omci_context *context)
+{
+	struct mib_me_class_array_entry *class_entry;
+	struct mib_me_list_entry *me_entry;
+	uint8_t count;
+	enum omci_error error;
+
+	error = class_entry_find(&context->mib, OMCI_ME_PPTP_ETHERNET_UNI,
+				 &class_entry);
+	if (error != OMCI_SUCCESS) {
+		dbg_err("LCT: PPTP Ethernet UNI class not found");
+		return error;
+	}
+
+	/* Walk to the (lct_port - 1)th instance (0-indexed) */
+	count = 0;
+	for (me_entry = class_entry->me_list;
+	     me_entry != NULL;
+	     me_entry = me_entry->next) {
+		if (count == context->lct_port - 1)
+			break;
+		count++;
+	}
+
+	if (me_entry == NULL) {
+		dbg_err("LCT: no PPTP Ethernet UNI for lct_port %u",
+			context->lct_port);
+		return OMCI_ERROR_ME_NOT_FOUND;
+	}
+
+	dbg_msg("LCT: creating PPTP LCT UNI ME (instance 0x%04x) "
+		"for lct_port %u",
+		me_entry->me.instance_id, context->lct_port);
+
+	return mib_me_create(context, true, OMCI_ME_PPTP_LCT_UNI,
+			     me_entry->me.instance_id, NULL, NULL, 0);
 }
 
 enum omci_error mib_reset(struct omci_context *context, bool force)
@@ -941,6 +1060,19 @@ enum omci_error mib_reset(struct omci_context *context, bool force)
 	uint8_t seq=0;
 
 	dbg_in(__func__, "%p", (void *)context);
+
+	DLOG("mib_reset: force=%d in_progress=%d",
+	     force, context->mib_reset_in_progress);
+
+	/* Prevent concurrent mib_reset from event thread (e.g. PLOAM
+	   state change to O2 firing while initial mib_reset is running).
+	   v4.5.0 lacked this guard — two concurrent resets cause deadlock. */
+	if (context->mib_reset_in_progress) {
+		DLOG("mib_reset: SKIPPED (already in progress)");
+		dbg_msg("MIB reset skipped (already in progress)");
+		dbg_out_ret(__func__, OMCI_SUCCESS);
+		return OMCI_SUCCESS;
+	}
 
 	dbg_msg("MIB reset occurred");
 
@@ -979,11 +1111,28 @@ enum omci_error mib_reset(struct omci_context *context, bool force)
 
 		mib_unlock(context);
 
+		DLOG("mib_reset: mib_on_reset...");
 		error = context->mib_on_reset(context);
+		DLOG("mib_reset: mib_on_reset done err=%d", error);
 
+		/* v7.5.1: auto-create PPTP LCT UNI ME for the LCT port.
+		   Must happen after mib_on_reset (MIB template loaded)
+		   and before mib_copy (so LCT ME is in the snapshot). */
+		if (context->lct_port != 0xFF) {
+			DLOG("mib_reset: lct_create...");
+			mib_lock_write(context);
+			if (mib_lct_create(context) != OMCI_SUCCESS)
+				dbg_err("LCT create failed");
+			mib_unlock(context);
+			DLOG("mib_reset: lct_create done");
+		}
+
+		DLOG("mib_reset: list_lock...");
 		list_lock(&context->mib_copy.list);
+		DLOG("mib_reset: mib_copy...");
 		mib_copy(context);
 		list_unlock(&context->mib_copy.list);
+		DLOG("mib_reset: mib_copy done");
 
 	} else
 		mib_unlock(context);

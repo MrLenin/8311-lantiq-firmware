@@ -12,6 +12,12 @@
    \file omci_pptp_ethernet_uni.c
 */
 #include "ifxos_time.h"
+#include <stdio.h>
+
+#define DLOG(fmt, ...) do { \
+	FILE *_f = fopen("/tmp/8311_me11.log", "a"); \
+	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
+} while (0)
 
 #define OMCI_DBG_MODULE   OMCI_DBG_MODULE_ME
 
@@ -20,6 +26,7 @@
 #include "omci_me_handlers.h"
 #include "me/omci_pptp_ethernet_uni.h"
 #include "me/omci_api_pptp_ethernet_uni.h"
+#include "me/omci_api_dot1x_port_ext_pkg.h"
 
 /** \addtogroup OMCI_ME_PPTP_ETHERNET_UNI
    @{
@@ -86,59 +93,43 @@ static enum omci_error me_update(struct omci_context *context,
 	struct omci_me_pptp_ethernet_uni *me_data;
 	enum omci_error error;
 
-	upd_data = (struct omci_me_pptp_ethernet_uni *) data;
-	me_data = (struct omci_me_pptp_ethernet_uni *) me->data;
+	upd_data = (struct omci_me_pptp_ethernet_uni *)data;
+	me_data = (struct omci_me_pptp_ethernet_uni *)me->data;
 
-	/* don't trigger update in case of changing the follwing attributes */
+	/* v7.5.1: skip if only read-only attrs changed (sensed_type,
+	   oper_state, config_ind).  Mask 0xb9ff = all writable attrs. */
 	if ((~(omci_attr2mask(omci_me_pptp_ethernet_uni_config_ind) |
 	       omci_attr2mask(omci_me_pptp_ethernet_uni_sensed_type) |
 	       omci_attr2mask(omci_me_pptp_ethernet_uni_oper_state))
 	     & attr_mask) == 0)
 		return OMCI_SUCCESS;
 
-	/* 8311 mod: On an SFP ONU, the PPTP Ethernet UNI and PPTP LCT UNI
-	   share the same physical port. If the OLT locks admin_state, the
-	   user loses all management access (web UI, SSH) with no recovery
-	   path other than serial console. Always pass admin_state=0
-	   (unlocked) to the driver so the port stays up. The ME data still
-	   stores the OLT-requested value, so Get queries return "locked". */
-	if (me->is_initialized)
-		ret = omci_api_pptp_ethernet_uni_update(context->api,
-							me->instance_id,
-							0, /* force unlocked */
-							upd_data->expected_type,
-							upd_data->
-							auto_detect_config,
-							upd_data->
-							ether_loopback_config,
-							upd_data->max_frame_size,
-							upd_data->dte_dce_ind,
-							upd_data->pause_time,
-							upd_data->bridged_ip_ind,
-							upd_data->pppoe_filter,
-							upd_data->power_control);
-	else
-		ret = omci_api_pptp_ethernet_uni_create(context->api,
-							me->instance_id,
-							0, /* force unlocked */
-							upd_data->expected_type,
-							upd_data->
-							auto_detect_config,
-							upd_data->
-							ether_loopback_config,
-							upd_data->max_frame_size,
-							upd_data->dte_dce_ind,
-							upd_data->pause_time,
-							upd_data->bridged_ip_ind,
-							upd_data->pppoe_filter,
-							upd_data->power_control);
-
+	ret = omci_api_pptp_ethernet_uni_update(context->api,
+						me->instance_id,
+						upd_data->admin_state,
+						upd_data->expected_type,
+						upd_data->auto_detect_config,
+						upd_data->ether_loopback_config,
+						upd_data->max_frame_size,
+						upd_data->dte_dce_ind,
+						upd_data->pause_time,
+						upd_data->bridged_ip_ind,
+						upd_data->pppoe_filter,
+						upd_data->power_control);
 	if (ret != OMCI_API_SUCCESS) {
 		me_dbg_err(me, "DRV ERR(%d) Can't update Managed Entity", ret);
-
 		return OMCI_ERROR_DRV;
 	}
 
+	/* v7.5.1: after _config, call _enabled to set GPE table valid bit
+	   and enable the LAN port hardware.  Stock binary calls this from
+	   the me_update path (0x421d1a). */
+	ret = omci_api_pptp_ethernet_uni_enabled(context->api,
+						 me->instance_id);
+	if (ret != OMCI_API_SUCCESS)
+		me_dbg_err(me, "DRV ERR(%d) _enabled failed", ret);
+
+	/* ARC handling */
 	if (attr_mask & omci_attr2mask(omci_me_pptp_ethernet_uni_arc)
 	    || attr_mask &
 	    omci_attr2mask(omci_me_pptp_ethernet_uni_arc_interval)) {
@@ -158,7 +149,12 @@ static enum omci_error me_init(struct omci_context *context,
 			       void *init_data,
 			       uint16_t suppress_avc)
 {
+	enum omci_api_return ret;
 	enum omci_error error;
+	struct omci_me_pptp_ethernet_uni *me_data;
+
+	DLOG("ME11 me_init ENTERED: id=0x%04x init_data=%p",
+	     me->instance_id, init_data);
 
 	RETURN_IF_PTR_NULL(init_data);
 
@@ -166,10 +162,47 @@ static enum omci_error me_init(struct omci_context *context,
 	me->arc_context->arc_attr = 12;
 	me->arc_context->arc_interval_attr = 13;
 
-	error = me_data_write(context, me, init_data,
-			      me->class->data_size,
+	me_data = (struct omci_me_pptp_ethernet_uni *)init_data;
+
+	DLOG("ME11 me_init: id=0x%04x exp=%u auto=%u "
+	     "loop=%u mfs=%u admin=%u",
+	     me->instance_id, me_data->expected_type,
+	     me_data->auto_detect_config, me_data->ether_loopback_config,
+	     me_data->max_frame_size, me_data->admin_state);
+
+	/* v7.5.1 stock ME create handler (0x421eee) sequence:
+	   1. _create(me_id) — mapping only (uni2port + explicit_map)
+	   2. me_data_write — stores MIB data, triggers _update → _config
+	      (me_update calls _config then _enabled)
+	   3. 802.1x auth set to OPEN (dot1x_enable=0, action=3) */
+	ret = omci_api_pptp_ethernet_uni_create(context->api,
+						me->instance_id);
+
+	DLOG("ME11 me_init: create ret=%d", ret);
+
+	if (ret != OMCI_API_SUCCESS) {
+		me_dbg_err(me, "DRV ERR(%d) init: mapping failed", ret);
+		return OMCI_SUCCESS;
+	}
+
+	/* me_data_write stores init_data and triggers me_update callback
+	   which calls _config (port settings) + _enabled (LAN_PORT_ENABLE
+	   + GPE table valid bit). */
+	error = me_data_write(context, me, init_data, me->class->data_size,
 			      ~me->class->inv_attr_mask, suppress_avc);
-	RETURN_IF_ERROR(error);
+
+	DLOG("ME11 me_init: me_data_write ret=%d", error);
+
+	if (error != OMCI_SUCCESS)
+		me_dbg_err(me, "DRV ERR(%d) init: data write failed", error);
+
+	/* v7.5.1: set 802.1x to OPEN after data write.
+	   Stock calls omci_api_dotx_port_ext_pkg_pptp(me_id, 0, 3).
+	   Our API: dot1x_enable=0, action_register=3 → OPEN. */
+	ret = omci_api_dot1x_port_ext_pkg_update(context->api,
+						  me->instance_id,
+						  0, 3);
+	DLOG("ME11 me_init: 802.1x auth OPEN ret=%d", ret);
 
 	return OMCI_SUCCESS;
 }

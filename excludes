@@ -11,6 +11,7 @@ etc/mibs/nameless.ini
 etc/rc.d/S94iop.sh
 etc/uci-defaults/luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig
+lib/librt.so.0
 lib/modules/3.10.49/mod_optic.ko
 lib/modules/3.10.49/mod_onu.ko
 sbin/mtd

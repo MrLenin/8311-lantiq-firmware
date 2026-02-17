@@ -2093,10 +2093,9 @@ struct gpe_lan_exception_cfg {
 	uint32_t uni_except_meter_id;
 	/** Enable global policer. */
 	uint32_t uni_except_meter_enable;
-	/** Policer index to be used to limit the IGMP or MLD exception	traffic. */
-	uint32_t igmp_except_meter_id;
-	/** Enable IGMP/MLD policer. */
-	uint32_t igmp_except_meter_enable;
+	/* v7.5.1: IGMP meter fields removed. Struct is 16 bytes (char[16]
+	   in ioctl encoding). Stock decompilation (FUN_00433258) confirms
+	   only 4 fields: lport, profile, meter_id, meter_enable. */
 } __PACKED__;
 
 /** LAN-side exception configuration data.
@@ -2164,6 +2163,8 @@ struct gpe_exception_queue_cfg {
 	    the configured data flow. If false, the frame is only handled as
 	    exception frame. */
 	uint32_t snooping_enable;
+	/** Reserved padding for v7.5.1 kernel ABI compatibility. */
+	uint32_t _v751_reserved[2];
 } __PACKED__;
 
 /** Exception queue configuration data.
@@ -2290,6 +2291,8 @@ struct gpe_capability {
 	uint32_t max_bridge_port;
 	/** Chip revision */
 	uint32_t hw_version;
+	/** Reserved padding for v7.5.1 kernel ABI compatibility. */
+	uint32_t _v751_reserved;
 };
 
 /* IOCTL Command Declaration - GPE
@@ -2298,6 +2301,9 @@ struct gpe_capability {
 
 /** Magic number */
 #define GPE_MAGIC 4
+
+/** Magic number for GPE Table subsystem (v7.5.1) */
+#define GPE_TABLE_MAGIC 5
 
 /**
    Initialize the GPON Packet Engine (GPE) hardware.
@@ -2662,7 +2668,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the bridge index is invalid
 */
 #define FIO_GPE_BRIDGE_COUNTER_GET \
-			_IOWR(GPE_MAGIC, 0x15, union gpe_bridge_counter_get_u)
+			_IOWR(GPE_MAGIC, 0x16, union gpe_bridge_counter_get_u)
 
 /**
    Write the bridge-based counter thresholds.
@@ -2679,7 +2685,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
 #define FIO_GPE_BRIDGE_COUNTER_THRESHOLD_SET \
-			_IOW(GPE_MAGIC, 0x16, struct gpe_cnt_bridge_threshold)
+			_IOW(GPE_MAGIC, 0x17, struct gpe_cnt_bridge_threshold)
 
 /**
    Read the bridge-based counter thresholds.
@@ -2697,7 +2703,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
 #define FIO_GPE_BRIDGE_COUNTER_THRESHOLD_GET \
-			_IOWR(GPE_MAGIC, 0x17, \
+			_IOWR(GPE_MAGIC, 0x18, \
 				union gpe_bridge_counter_threshold_get_u)
 
 /**
@@ -2714,7 +2720,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
 #define FIO_GPE_BRIDGE_TCA_GET \
-			_IOWR(GPE_MAGIC, 0x18, \
+			_IOWR(GPE_MAGIC, 0x19, \
 				union gpe_bridge_counter_threshold_get_u)
 
 /**
@@ -2731,7 +2737,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the bridge index is invalid
 */
 #define FIO_GPE_BRIDGE_COUNTER_RESET \
-			_IOW(GPE_MAGIC, 0x19, struct gpe_bridge_cnt_interval)
+			_IOW(GPE_MAGIC, 0x1A, struct gpe_bridge_cnt_interval)
 
 /**
    Set the egress queue counter parameters of a selected egress queue.
@@ -2745,8 +2751,9 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the queue index is > ONU_GPE_MAX_QUEUE_PSB9801x
 */
-#define FIO_GPE_EGRESS_QUEUE_COUNTER_CFG_SET \
-			_IOW(GPE_MAGIC, 0x1A, struct gpe_equeue_cnt_cfg)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_EGRESS_QUEUE_COUNTER_CFG_SET \
+			_IOW(GPE_MAGIC, 0x1A, struct gpe_equeue_cnt_cfg) */
 
 /**
    Read the egress queue counter parameters of a selected egress queue.
@@ -2760,8 +2767,9 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the queue index is > ONU_GPE_MAX_QUEUE_PSB9801x
 */
-#define FIO_GPE_EGRESS_QUEUE_COUNTER_CFG_GET \
-			_IOR(GPE_MAGIC, 0x1B, struct gpe_equeue_cnt_cfg)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_EGRESS_QUEUE_COUNTER_CFG_GET \
+			_IOR(GPE_MAGIC, 0x1B, struct gpe_equeue_cnt_cfg) */
 
 /**
    Create the T-CONT ressource. Implicitly a scheduler will be created.
@@ -2777,7 +2785,7 @@ struct gpe_capability {
    - GPE_STATUS_VALUE_RANGE_ERR: if the Allocation ID is out of range
    - GPE_STATUS_NOT_AVAILABLE: if the T-CONT index is out of range
 */
-#define FIO_GPE_TCONT_CREATE _IOW(GPE_MAGIC, 0x1C, struct gpe_tcont_cfg)
+#define FIO_GPE_TCONT_CREATE _IOW(GPE_MAGIC, 0x1B, char[8])
 
 /**
    Set an Allocation ID in the T-CONT table. Existing Allocation IDs are
@@ -2794,7 +2802,7 @@ struct gpe_capability {
    - GPE_STATUS_VALUE_RANGE_ERR: if the Allocation ID is out of range
    - GPE_STATUS_NOT_AVAILABLE: if the T-CONT index is out of range
 */
-#define FIO_GPE_TCONT_SET _IOWR(GPE_MAGIC, 0x1D, struct gpe_tcont)
+#define FIO_GPE_TCONT_SET _IOW(GPE_MAGIC, 0x1C, struct gpe_tcont)
 
 /**
    Get the Allocation ID of a T-CONT in the T-CONT table.
@@ -2808,7 +2816,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NOT_AVAILABLE: if the given T-CONT index is out of range
 */
-#define FIO_GPE_TCONT_GET _IOWR(GPE_MAGIC, 0x1E, union gpe_tcont_get_u)
+#define FIO_GPE_TCONT_GET _IOWR(GPE_MAGIC, 0x1D, union gpe_tcont_get_u)
 
 /**
    Remove an entry from the T-CONT table. If the given T-CONT ID is not
@@ -2824,7 +2832,7 @@ struct gpe_capability {
    - GPE_STATUS_VALUE_RANGE_ERR: if the given T-CONT index is out of range
    - GPE_STATUS_NOT_AVAILABLE: if the given T-CONT index is not active
 */
-#define FIO_GPE_TCONT_DELETE _IOW(GPE_MAGIC, 0x1F, struct tcont_index)
+#define FIO_GPE_TCONT_DELETE _IOW(GPE_MAGIC, 0x1E, struct tcont_index)
 
 /**
    Activate a formerly unused scheduler
@@ -2860,7 +2868,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_SCHEDULER_CREATE \
-			_IOW(GPE_MAGIC, 0x20, struct gpe_sched_create)
+			_IOW(GPE_MAGIC, 0x1F, struct gpe_sched_create)
 
 /**
    Remove an entry from the scheduler table. If the given scheduler ID is not
@@ -2876,7 +2884,7 @@ struct gpe_capability {
    - GPE_STATUS_NOT_AVAILABLE: if the scheduler ID is unknown
 */
 #define FIO_GPE_SCHEDULER_DELETE \
-			_IOW(GPE_MAGIC, 0x21, struct gpe_scheduler_idx)
+			_IOW(GPE_MAGIC, 0x20, struct gpe_scheduler_idx)
 
 /**
    Set the ingress packet parser parameters.
@@ -2891,7 +2899,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_PARSER_CFG_SET _IOW(GPE_MAGIC, 0x22, struct gpe_parser_cfg)
+#define FIO_GPE_PARSER_CFG_SET _IOW(GPE_TABLE_MAGIC, 0x4B, char[20])
 
 /**
    Read the ingress packet parser configuration.
@@ -2905,7 +2913,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_PARSER_CFG_GET \
-			_IOWR(GPE_MAGIC, 0x23, struct gpe_parser_cfg)
+			_IOR(GPE_TABLE_MAGIC, 0x4C, char[20])
 
 /**
    Read the TMU-based counters. Available counter values are:
@@ -2930,7 +2938,7 @@ struct gpe_capability {
                                  event
 */
 #define FIO_GPE_TMU_COUNTER_GET \
-			_IOWR(GPE_MAGIC, 0x24, union gpe_tmu_counter_get_u)
+			_IOWR(GPE_MAGIC, 0x21, union gpe_tmu_counter_get_u)
 
 /**
    TMU-based counter reset. Calling this function clears all counters
@@ -2944,8 +2952,9 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_TMU_COUNTER_RESET \
-				_IOW(GPE_MAGIC, 0x25, struct gpe_cnt_tmu_reset)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_TMU_COUNTER_RESET \
+				_IOW(GPE_MAGIC, 0x25, struct gpe_cnt_tmu_reset) */
 
 /**
    Read the SCE-based counters.
@@ -2961,7 +2970,8 @@ struct gpe_capability {
 			     event
    - GPE_STATUS_NO_SUPPORT: if the UNI port ID is invalid
 */
-#define FIO_GPE_SCE_COUNTER_GET _IOWR(GPE_MAGIC, 0x26, union gpe_sce_cnt_get_u)
+/* Not in v7.5.1 kernel — dead ioctl, will return ENOTTY at runtime */
+#define FIO_GPE_SCE_COUNTER_GET _IOWR(0xFF, 0x01, union gpe_sce_cnt_get_u)
 
 /**
    SCE-based counter reset. Calling this function clears all counters
@@ -2976,8 +2986,9 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the UNI port ID is invalid
 */
-#define FIO_GPE_SCE_COUNTER_RESET \
-			_IOW(GPE_MAGIC, 0x27, struct gpe_cnt_sce_reset)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_SCE_COUNTER_RESET \
+			_IOW(GPE_MAGIC, 0x27, struct gpe_cnt_sce_reset) */
 
 /**
    Configure a Token Bucket Shaper instance.
@@ -2994,7 +3005,7 @@ struct gpe_capability {
    - GPE_STATUS_VALUE_RANGE_ERR: if one of the parameter values is invalid
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_CFG_SET \
-		_IOW(GPE_MAGIC, 0x28, struct gpe_token_bucket_shaper_cfg)
+		_IOW(GPE_MAGIC, 0x22, struct gpe_token_bucket_shaper_cfg)
 
 /**
    Read the configuration of a Token Bucket Shaper instance.
@@ -3010,7 +3021,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the Token Bucket Shaper Index is invalid
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_CFG_GET \
-		_IOWR(GPE_MAGIC, 0x29, union gpe_token_bucket_shaper_cfg_get_u)
+		_IOWR(GPE_MAGIC, 0x23, union gpe_token_bucket_shaper_cfg_get_u)
 
 /**
    Send an OMCI message to the OLT.
@@ -3025,7 +3036,7 @@ struct gpe_capability {
    - ONU_STATUS_ERR: if the message could not be send
    - GTC_STATUS_VALUE_RANGE_ERR: if the OMCI size does not match
 */
-#define FIO_GPE_OMCI_SEND _IOW(GPE_MAGIC, 0x2A, struct gpe_omci_msg)
+#define FIO_GPE_OMCI_SEND _IOW(GPE_MAGIC, 0x24, struct gpe_omci_msg)
 
 /**
    Initialize the Time of Day serial interface data format.
@@ -3039,7 +3050,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GTC_STATUS_VALUE_RANGE_ERR: if on of the parameter values is invalid
 */
-#define FIO_GPE_TOD_INIT _IOW(GPE_MAGIC, 0x2B, struct gpe_tod_init_data)
+#define FIO_GPE_TOD_INIT _IOW(GPE_MAGIC, 0x25, struct gpe_tod_init_data)
 
 /**
    Set the Time of Day synchronously with the GTC sublayer.
@@ -3052,7 +3063,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_TOD_SYNC_SET _IOWR(GPE_MAGIC, 0x2C, struct gpe_tod_sync)
+#define FIO_GPE_TOD_SYNC_SET _IOW(GPE_MAGIC, 0x26, char[20])
 
 /**
    Read the Time of Day. The returned format is UTC.
@@ -3065,7 +3076,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_TOD_GET _IOR(GPE_MAGIC, 0x2D, struct gpe_tod)
+#define FIO_GPE_TOD_GET _IOR(GPE_MAGIC, 0x27, struct gpe_tod)
 
 /**
    Read the parameters of the latest \ref FIO_GPE_TOD_SYNC_SET call back.
@@ -3078,7 +3089,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_TOD_SYNC_GET _IOR(GPE_MAGIC, 0x2E, struct gpe_tod_sync)
+#define FIO_GPE_TOD_SYNC_GET _IOR(GPE_MAGIC, 0x28, char[20])
 
 /**
    Configure an egress port and a priority queue instance for a UNI (LAN) port.
@@ -3092,7 +3103,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EGRESS_PORT_CFG_SET \
-			_IOW(GPE_MAGIC, 0x2F, struct gpe_egress_port_cfg)
+			_IOW(GPE_MAGIC, 0x2B, struct gpe_egress_port_cfg)
 
 /**
    Read the egress port configuration of a UNI (LAN) port instance.
@@ -3106,7 +3117,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EGRESS_PORT_CFG_GET \
-		_IOWR(GPE_MAGIC, 0x30, union gpe_egress_port_cfg_get_u)
+		_IOWR(GPE_MAGIC, 0x2C, union gpe_egress_port_cfg_get_u)
 
 /**
    Configure the UNI (LAN) port flow control (backpressure).
@@ -3120,7 +3131,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_BACKPRESSURE_CFG_SET \
-			_IOW(GPE_MAGIC, 0x31, struct gpe_backpressure_cfg)
+			_IOW(GPE_MAGIC, 0x2D, struct gpe_backpressure_cfg)
 
 /**
    Read the configuration of the UNI (LAN) port flow control (backpressure).
@@ -3134,7 +3145,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_BACKPRESSURE_CFG_GET \
-			_IOR(GPE_MAGIC, 0x32, struct gpe_backpressure_cfg)
+			_IOR(GPE_MAGIC, 0x2E, struct gpe_backpressure_cfg)
 
 /**
    Read the GEM port ID based counters.
@@ -3163,7 +3174,7 @@ struct gpe_capability {
                                  event
 */
 #define FIO_GPE_GEM_COUNTER_GET \
-			_IOWR(GPE_MAGIC, 0x33, union gpe_gem_counter_get_u)
+			_IOWR(GPE_MAGIC, 0x2F, union gpe_gem_counter_get_u)
 
 /**
    Write the GEM counter thresholds per GEM port ID.
@@ -3180,7 +3191,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
 #define FIO_GPE_GEM_COUNTER_THRESHOLD_SET \
-			_IOW(GPE_MAGIC, 0x34, struct gpe_cnt_gem_threshold)
+			_IOW(GPE_MAGIC, 0x30, struct gpe_cnt_gem_threshold)
 
 /**
    Read the GEM counter threshold values per GEM port ID.
@@ -3198,7 +3209,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
 #define FIO_GPE_GEM_COUNTER_THRESHOLD_GET \
-			_IOWR(GPE_MAGIC, 0x35, \
+			_IOWR(GPE_MAGIC, 0x31, \
 				union gpe_gem_counter_threshold_get_u)
 
 /**
@@ -3213,7 +3224,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the GEM port ID is invalid
 */
-#define FIO_GPE_GEM_TCA_GET _IOWR(GPE_MAGIC, 0x36, union gpe_gem_tca_get_u)
+#define FIO_GPE_GEM_TCA_GET _IOWR(GPE_MAGIC, 0x32, union gpe_gem_tca_get_u)
 
 /**
    GEM port ID based counter reset. Calling this function clears all counters
@@ -3230,7 +3241,7 @@ struct gpe_capability {
                                      range of 128 to 254
 */
 #define FIO_GPE_GEM_COUNTER_RESET \
-			_IOW(GPE_MAGIC, 0x37, struct gpe_gem_cnt_interval)
+			_IOW(GPE_MAGIC, 0x33, struct gpe_gem_cnt_interval)
 
 /* The following functions are used to handle SCE FW debugging */
 
@@ -3245,7 +3256,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_BREAK_SET _IOW(GPE_MAGIC, 0x38, struct sce_break_point)
+#define FIO_GPE_SCE_BREAK_SET _IOW(GPE_MAGIC, 0x36, struct sce_break_point)
 
 /**
    Read breakpoint information for a specific index
@@ -3258,7 +3269,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_BREAK_GET _IOWR(GPE_MAGIC, 0x39, struct sce_break_point)
+#define FIO_GPE_SCE_BREAK_GET _IOWR(GPE_MAGIC, 0x37, struct sce_break_point)
 
 /**
    Remove the hardware thread specific breakpoint.
@@ -3272,7 +3283,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_BREAK_REMOVE _IOW(GPE_MAGIC, 0x3A, struct sce_break_point)
+#define FIO_GPE_SCE_BREAK_REMOVE _IOW(GPE_MAGIC, 0x38, struct sce_break_point)
 
 /**
    Break the specified hardware thread.
@@ -3285,7 +3296,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_BREAK _IOWR(GPE_MAGIC, 0x3B, struct sce_break_info)
+#define FIO_GPE_SCE_BREAK _IOWR(GPE_MAGIC, 0x39, struct sce_break_info)
 
 /**
    Perform a single step of the specified hardware threads.
@@ -3298,7 +3309,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_SINGLE_STEP _IOWR(GPE_MAGIC, 0x3C, struct sce_break_info)
+#define FIO_GPE_SCE_SINGLE_STEP _IOWR(GPE_MAGIC, 0x3A, struct sce_break_info)
 
 /**
    Run the specified hardware thread.
@@ -3311,7 +3322,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_RUN _IOW(GPE_MAGIC, 0x3D, struct sce_thread)
+#define FIO_GPE_SCE_RUN _IOW(GPE_MAGIC, 0x3B, struct sce_thread)
 
 /**
    Download the SCE firmware.
@@ -3324,7 +3335,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_DOWNLOAD _IOW(GPE_MAGIC, 0x3E, struct sce_download_cfg)
+#define FIO_GPE_SCE_DOWNLOAD _IOW(GPE_MAGIC, 0x3C, struct sce_download_cfg)
 
 /**
    Restart the specified hardware thread(s). This is intended for debugging
@@ -3338,7 +3349,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_RESTART_VM _IOW(GPE_MAGIC, 0x3F, struct sce_restart_cfg)
+#define FIO_GPE_SCE_RESTART_VM _IOW(GPE_MAGIC, 0x3D, struct sce_restart_cfg)
 
 /**
    Run the specified hardware thread(s).
@@ -3351,7 +3362,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_RUN_MASK _IOW(GPE_MAGIC, 0x40, struct sce_thread_mask)
+#define FIO_GPE_SCE_RUN_MASK _IOW(GPE_MAGIC, 0x3E, struct sce_thread_mask)
 
 /**
    Break the specified hardware thread(s).
@@ -3364,7 +3375,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_BREAK_MASK _IOWR(GPE_MAGIC, 0x41, struct sce_thread_mask)
+#define FIO_GPE_SCE_BREAK_MASK _IOWR(GPE_MAGIC, 0x3F, struct sce_thread_mask)
 
 /**
    Get SCE debug status.
@@ -3377,7 +3388,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_STATUS_GET _IOR(GPE_MAGIC, 0x42, struct sce_status)
+#define FIO_GPE_SCE_STATUS_GET _IOR(GPE_MAGIC, 0x40, struct sce_status)
 
 /**
    Set the hardware thread register.
@@ -3390,7 +3401,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_REGISTER_SET _IOW(GPE_MAGIC, 0x43, struct sce_register_val)
+#define FIO_GPE_SCE_REGISTER_SET _IOW(GPE_MAGIC, 0x41, struct sce_register_val)
 
 /**
    Read the hardware thread register.
@@ -3405,7 +3416,7 @@ struct gpe_capability {
    - ONU_STATUS_ERR: in the case of error
 */
 #define FIO_GPE_SCE_REGISTER_GET \
-			_IOWR(GPE_MAGIC, 0x44, union sce_register_get_u)
+			_IOWR(GPE_MAGIC, 0x42, union sce_register_get_u)
 
 /**
    Set the hardware thread memory word.
@@ -3418,7 +3429,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_MEMORY_SET _IOW(GPE_MAGIC, 0x45, struct sce_memory_val)
+#define FIO_GPE_SCE_MEMORY_SET _IOW(GPE_MAGIC, 0x43, struct sce_memory_val)
 
 /**
    Read the hardware thread memory word.
@@ -3432,7 +3443,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - ONU_STATUS_ERR: in the case of error
 */
-#define FIO_GPE_SCE_MEMORY_GET _IOWR(GPE_MAGIC, 0x46, union sce_memory_get_u)
+#define FIO_GPE_SCE_MEMORY_GET _IOWR(GPE_MAGIC, 0x44, union sce_memory_get_u)
 
 /**
    Read the SCE firmware version.
@@ -3445,7 +3456,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_SCE_VERSION_GET _IOWR(GPE_MAGIC, 0x47, union sce_version_get_u)
+#define FIO_GPE_SCE_VERSION_GET _IOWR(GPE_TABLE_MAGIC, 0x4F, union sce_version_get_u)
 
 /**
    Enable/disable low level modules FSM.
@@ -3460,7 +3471,7 @@ struct gpe_capability {
    - An error code in case of error.
 */
 #define FIO_GPE_LOW_LEVEL_MODULES_ENABLE \
-				_IOW(GPE_MAGIC, 0x48, struct gpe_ll_mod_sel)
+				_IOW(GPE_MAGIC, 0x45, struct gpe_ll_mod_sel)
 
 /**
    Set the configuration of the Ethertype whitelist/blacklist filter.
@@ -3475,7 +3486,7 @@ struct gpe_capability {
 
 */
 #define FIO_GPE_ETHERTYPE_FILTER_CFG_SET \
-         _IOW(GPE_MAGIC, 0x49, struct gpe_ethertype_filter_cfg)
+         _IOW(GPE_TABLE_MAGIC, 0x4D, struct gpe_ethertype_filter_cfg)
 
 /**
    Read the configuration of the Ethertype whitelist/blacklist filter.
@@ -3490,7 +3501,7 @@ struct gpe_capability {
    - GPE_STATUS_NO_SUPPORT: if the meter index is > 511
 */
 #define FIO_GPE_ETHERTYPE_FILTER_CFG_GET \
-			_IOWR(GPE_MAGIC, 0x4A, struct gpe_ethertype_filter_cfg)
+			_IOWR(GPE_TABLE_MAGIC, 0x4E, struct gpe_ethertype_filter_cfg)
 
 /**
    Create a token bucket shaper and assign it to a scheduler input.
@@ -3504,7 +3515,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_CREATE \
-			_IOW(GPE_MAGIC, 0x4B, struct gpe_token_bucket_shaper)
+			_IOW(GPE_MAGIC, 0x46, struct gpe_token_bucket_shaper)
 
 /**
    Delete a previously created token bucket shaper.
@@ -3518,7 +3529,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_DELETE \
-			_IOW(GPE_MAGIC, 0x4C, struct gpe_token_bucket_shaper)
+			_IOW(GPE_MAGIC, 0x47, struct gpe_token_bucket_shaper)
 
 /**
    Read back the structural links of a token bucket shapers.
@@ -3533,7 +3544,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_GET \
-				_IOWR(GPE_MAGIC, 0x4D, \
+				_IOWR(GPE_MAGIC, 0x48, \
 					union gpe_token_bucket_shaper_get_u)
 
 /**
@@ -3549,7 +3560,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TOKEN_BUCKET_SHAPER_STATUS_GET \
-			_IOWR(GPE_MAGIC, 0x4E, \
+			_IOWR(GPE_MAGIC, 0x49, \
 				union gpe_token_bucket_shaper_status_get_u)
 
 /**
@@ -3566,7 +3577,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_EGRESS_QUEUE_GET \
-			_IOWR(GPE_MAGIC, 0x4F, union gpe_equeue_get_u)
+			_IOWR(GPE_MAGIC, 0x4A, union gpe_equeue_get_u)
 
 /**
    Read back the structural attributes of a scheduler
@@ -3582,7 +3593,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_SCHEDULER_GET \
-			_IOWR(GPE_MAGIC, 0x50, union gpe_scheduler_get_u)
+			_IOWR(GPE_MAGIC, 0x4B, union gpe_scheduler_get_u)
 
 /**
    Read back the status variables of a scheduler
@@ -3598,7 +3609,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_SCHEDULER_STATUS_GET \
-			_IOWR(GPE_MAGIC, 0x51, \
+			_IOWR(GPE_MAGIC, 0x4C, \
 				union gpe_scheduler_status_get_u)
 
 /**
@@ -3615,7 +3626,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_EGRESS_PORT_CREATE \
-			_IOW(GPE_MAGIC, 0x52, struct gpe_eport_create)
+			_IOW(GPE_MAGIC, 0x4D, struct gpe_eport_create)
 
 /**
    Read back the structural parameters of a TMU egress port
@@ -3631,7 +3642,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_EGRESS_PORT_GET \
-			_IOWR(GPE_MAGIC, 0x53, union gpe_eport_get_u)
+			_IOWR(GPE_MAGIC, 0x4E, union gpe_eport_get_u)
 
 /**
    Read back the structural parameters of a TMU egress port
@@ -3647,7 +3658,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_EGRESS_PORT_DELETE \
-			_IOW(GPE_MAGIC, 0x54, struct gpe_egress_port)
+			_IOW(GPE_MAGIC, 0x4F, struct gpe_egress_port)
 
 
 /**
@@ -3664,7 +3675,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_EGRESS_PORT_STATUS_GET \
-			_IOWR(GPE_MAGIC, 0x55, \
+			_IOWR(GPE_MAGIC, 0x50, \
 					union gpe_egress_port_status_get_u)
 
 /**
@@ -3689,7 +3700,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_FLAT_EGRESS_PATH_CREATE \
-			_IOW(GPE_MAGIC, 0x56, struct gpe_flat_egress_path)
+			_IOW(GPE_MAGIC, 0x51, struct gpe_flat_egress_path)
 
 
 /**
@@ -3704,7 +3715,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_SHARED_BUFFER_CFG_GET \
-			_IOR(GPE_MAGIC, 0x57, struct gpe_shared_buffer_cfg)
+			_IOR(GPE_MAGIC, 0x52, struct gpe_shared_buffer_cfg)
 
 /**
    This function configures the shared data buffer.
@@ -3718,7 +3729,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_SHARED_BUFFER_CFG_SET \
-			_IOW(GPE_MAGIC, 0x58, struct gpe_shared_buffer_cfg)
+			_IOW(GPE_MAGIC, 0x53, struct gpe_shared_buffer_cfg)
 
 /**
    This function checks the consistency of the free segment list of the
@@ -3733,7 +3744,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_FSQM_CHECK \
-			_IOW(GPE_MAGIC, 0x59, uint32_t)
+			_IOW(GPE_MAGIC, 0x54, uint32_t)
 
 /**
    This function is used to print out structural attributes
@@ -3748,7 +3759,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EGRESS_QUEUE_PATH_GET \
-			_IOWR(GPE_MAGIC, 0x5A, union gpe_equeue_path_get_u)
+			_IOWR(GPE_MAGIC, 0x55, union gpe_equeue_path_get_u)
 
 /**
    This function is used to configure global IQM parameters.
@@ -3762,7 +3773,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_IQM_GLOBAL_CFG_SET \
-			_IOW(GPE_MAGIC, 0x5B, struct gpe_iqm_global_cfg)
+			_IOW(GPE_MAGIC, 0x56, struct gpe_iqm_global_cfg)
 
 /**
    This function is used to read back global IQM parameters.
@@ -3776,7 +3787,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_IQM_GLOBAL_CFG_GET \
-			_IOR(GPE_MAGIC, 0x5C, struct gpe_iqm_global_cfg)
+			_IOR(GPE_MAGIC, 0x57, struct gpe_iqm_global_cfg)
 
 /**
    This function is used to read back global IQM status variables.
@@ -3790,7 +3801,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_IQM_GLOBAL_STATUS_GET \
-			_IOR(GPE_MAGIC, 0x5D, struct gpe_iqm_global_status)
+			_IOR(GPE_MAGIC, 0x58, struct gpe_iqm_global_status)
 
 /**
    This function is used to read back global TMU parameters.
@@ -3804,7 +3815,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TMU_GLOBAL_CFG_GET \
-			_IOR(GPE_MAGIC, 0x5E, struct gpe_tmu_global_cfg)
+			_IOR(GPE_MAGIC, 0x59, struct gpe_tmu_global_cfg)
 
 
 /**
@@ -3819,7 +3830,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TMU_GLOBAL_STATUS_GET \
-			_IOR(GPE_MAGIC, 0x5F, struct gpe_tmu_global_status)
+			_IOR(GPE_MAGIC, 0x5A, struct gpe_tmu_global_status)
 
 /**
    Read the status variables of an ingress queue within the GPE.
@@ -3833,7 +3844,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_INGRESS_QUEUE_STATUS_GET \
-			_IOWR(GPE_MAGIC, 0x60, union gpe_iqueue_status_get_u)
+			_IOWR(GPE_MAGIC, 0x5B, union gpe_iqueue_status_get_u)
 
 /**
    Set the GPE configuration for a given GEM Port Index and GEM Port ID.
@@ -3851,7 +3862,7 @@ struct gpe_capability {
 				 is >= ONU_GPE_MAX_GEM_PORT_ID
    - GPE_STATUS_NOT_AVAILABLE: if the GEM Port ID is unknown
 */
-#define FIO_GPE_GEM_PORT_SET _IOW(GPE_MAGIC, 0x61, struct gpe_gem_port)
+#define FIO_GPE_GEM_PORT_SET _IOW(GPE_MAGIC, 0x5C, struct gpe_gem_port)
 
 /**
    Download the COP microcode.
@@ -3864,7 +3875,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_COP_DOWNLOAD _IOW(GPE_MAGIC, 0x62, struct cop_download_cfg)
+#define FIO_GPE_COP_DOWNLOAD _IOW(GPE_MAGIC, 0x5D, struct cop_download_cfg)
 
 /**
    Write a command to the ICTRLC interface.
@@ -3877,7 +3888,7 @@ struct gpe_capability {
    \return Return value as follows:
    - ONU_STATUS_OK: if successful
 */
-#define FIO_GPE_ICTRLC_WRITE _IOW(GPE_MAGIC, 0x63, struct ictrlc_write)
+#define FIO_GPE_ICTRLC_WRITE _IOW(GPE_MAGIC, 0x5E, struct ictrlc_write)
 
 /**
    This function is used to configure the exception handling on the LAN side of
@@ -3892,7 +3903,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_LAN_EXCEPTION_CFG_SET \
-			_IOW(GPE_MAGIC, 0x64, struct gpe_lan_exception_cfg)
+			_IOW(GPE_TABLE_MAGIC, 0x47, char[16])
 
 /**
    This function is used to read back the exception configuration related to
@@ -3907,7 +3918,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_LAN_EXCEPTION_CFG_GET \
-			_IOWR(GPE_MAGIC, 0x65, union gpe_lan_exception_cfg_u)
+			_IOWR(GPE_TABLE_MAGIC, 0x48, char[16])
 
 /**
    This function is used to configure the exception handling on the ANI side of
@@ -3922,7 +3933,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_ANI_EXCEPTION_CFG_SET \
-			_IOW(GPE_MAGIC, 0x66, struct gpe_ani_exception_cfg)
+			_IOW(GPE_TABLE_MAGIC, 0x45, struct gpe_ani_exception_cfg)
 
 /**
    This function is used to read back the exception configuration.
@@ -3936,7 +3947,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_ANI_EXCEPTION_CFG_GET \
-			_IOWR(GPE_MAGIC, 0x67, union gpe_ani_exception_cfg_u)
+			_IOWR(GPE_TABLE_MAGIC, 0x46, union gpe_ani_exception_cfg_u)
 
 /**
    This function is used to configure the target queues for the exception
@@ -3953,7 +3964,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EXCEPTION_QUEUE_CFG_SET \
-			_IOW(GPE_MAGIC, 0x68, struct gpe_exception_queue_cfg)
+			_IOW(GPE_TABLE_MAGIC, 0x43, struct gpe_exception_queue_cfg)
 
 /**
    This function is used to read back the exception queue configuration.
@@ -3967,7 +3978,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EXCEPTION_QUEUE_CFG_GET \
-			_IOWR(GPE_MAGIC, 0x69, union gpe_exception_queue_cfg_u)
+			_IOWR(GPE_TABLE_MAGIC, 0x44, union gpe_exception_queue_cfg_u)
 
 /**
    This function is used to get a TR-181 set of counters related to the optical
@@ -3982,7 +3993,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_TR181_COUNTER_GET \
-			_IOWR(GPE_MAGIC, 0x6A, union gpe_tr181_counters_get_u)
+			_IOWR(GPE_MAGIC, 0x5F, union gpe_tr181_counters_get_u)
 
 /**
    Read back the structural parameters of a TMU egress port
@@ -3998,7 +4009,7 @@ struct gpe_capability {
    - GPE_STATUS_CONFIG_MISMATCH: if the entry is already occupied
 */
 #define FIO_GPE_PORT_INDEX_GET \
-			_IOWR(GPE_MAGIC, 0x6B, union gpe_port_index_get_u)
+			_IOWR(GPE_MAGIC, 0x60, union gpe_port_index_get_u)
 
 /**
    Get GPE capability (maximum number of resources available)
@@ -4012,7 +4023,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_CAPABILITY_GET \
-			_IOR(GPE_MAGIC, 0x6C, struct gpe_capability)
+			_IOR(GPE_MAGIC, 0x61, struct gpe_capability)
 
 /**
    This function is used to configure the profiles for the exception
@@ -4029,7 +4040,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EXCEPTION_PROFILE_CFG_SET \
-			_IOW(GPE_MAGIC, 0x6D, struct gpe_exception_profile_cfg)
+			_IOW(GPE_TABLE_MAGIC, 0x49, struct gpe_exception_profile_cfg)
 
 /**
    This function is used to read back the exception profile configuration.
@@ -4043,7 +4054,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EXCEPTION_PROFILE_CFG_GET \
-		       _IOWR(GPE_MAGIC, 0x6E, union gpe_exception_profile_cfg_u)
+		       _IOWR(GPE_TABLE_MAGIC, 0x4A, union gpe_exception_profile_cfg_u)
 
 /**
    This function is used to enable the specified egress port.
@@ -4057,7 +4068,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EGRESS_PORT_ENABLE \
-			_IOW(GPE_MAGIC, 0x6F, struct gpe_epn)
+			_IOW(GPE_MAGIC, 0x62, struct gpe_epn)
 
 /**
    This function is used to disable the specified egress port.
@@ -4071,7 +4082,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
 */
 #define FIO_GPE_EGRESS_PORT_DISABLE \
-			_IOW(GPE_MAGIC, 0x70, struct gpe_epn)
+			_IOW(GPE_MAGIC, 0x63, struct gpe_epn)
 
 /**
    Initialize the GPON Packet Engine (GPE) hardware.
@@ -4091,7 +4102,7 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - An error code in case of error.
 */
-#define FIO_GPE_DEBUG_INIT _IOW(GPE_MAGIC, 0x71, struct gpe_init_data)
+#define FIO_GPE_DEBUG_INIT _IOW(GPE_MAGIC, 0x64, struct gpe_init_data)
 
 /**
    Read the bridge port based performance counters.
@@ -4107,8 +4118,9 @@ struct gpe_capability {
                                  event
    - GPE_STATUS_NO_SUPPORT: if the bridge port index is invalid
 */
+/* Not in v7.5.1 kernel — dead ioctl, will return ENOTTY at runtime */
 #define FIO_GPE_BRIDGE_PORT_COUNTER_GET \
-			_IOWR(GPE_MAGIC, 0x72, union gpe_bridge_port_counter_get_u)
+			_IOWR(0xFF, 0x02, union gpe_bridge_port_counter_get_u)
 
 /**
    Write the bridge port based counter thresholds.
@@ -4124,8 +4136,9 @@ struct gpe_capability {
 			     event
    - GPE_STATUS_NO_SUPPORT: if the bridge port index is invalid
 */
-#define FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_SET \
-			_IOW(GPE_MAGIC, 0x73, struct gpe_cnt_bridge_port_threshold)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_SET \
+			_IOW(GPE_MAGIC, 0x73, struct gpe_cnt_bridge_port_threshold) */
 
 /**
    Read the bridge port based counter thresholds.
@@ -4142,9 +4155,10 @@ struct gpe_capability {
 			     event
    - GPE_STATUS_NO_SUPPORT: if the bridge port index is invalid
 */
-#define FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_GET \
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_BRIDGE_PORT_COUNTER_THRESHOLD_GET \
 			_IOWR(GPE_MAGIC, 0x74, \
-				union gpe_bridge_port_counter_threshold_get_u)
+				union gpe_bridge_port_counter_threshold_get_u) */
 
 /**
    Read the bridge port based counter threshold alarms.
@@ -4159,9 +4173,10 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the bridge port index is invalid
 */
-#define FIO_GPE_BRIDGE_PORT_TCA_GET \
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_BRIDGE_PORT_TCA_GET \
 			_IOWR(GPE_MAGIC, 0x75, \
-				union gpe_bridge_port_counter_threshold_get_u)
+				union gpe_bridge_port_counter_threshold_get_u) */
 
 /**
    Bridge port based counter reset. Calling this function clears all counters
@@ -4176,10 +4191,23 @@ struct gpe_capability {
    - ONU_STATUS_OK: if successful
    - GPE_STATUS_NO_SUPPORT: if the bridge port index is invalid
 */
-#define FIO_GPE_BRIDGE_PORT_COUNTER_RESET \
-			_IOW(GPE_MAGIC, 0x76, struct gpe_bridge_port_cnt_interval)
+/* Not in v7.5.1 kernel */
+/* #define FIO_GPE_BRIDGE_PORT_COUNTER_RESET \
+			_IOW(GPE_MAGIC, 0x76, struct gpe_bridge_port_cnt_interval) */
 
 /*! @} */
+
+/* v7.5.1 PSM (Power Save Mode) ioctls — replaced bridge port counter ioctls 0x73-0x7F.
+   Stock omci_api_init calls psm_fsm_event_mask_set(0xFFFFFFFF) during event handler init.
+   Confirmed via mod_onu.ko CLI table: "Long Form: psm_fsm_event_mask_set" (psmfems). */
+
+/** Set PSM FSM event mask. Stock calls with 0xFFFFFFFF (all events enabled).
+    v7.5.1 kernel cmd 0x78, _IOW(GPE_MAGIC, 0x78, uint32_t). */
+#define FIO_GPE_PSM_FSM_EVENT_MASK_SET _IOW(GPE_MAGIC, 0x78, uint32_t)
+
+/** Get PSM FSM event mask.
+    v7.5.1 kernel cmd 0x79, _IOWR(GPE_MAGIC, 0x79, uint32_t). */
+#define FIO_GPE_PSM_FSM_EVENT_MASK_GET _IOWR(GPE_MAGIC, 0x79, uint32_t)
 
 /*! @} */
 

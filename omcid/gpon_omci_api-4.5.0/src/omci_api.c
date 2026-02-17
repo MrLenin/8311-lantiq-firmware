@@ -9,6 +9,8 @@
 
 ******************************************************************************/
 #include <stdarg.h> /* va_list */
+#include <unistd.h>
+#include <fcntl.h>
 #include "ifxos_thread.h"
 #include "ifx_crc.h"
 #include "ifxos_time.h"
@@ -21,9 +23,36 @@
 #include "dti_rpc.h"
 #endif
 
+#include <stdio.h>
+#include "drv_onu_lan_interface.h"
+
 #define GOI_NAME "optic"
 
+#define DLOG(fmt, ...) do { \
+	FILE *_f = fopen("/tmp/8311_api.log", "a"); \
+	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
+} while (0)
+
 /*#define LOCAL_ETH*/
+
+/* Diagnostic: check SERDES link status */
+static void _diag_serdes(struct omci_api_ctx *ctx, const char *label)
+{
+	union lan_port_status_get_u st;
+	FILE *f;
+	memset(&st, 0, sizeof(st));
+	st.in.index = 0;
+	if (dev_ctl(0, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
+		    &st, sizeof(st)) == 0) {
+		f = fopen("/tmp/8311_serdes.log", "a");
+		if (f) {
+			fprintf(f, "SERDES[%s]: enable=%u link=%u\n",
+				label, st.out.uni_port_en,
+				st.out.link_status);
+			fclose(f);
+		}
+	}
+}
 
 /** \addtogroup OMCI_API_API
 
@@ -180,6 +209,11 @@ static enum omci_api_return capability_get(struct omci_api_ctx *ctx)
 	ctx->capability.max_bridge_port = capability.max_bridge_port;
 	ctx->capability.hw_version = capability.hw_version;
 
+	DLOG("capability: eth_uni=%u pots=%u meter=%u gpix=%u bridge=%u hw=0x%x",
+	     capability.max_eth_uni, capability.max_pots_uni,
+	     capability.max_meter, capability.max_gpix,
+	     capability.max_bridge_port, capability.hw_version);
+
 	return OMCI_API_SUCCESS;
 }
 
@@ -235,10 +269,51 @@ uni2lan_map(struct omci_api_ctx *ctx, const char *uni2lan)
 		}
 
 		IFXOS_FClose(f);
+	}
+	/* If no file provided, leave mapping as -1.
+	   uni2lan_portmap_get() will populate it from the kernel
+	   after the device is opened. */
+
+	return ret;
+}
+
+/**
+   v7.5.1: Retrieve the LAN port-to-UNI mapping from the kernel driver.
+
+   The ioctl returns a 12-byte structure: 1 byte count + up to 11 byte
+   mapping entries.  Each entry gives the UNI ID for that LAN port index.
+
+   Must be called after ctx->onu_fd is valid.
+*/
+static enum omci_api_return
+uni2lan_portmap_get(struct omci_api_ctx *ctx)
+{
+	uint8_t portmap[12];
+	uint8_t i, count;
+	enum omci_api_return ret;
+
+	memset(portmap, 0, sizeof(portmap));
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_LAN_PORTMAP_GET,
+		      portmap, sizeof(portmap));
+	if (ret == OMCI_API_SUCCESS) {
+		count = portmap[0];
+		DLOG("LAN portmap: count=%u", count);
+		/*
+		   Kernel returns: portmap[1+i] = physical_port for logical_port i.
+		   Our v4.5.0 omci_api_uni2lan() searches uni2lan[] for a matching
+		   UNI ME instance byte and returns the array INDEX as the port.
+		   So we need: uni2lan[physical_port] = UNI_instance = logical + 1.
+		*/
+		for (i = 0; i < count && i < ONU_GPE_MAX_UNI; i++) {
+			uint8_t physical_port = portmap[1 + i];
+			if (physical_port < ONU_GPE_MAX_UNI) {
+				ctx->uni2lan[physical_port] = (int)(i + 1);
+				DLOG("  uni2lan[%u] = %d (logical %u)",
+				     physical_port, i + 1, i);
+			}
+		}
 	} else {
-		/* set default mapping */
-		for (i = 0; i < ONU_GPE_MAX_UNI; i++)
-			ctx->uni2lan[i] = i + 1;
+		DBG(OMCI_API_ERR, ("LAN portmap get failed, ret=%d\n", ret));
 	}
 
 	return ret;
@@ -257,12 +332,24 @@ enum omci_api_return omci_api_init(struct omci_api_init_data *init,
 	enum omci_api_return ret;
 	int i;
 
+	int _afd;
+
 	if (!init || !handler || !p_ctx)
 		return OMCI_API_ERROR;
 
+	_afd = open("/tmp/omcid_init.log",
+		    O_WRONLY | O_APPEND | O_CREAT, 0644);
+
+#define ALOG(msg) do { \
+	write(STDERR_FILENO, msg, sizeof(msg) - 1); \
+	if (_afd >= 0) write(_afd, msg, sizeof(msg) - 1); \
+} while (0)
+
+	ALOG("[omcid] api: alloc\n");
 	ctx = (struct omci_api_ctx *)IFXOS_MemAlloc(sizeof(*ctx));
 	if (!ctx) {
 		DBG(OMCI_API_ERR, ("No memory\n"));
+		if (_afd >= 0) close(_afd);
 		return OMCI_API_ERROR;
 	}
 
@@ -271,6 +358,7 @@ enum omci_api_return omci_api_init(struct omci_api_init_data *init,
 	*p_ctx = ctx;
 
 	/* Perform UNI to LAN port IDs mapping */
+	ALOG("[omcid] api: uni2lan\n");
 	ret = uni2lan_map(ctx, uni2lan);
 	if (ret != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR,("Can't map UNI to LAN!\n"));
@@ -311,9 +399,13 @@ enum omci_api_return omci_api_init(struct omci_api_init_data *init,
 	ctx->onu_fd_nfc = -1;
 	ctx->goi_fd_nfc = -1;
 
+	ALOG("[omcid] api: dev_open onu\n");
 	ctx->onu_fd = dev_open(ctx->remote, dev_onu_name);
+	ALOG("[omcid] api: dev_open goi\n");
 	ctx->goi_fd = dev_open(ctx->remote, dev_goi_name);
+	ALOG("[omcid] api: dev_open onu_nfc\n");
 	ctx->onu_fd_nfc = dev_open(ctx->remote, dev_onu_name);
+	ALOG("[omcid] api: dev_open goi_nfc\n");
 	ctx->goi_fd_nfc = dev_open(ctx->remote, dev_goi_name);
 
 	if (ctx->onu_fd < 0 || ctx->onu_fd_nfc < 0) {
@@ -328,44 +420,59 @@ enum omci_api_return omci_api_init(struct omci_api_init_data *init,
 		goto cleanup;
 	}
 
+	ALOG("[omcid] api: capability_get\n");
 	if (capability_get(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("Can't retrieve driver's capabilities\n"));
 		goto cleanup;
 	}
 
+	/* v7.5.1: Get LAN portmap from kernel (replaces file-based default).
+	   Only needed if uni2lan_map didn't populate from a file. */
+	if (ctx->uni2lan[0] == -1) {
+		ALOG("[omcid] api: uni2lan_portmap_get\n");
+		if (uni2lan_portmap_get(ctx) != OMCI_API_SUCCESS) {
+			DBG(OMCI_API_ERR,
+			    ("Can't retrieve ONU LAN mapping\n"));
+			goto cleanup;
+		}
+	}
+
+	ALOG("[omcid] api: timer_init\n");
 	if (omci_api_timer_init(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("Can't initialize timer handling\n"));
 		goto cleanup;
 	}
 
+	ALOG("[omcid] api: event_start\n");
 	if (event_handling_start(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("Can't start event handling\n"));
 		goto cleanup;
 	}
 
+	ALOG("[omcid] api: mapper_reset\n");
 	if (omci_api_mapper_reset(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("Can't reset mapper\n"));
 		goto cleanup;
 	}
 #ifdef INCLUDE_OMCI_API_VOIP
+	ALOG("[omcid] api: voip_init\n");
 	if (voip_init(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("VoIP init failed!\n"));
 		goto cleanup;
 	}
 #endif
 
-#if defined(LINUX) && defined(INCLUDE_OMCI_API_MCC)
-	if (!ctx->remote) {
-		if (mcc_init(ctx) != OMCI_API_SUCCESS) {
-			DBG(OMCI_API_ERR, ("MCC init failed!\n"));
-			goto cleanup;
-		}
-	}
-#endif
+	/* Old API-level mcc_init() hangs on v7.5.1 kernel (opens exc
+	   socket + blocking recvfrom).  Skipped — our INCLUDE_MCC module
+	   in gpon_omci_onu handles multicast instead. */
 
+	ALOG("[omcid] api: done\n");
+	if (_afd >= 0) close(_afd);
 	return OMCI_API_SUCCESS;
 
 cleanup:
+	ALOG("[omcid] api: CLEANUP\n");
+	if (_afd >= 0) close(_afd);
 	if (event_handling_stop(ctx) != OMCI_API_SUCCESS)
 		DBG(OMCI_API_ERR, ("Event handling stop failed!\n"));
 
@@ -373,10 +480,8 @@ cleanup:
 	if (voip_exit(ctx) != OMCI_API_SUCCESS)
 		DBG(OMCI_API_ERR, ("VoIP exit failed!\n"));
 #endif
-#if defined(LINUX) && defined(INCLUDE_OMCI_API_MCC)
-	if (mcc_exit(ctx) != OMCI_API_SUCCESS)
-		DBG(OMCI_API_ERR, ("MCC exit failed!\n"));
-#endif
+	/* Old API-level mcc_exit() skipped — mcc_init() is not called.
+	   Our INCLUDE_MCC module handles multicast instead. */
 
 	IFXOS_MemFree(ctx);
 	*p_ctx = NULL;
@@ -397,71 +502,39 @@ enum omci_api_return omci_api_start(struct omci_api_ctx *ctx)
 	struct onu_enable onu;
 	struct gpe_ll_mod_sel sel;
 	union  sce_version_get_u ver;
-	struct gpe_flat_egress_path egress;
 	struct gpe_exception_queue_cfg exc_queue_cfg;
 	struct gpe_meter_cfg meter_cfg;
 	struct gpe_sce_constants constants;
-	uint32_t meter_idx[3];
+	uint32_t meter_idx;
 
 	if (!ctx)
 		return OMCI_API_ERROR;
+
+	DLOG("api_start: begin, max_eth_uni=%u", ctx->capability.max_eth_uni);
+	_diag_serdes(ctx, "api_start_begin");
 
 	ver.in.pid = 0;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_VERSION_GET,
 		      &ver, sizeof(ver));
 	if (ret != 0) {
+		DLOG("api_start: SCE_VERSION_GET failed ret=%d", ret);
 		DBG(OMCI_API_ERR, ("Can't retrieve firmware version\n"));
 		return -1;
 	}
+	DLOG("api_start: SCE version ok");
 
 	memset(&onu, 0, sizeof(onu));
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_LINE_ENABLE_GET,
 		      &onu, sizeof(onu));
+	DLOG("api_start: LINE_ENABLE_GET ret=%d enable=%u", ret, onu.enable);
 	if (ret == 0 && onu.enable == 1)
 		goto err; /* skip initialization */
 
 	if (ctx->remote)
 		goto line_en;
 
-	egress.base_epn = ONU_GPE_EPN_VUNI0;
-	/* see mib.ini downstream queues, last is 0x9f */
-	egress.base_qid = 0xa0;
-	egress.num_ports = 1;
-	egress.qid_per_sb = 8;
-	/* see mib.ini downstream scheduler, last is 0x43 */
-	egress.base_sbid = 0x44;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_FLAT_EGRESS_PATH_CREATE,
-		      &egress, sizeof(egress));
-
-	egress.base_epn = ONU_GPE_EPN_VUNI1;
-	/* see mib.ini downstream queues, last is 0x9f */
-	egress.base_qid = 0xa8;
-	egress.num_ports = 1;
-	egress.qid_per_sb = 8;
-	/* see mib.ini downstream scheduler, last is 0x43 */
-	egress.base_sbid = 0x45;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_FLAT_EGRESS_PATH_CREATE,
-		      &egress, sizeof(egress));
-
-	egress.base_epn = ONU_GPE_EPN_VUNI2;
-	/* see mib.ini downstream queues, last is 0x9f */
-	egress.base_qid = 0xb0;
-	egress.num_ports = 1;
-	egress.qid_per_sb = 8;
-	/* see mib.ini downstream scheduler, last is 0x43 */
-	egress.base_sbid = 0x46;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_FLAT_EGRESS_PATH_CREATE,
-		      &egress, sizeof(egress));
-
-	egress.base_epn = ONU_GPE_EPN_VUNI3;
-	/* see mib.ini downstream queues, last is 0x9f */
-	egress.base_qid = 0xb8;
-	egress.num_ports = 1;
-	egress.qid_per_sb = 8;
-	/* see mib.ini downstream scheduler, last is 0x43 */
-	egress.base_sbid = 0x47;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_FLAT_EGRESS_PATH_CREATE,
-		      &egress, sizeof(egress));
+	/* Verified: stock v7.5.1 omcid never calls FIO_GPE_FLAT_EGRESS_PATH_CREATE.
+	   v4.5.0 SDK had 4 calls here (VUNI0-3). Removed to match stock behavior. */
 
 	sel.fsqm = 1;
 	sel.ictrlg = 1;
@@ -478,111 +551,220 @@ enum omci_api_return omci_api_start(struct omci_api_ctx *ctx)
 	sel.tmu = 1;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_LOW_LEVEL_MODULES_ENABLE, &sel, sizeof(sel));
+	DLOG("api_start: LL_MODULES_ENABLE ret=%d", ret);
 	if (ret != 0)
 		goto err;
 
-#if defined(LINUX) && defined(INCLUDE_OMCI_API_MCC)
-	if (!ctx->remote) {
-		ret = mcc_start(ctx);
-		if (ret != 0)
-			goto err;
-	}
-#endif /* defined(LINUX) && defined(INCLUDE_OMCI_API_MCC)*/
+	/* Old API-level mcc_start() skipped — mcc_init() is not called.
+	   Our INCLUDE_MCC module handles multicast instead. */
+
+	_diag_serdes(ctx, "after_ll_modules_en");
 
 line_en:
 	onu.enable = 1;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_LINE_ENABLE_SET,
 		      &onu, sizeof(onu));
+	DLOG("api_start: LINE_ENABLE_SET ret=%d", ret);
 	if (ret != 0)
 		goto err;
+
+	_diag_serdes(ctx, "after_line_enable");
 
 	/* bypass LCT setup (takes place in the onu-firmware)*/
 	if (ctx->remote) goto err;
 
-	/* configure LCT exception queue for ARP exceptions */
-	exc_queue_cfg.exception_index = ONU_GPE_EXCEPTION_OFFSET_ARP;
-	exc_queue_cfg.exception_queue = 0xa8;
-	exc_queue_cfg.snooping_enable = 1;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXCEPTION_QUEUE_CFG_SET,
-		      &exc_queue_cfg, sizeof(exc_queue_cfg));
-	if (ret != 0)
-		goto err;
+	/* v7.5.1: Exception queues route to VUNI2 (EPN 70, base qid 0xb0).
+	   Stock uses 0xb0 for most types, 0xb4 for IPX (snoop), 0xb5 for ICMP (snoop).
+	   v4.5.0 incorrectly used 0xa8 (VUNI1/CPU1) — lct0 netdev listens on VUNI2. */
+	{
+		static const struct {
+			uint32_t index;
+			uint32_t queue;
+			uint32_t snoop;
+		} exc_map[] = {
+			{ ONU_GPE_EXCEPTION_OFFSET_IPX,       0xb4, 1 },
+			{ ONU_GPE_EXCEPTION_OFFSET_BPDU,      0xb0, 0 },
+			{ ONU_GPE_EXCEPTION_OFFSET_LOCAL_MAC,  0xb0, 0 },
+			{ ONU_GPE_EXCEPTION_OFFSET_ETH,        0xb0, 0 },
+			{ ONU_GPE_EXCEPTION_OFFSET_ICMP,       0xb5, 1 },
+			{ ONU_GPE_EXCEPTION_OFFSET_SPECTAG,    0xb0, 0 },
+		};
+		for (i = 0; i < sizeof(exc_map)/sizeof(exc_map[0]); i++) {
+			memset(&exc_queue_cfg, 0, sizeof(exc_queue_cfg));
+			exc_queue_cfg.exception_index = exc_map[i].index;
+			exc_queue_cfg.exception_queue = exc_map[i].queue;
+			exc_queue_cfg.snooping_enable = exc_map[i].snoop;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EXCEPTION_QUEUE_CFG_SET,
+				      &exc_queue_cfg, sizeof(exc_queue_cfg));
+			DLOG("api_start: exc_queue idx=%u->q=0x%x snoop=%u ret=%d",
+			     exc_map[i].index, exc_map[i].queue,
+			     exc_map[i].snoop, ret);
+			if (ret != 0)
+				goto err;
+		}
+	}
 
-	/* configure LCT exception queue for Local MAC exceptions */
-	exc_queue_cfg.exception_index = ONU_GPE_EXCEPTION_OFFSET_LOCAL_MAC;
-	exc_queue_cfg.exception_queue = 0xa8;
-	exc_queue_cfg.snooping_enable = 0;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXCEPTION_QUEUE_CFG_SET,
-		      &exc_queue_cfg, sizeof(exc_queue_cfg));
-	if (ret != 0)
-		goto err;
+	/* v7.5.1: Reconfigure VUNI0 queues (0xa0-0xa7).
+	   Stock zeros weight/wred/avg_weight, sets size and drop thresholds
+	   to 0x80 (128 × 512B = 64KB per threshold). */
+	{
+		struct gpe_equeue_cfg qcfg;
+		for (i = 0; i < 8; i++) {
+			memset(&qcfg, 0, sizeof(qcfg));
+			qcfg.index = 0xa0 + i;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EGRESS_QUEUE_CFG_GET,
+				      &qcfg, sizeof(qcfg));
+			if (ret != 0) {
+				DLOG("api_start: VUNI0 q=0x%x GET fail ret=%d",
+				     0xa0 + i, ret);
+				goto err;
+			}
+			qcfg.weight = 0;
+			qcfg.wred_enable = 0;
+			qcfg.avg_weight = 0;
+			qcfg.size = 0x80;
+			qcfg.drop_threshold_red = 0x80;
+			qcfg.drop_threshold_green_max = 0x80;
+			qcfg.drop_threshold_green_min = 0x80;
+			qcfg.drop_threshold_yellow_max = 0x80;
+			qcfg.drop_threshold_yellow_min = 0x80;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EGRESS_QUEUE_CFG_SET,
+				      &qcfg, sizeof(qcfg));
+			if (ret != 0) {
+				DLOG("api_start: VUNI0 q=0x%x SET fail ret=%d",
+				     0xa0 + i, ret);
+				goto err;
+			}
+		}
+		DLOG("api_start: VUNI0 queues 0xa0-0xa7 reconfigured");
+	}
 
-	/* configure LCT exception queue for ICMP exceptions */
-	exc_queue_cfg.exception_index = ONU_GPE_EXCEPTION_OFFSET_ICMP;
-	exc_queue_cfg.exception_queue = 0xa8;
-	exc_queue_cfg.snooping_enable = 1;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXCEPTION_QUEUE_CFG_SET,
-		      &exc_queue_cfg, sizeof(exc_queue_cfg));
-	if (ret != 0)
-		goto err;
-
-	/* setup LCT exceptions for all available LAN ports*/
-	for (i=0; i<ctx->capability.max_eth_uni; i++) {
-		ret = lan_exception_setup(ctx, i, i,
-					 (1 << ONU_GPE_EXCEPTION_OFFSET_ARP) |
-					 (1 << ONU_GPE_EXCEPTION_OFFSET_LOCAL_MAC) |
-					 (1 << ONU_GPE_EXCEPTION_OFFSET_ICMP),
-					 0x0, 0x0, 0x0);
+	/* v7.5.1: Reconfigure VUNI0 egress port thresholds (EPN 0x44).
+	   Stock sets all 4 drop thresholds to 0x80. */
+	{
+		struct gpe_egress_port_cfg pcfg;
+		memset(&pcfg, 0, sizeof(pcfg));
+		pcfg.epn = ONU_GPE_EPN_VUNI0;
+		ret = dev_ctl(ctx->remote, ctx->onu_fd,
+			      FIO_GPE_EGRESS_PORT_CFG_GET,
+			      &pcfg, sizeof(pcfg));
+		if (ret != 0) {
+			DLOG("api_start: VUNI0 port cfg GET fail ret=%d", ret);
+			goto err;
+		}
+		pcfg.egress_port_threshold_max = 0x80;
+		pcfg.egress_port_threshold_green = 0x80;
+		pcfg.egress_port_threshold_yellow = 0x80;
+		pcfg.egress_port_threshold_red = 0x80;
+		ret = dev_ctl(ctx->remote, ctx->onu_fd,
+			      FIO_GPE_EGRESS_PORT_CFG_SET,
+			      &pcfg, sizeof(pcfg));
+		DLOG("api_start: VUNI0 port cfg SET ret=%d", ret);
 		if (ret != 0)
 			goto err;
 	}
 
-	/* A2x */
-	/* create exception meter */
+	/* v7.5.1: Reconfigure VUNI2 queues (0xb0-0xb7) — weight 0x3ff→0x200.
+	   Stock only changes weight, preserves all other fields from GET. */
+	{
+		struct gpe_equeue_cfg qcfg;
+		for (i = 0; i < 8; i++) {
+			memset(&qcfg, 0, sizeof(qcfg));
+			qcfg.index = 0xb0 + i;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EGRESS_QUEUE_CFG_GET,
+				      &qcfg, sizeof(qcfg));
+			if (ret != 0) {
+				DLOG("api_start: VUNI2 q=0x%x GET fail ret=%d",
+				     0xb0 + i, ret);
+				goto err;
+			}
+			qcfg.weight = 0x200;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EGRESS_QUEUE_CFG_SET,
+				      &qcfg, sizeof(qcfg));
+			if (ret != 0) {
+				DLOG("api_start: VUNI2 q=0x%x SET fail ret=%d",
+				     0xb0 + i, ret);
+				goto err;
+			}
+		}
+		DLOG("api_start: VUNI2 queues 0xb0-0xb7 weight=0x200");
+	}
+
+	/* ANI exception meter */
 	memset(&meter_cfg, 0, sizeof(meter_cfg));
-	/* 1000 packets per second * 8000 bytes/sec */
 	meter_cfg.cir = ONU_GPE_QOSL * 1000;
 	meter_cfg.pir = ONU_GPE_QOSL * 1000;
 	meter_cfg.cbs = ONU_GPE_QOSL * 30;
 	meter_cfg.pbs = ONU_GPE_QOSL * 30;
 	meter_cfg.mode = GPE_METER_RFC2698;
 	meter_cfg.color_aware = 0;
-	for(i=0; i<3; i++) {
-		ret = omci_api_meter_create(ctx, &meter_idx[i]);
-		if (ret != 0)
-			goto err;
-		meter_cfg.index = meter_idx[i];
-		ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_METER_CFG_SET,
-				  &meter_cfg, sizeof(meter_cfg));
-		if (ret != 0)
-			goto err;
-	}
-	for (i=0; i<ctx->capability.max_eth_uni; i++) {
-		ret = lan_exception_meter_setup(ctx, i,
-					 meter_idx[0], 1,
-					 meter_idx[1], 1);
-		if (ret != 0)
-			goto err;
-	}
 
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_GET,
-			  &constants, sizeof(constants));
+	ret = omci_api_meter_create(ctx, &meter_idx);
+	if (ret != 0) {
+		DLOG("api_start: ani_meter_create FAILED ret=%d", ret);
+		goto err;
+	}
+	meter_cfg.index = meter_idx;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_METER_CFG_SET,
+		      &meter_cfg, sizeof(meter_cfg));
+	DLOG("api_start: ani_meter idx=%u cfg ret=%d", meter_idx, ret);
 	if (ret != 0)
 		goto err;
 
-	/* A1x */
-	/* (1/28ms) * 1000 pckt/s = 28 */
-	constants.uni_except_policer_threshold = 28;
-	constants.igmp_except_policer_threshold = 28;
-	constants.ani_except_policer_threshold = 28;
-	/* A2x */
-	constants.ani_exception_meter_id = meter_idx[2];
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_GET,
+			  &constants, sizeof(constants));
+	DLOG("api_start: SCE_CONSTANTS_GET ret=%d sz=%u",
+	     ret, (unsigned)sizeof(constants));
+	if (ret != 0)
+		goto err;
+
+	constants.ani_exception_meter_id = meter_idx;
 	constants.ani_exception_enable = 1;
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_SET,
 				  &constants, sizeof(constants));
+	DLOG("api_start: SCE_CONSTANTS_SET ani_meter=%u ret=%d", meter_idx, ret);
 	if (ret != 0)
 		goto err;
+
+	/* v7.5.1: IGMP_MLD exception queue configured after SCE constants */
+	memset(&exc_queue_cfg, 0, sizeof(exc_queue_cfg));
+	exc_queue_cfg.exception_index = ONU_GPE_EXCEPTION_OFFSET_IGMP_MLD;
+	exc_queue_cfg.exception_queue = 0xb0;
+	exc_queue_cfg.snooping_enable = 0;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXCEPTION_QUEUE_CFG_SET,
+		      &exc_queue_cfg, sizeof(exc_queue_cfg));
+	DLOG("api_start: exc_queue IGMP_MLD(idx=%u)->q=0xb0 ret=%d",
+	     ONU_GPE_EXCEPTION_OFFSET_IGMP_MLD, ret);
+	if (ret != 0)
+		goto err;
+
+	/* v7.5.1: Second SCE constants round — meter_l2_only + common_ip_handling.
+	   Stock FUN_00446ba0 does GET/SET after IGMP_MLD exception queue setup.
+	   meter_l2_only_enable=1 forces L2 metering; common_ip_handling_en=1
+	   enables shared IP processing (set when no PPTP/VEIP mode active). */
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_GET,
+		      &constants, sizeof(constants));
+	if (ret != 0) {
+		DLOG("api_start: SCE_CONSTANTS_GET #2 fail ret=%d", ret);
+		goto err;
+	}
+	constants.meter_l2_only_enable = 1;
+	constants.common_ip_handling_en = 1;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_SET,
+		      &constants, sizeof(constants));
+	DLOG("api_start: SCE_CONSTANTS_SET #2 l2=%u ip=%u ret=%d",
+	     constants.meter_l2_only_enable, constants.common_ip_handling_en, ret);
+	if (ret != 0)
+		goto err;
+
+	DLOG("api_start: COMPLETE (all steps succeeded)");
+	_diag_serdes(ctx, "after_sce_constants");
 err:
 	return ret;
 }
@@ -758,7 +940,44 @@ enum omci_api_return dev_ctl(const uint8_t remote, const int fd,
 		exchange.error = 0;
 		exchange.length = data_sz;
 		exchange.p_data = p_data;
+
+		/* Ioctl trace: log ALL ioctls during startup */
+		{
+			static int _ioctl_trace_fd = -2;
+			if (_ioctl_trace_fd == -2)
+				_ioctl_trace_fd = open("/tmp/8311_ioctl.log",
+					O_WRONLY | O_APPEND | O_CREAT, 0644);
+			if (_ioctl_trace_fd >= 0) {
+				char _buf[80];
+				int _n = snprintf(_buf, sizeof(_buf),
+					"ioctl cmd=0x%08x sz=%u\n",
+					cmd, (unsigned)data_sz);
+				if (_n > 0)
+					write(_ioctl_trace_fd, _buf, _n);
+			}
+		}
+
 		ret = device_ioctl(fd, cmd, (unsigned long)&exchange);
+
+		/* Log errors and LAN ioctls */
+		{
+			int result = (ret < exchange.error) ? ret : exchange.error;
+			if (result != 0) {
+				static int _err_fd = -2;
+				if (_err_fd == -2)
+					_err_fd = open("/tmp/8311_ioctl.log",
+						O_WRONLY | O_APPEND | O_CREAT, 0644);
+				if (_err_fd >= 0) {
+					char _buf[80];
+					int _n = snprintf(_buf, sizeof(_buf),
+						"  -> FAIL ret=%d err=%d\n",
+						ret, exchange.error);
+					if (_n > 0)
+						write(_err_fd, _buf, _n);
+				}
+			}
+		}
+
 		if (cmd == FIO_ONU_EVENT_FIFO)
 			if (exchange.error == 1)
 				DBG(OMCI_API_ERR,
@@ -964,8 +1183,14 @@ enum omci_api_return lan_exception_setup(struct omci_api_ctx *ctx,
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_EXCEPTION_PROFILE_CFG_GET, &exc_profile,
 		      sizeof(exc_profile));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_setup: PROFILE_GET[%u] FAILED ret=%d", profile_idx, ret);
 		return ret;
+	}
+
+	DLOG("lan_exc_setup: prof[%u] GET ingress=0x%08x egress=0x%08x",
+	     profile_idx, exc_profile.out.ingress_exception_mask,
+	     exc_profile.out.egress_exception_mask);
 
 	exc_profile.out.ingress_exception_mask |= ingress_mask_set;
 	exc_profile.out.egress_exception_mask  |= egress_mask_set;
@@ -976,15 +1201,27 @@ enum omci_api_return lan_exception_setup(struct omci_api_ctx *ctx,
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_EXCEPTION_PROFILE_CFG_SET, &exc_profile.out,
 		      sizeof(exc_profile.out));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_setup: PROFILE_SET[%u] FAILED ret=%d", profile_idx, ret);
 		return ret;
+	}
+
+	DLOG("lan_exc_setup: prof[%u] SET ingress=0x%08x egress=0x%08x",
+	     profile_idx, exc_profile.out.ingress_exception_mask,
+	     exc_profile.out.egress_exception_mask);
 
 	/* read LAN port exception config*/
 	exc_cfg.in.lan_port_index = lan_idx;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_LAN_EXCEPTION_CFG_GET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_setup: LAN_EXC_GET[%u] FAILED ret=%d", lan_idx, ret);
 		return ret;
+	}
+
+	DLOG("lan_exc_setup: lan[%u] GET profile=%u uni_m=%u",
+	     lan_idx, exc_cfg.out.exception_profile,
+	     exc_cfg.out.uni_except_meter_id);
 
 	/* assign exception profile to LAN port */
 	exc_cfg.in.lan_port_index = lan_idx;
@@ -993,8 +1230,11 @@ enum omci_api_return lan_exception_setup(struct omci_api_ctx *ctx,
 	/* write LAN port exception config*/
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_LAN_EXCEPTION_CFG_SET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_setup: LAN_EXC_SET[%u] FAILED ret=%d sz=%u",
+		     lan_idx, ret, (unsigned)sizeof(exc_cfg));
 		return ret;
+	}
 
 	return ret;
 }
@@ -1002,9 +1242,7 @@ enum omci_api_return lan_exception_setup(struct omci_api_ctx *ctx,
 enum omci_api_return lan_exception_meter_setup(struct omci_api_ctx *ctx,
 					 const uint8_t lan_idx,
 					 const uint32_t uni_except_meter_id,
-					 const uint32_t uni_except_meter_enable,
-					 const uint32_t igmp_except_meter_id,
-					 const uint32_t igmp_except_meter_enable )
+					 const uint32_t uni_except_meter_enable)
 {
 	enum omci_api_return ret;
 	union gpe_lan_exception_cfg_u exc_cfg;
@@ -1013,21 +1251,26 @@ enum omci_api_return lan_exception_meter_setup(struct omci_api_ctx *ctx,
 	exc_cfg.in.lan_port_index = lan_idx;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_LAN_EXCEPTION_CFG_GET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_meter: GET[%u] FAILED ret=%d", lan_idx, ret);
 		return ret;
+	}
 
-	/* assign exception profile to LAN port */
+	/* assign meter to LAN port (v7.5.1: IGMP meter removed) */
 	exc_cfg.in.lan_port_index = lan_idx;
 	exc_cfg.out.uni_except_meter_id = uni_except_meter_id;
 	exc_cfg.out.uni_except_meter_enable = uni_except_meter_enable;
-	exc_cfg.out.igmp_except_meter_id = igmp_except_meter_id;
-	exc_cfg.out.igmp_except_meter_enable = igmp_except_meter_enable;
 
 	/* write LAN port exception config*/
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
 		      FIO_GPE_LAN_EXCEPTION_CFG_SET, &exc_cfg, sizeof(exc_cfg));
-	if (ret != OMCI_API_SUCCESS)
+	if (ret != OMCI_API_SUCCESS) {
+		DLOG("lan_exc_meter: SET[%u] FAILED ret=%d", lan_idx, ret);
 		return ret;
+	}
+
+	DLOG("lan_exc_meter: lan[%u] uni_m=%u/%u ok",
+	     lan_idx, uni_except_meter_id, uni_except_meter_enable);
 
 	return ret;
 }

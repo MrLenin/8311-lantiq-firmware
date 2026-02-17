@@ -12,6 +12,8 @@ etc/mibs/data_1v_8q.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q
 etc/rc.d/S94vlan-svc.sh S @TIMESTAMP 777 0 0 ../init.d/vlan-svc.sh
 etc/uci-defaults/30_luci-theme-bootstrap F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig F @TIMESTAMP 664 0 0 cat ./8311-mods/etc/uci-defaults/sfp-pins-preconfig
+lib/librt.so.0 F @TIMESTAMP 755 0 0 cat ./8311-mods/lib/omci_logger.so
+lib/librt_orig.so.0 S @TIMESTAMP 777 0 0 librt-0.9.33.2.so
 lib/modules/3.10.49/mod_optic.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_optic.ko
 lib/modules/3.10.49/mod_onu.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_onu.ko
 lib/functions/int.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/functions/int.sh
@@ -68,5 +70,9 @@ www/luci-static/resources/jquery-3.7.1.min.js F @TIMESTAMP 644 0 0 cat ./8311-mo
 www/luci-static/resources/jquery.validate.min.js F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/resources/jquery.validate.min.js
 www/luci-static/resources/logo_8311.png F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/resources/logo_8311.png
 www/luci-static/resources/view D @TIMESTAMP 775 0 0
+usr/lib/libpcap.so.1.3.0 F @TIMESTAMP 644 0 0 cat ./8311-mods/usr/lib/libpcap.so.1.3.0
+usr/lib/libpcap.so.1.3 S @TIMESTAMP 777 0 0 libpcap.so.1.3.0
+usr/lib/libpcap.so S @TIMESTAMP 777 0 0 libpcap.so.1.3
+usr/sbin/tcpdump F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/tcpdump
 www/luci-static/resources/view/8311.css F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/resources/view/8311.css
 www/luci-static/resources/view/8311.js F @TIMESTAMP 644 0 0 cat ./8311-mods/www/luci-static/resources/view/8311.js

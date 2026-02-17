@@ -386,22 +386,18 @@ enum omci_api_return lan_exception_setup(struct omci_api_ctx *ctx,
 					 const uint32_t egress_mask_set,
 					 const uint32_t egress_mask_clr);
 
-/** Setup exception meter at the LAN side
+/** Setup exception meter at the LAN side (v7.5.1: IGMP meter removed)
 
    \param[in] ctx               OMCI API context pointer
    \param[in] lan_idx		LAN port index
    \param[in] uni_except_meter_id 	UNI meter ID
    \param[in] uni_except_meter_enable 	UNI meter enable
-   \param[in] igmp_except_meter_id 	IGMP meter ID
-   \param[in] igmp_except_meter_enable 	IGMP meter enable
 
 */
 enum omci_api_return lan_exception_meter_setup(struct omci_api_ctx *ctx,
 					 const uint8_t lan_idx,
 					 const uint32_t uni_except_meter_id,
-					 const uint32_t uni_except_meter_enable,
-					 const uint32_t igmp_except_meter_id,
-					 const uint32_t igmp_except_meter_enable );
+					 const uint32_t uni_except_meter_enable);
 
 /** Setup exceptions at the ANI side
 

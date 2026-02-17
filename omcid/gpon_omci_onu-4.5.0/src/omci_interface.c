@@ -8,10 +8,19 @@
   this software module.
 
 ******************************************************************************/
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
+
 #include "ifxos_debug.h"
 #include "ifxos_memory_alloc.h"
 #include "ifxos_print_io.h"
 #include "ifxos_time.h"
+
+#define DLOG(fmt, ...) do { \
+	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
+	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
+} while (0)
 
 #define OMCI_DBG_MODULE OMCI_DBG_MODULE_ME
 
@@ -33,6 +42,7 @@ static void ploam_state_change_cb(struct omci_context *context,
 				  int prev_state,
 				  int curr_state)
 {
+	DLOG("ploam_state_change: %d -> %d", prev_state, curr_state);
 	dbg_in(__func__, "%d, %d", prev_state, curr_state);
 
 	switch (curr_state) {
@@ -44,7 +54,9 @@ static void ploam_state_change_cb(struct omci_context *context,
 		IFX_Var_Fifo_Clear(&context->msg_fifo.fifo);
 		context_unlock(context);
 		if (curr_state == 2) {
+			DLOG("ploam_state_change: triggering mib_reset(false)");
 			mib_reset(context, false);
+			DLOG("ploam_state_change: mib_reset returned");
 		}
 		break;
 
@@ -69,9 +81,19 @@ static void error_cb(struct omci_context *context,
 		? "create" : (action == OMCI_API_ACTION_UPDATE)
 		? "update" : "destroy");
 
-	/** \todo make a device reset? */
-	for (;;) {
-	};
+	/* v4.5.0 had for(;;){} here which hangs the process.
+	   v7.5.1 error_notify is a no-op (never fires this event),
+	   but if it ever does, log and continue rather than hang. */
+	{
+		char _buf[128];
+		int _n = snprintf(_buf, sizeof(_buf),
+			"[omcid] ERROR: %u@%u '%s' ret=%d\n",
+			class_id, instance_id,
+			(action == OMCI_API_ACTION_CREATE)
+			? "create" : (action == OMCI_API_ACTION_UPDATE)
+			? "update" : "destroy", ret);
+		if (_n > 0) write(STDERR_FILENO, _buf, _n);
+	}
 
 	dbg_out(__func__);
 }
@@ -279,14 +301,26 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	enum omci_error error;
 	struct omci_context *context;
 	struct omci_api_init_data omci_api_init_data;
+	int _lfd;
 
 	RETURN_IF_PTR_NULL(ref_context);
 	RETURN_IF_PTR_NULL(mib_on_reset);
+
+	_lfd = open("/tmp/omcid_init.log",
+		    O_WRONLY | O_APPEND | O_CREAT, 0644);
+
+#define ILOG(msg) do { \
+	write(STDERR_FILENO, msg, sizeof(msg) - 1); \
+	if (_lfd >= 0) { write(_lfd, msg, sizeof(msg) - 1); } \
+} while (0)
+
+	ILOG("[omcid] init: entered\n");
 
 	dbg_in(__func__, "%p, %p, %p, %d, 0x%02x, 0x%08x, %u",
 	       (void *)ref_context, (void *)mib_on_reset,
 	       cli_on_exec, mib, omcc_version, iop_mask, lct_port);
 
+	ILOG("[omcid] init: heap_check\n");
 	heap_check_init();
 
 	/* ensure that ref_context points to NULL */
@@ -297,6 +331,7 @@ enum omci_error omci_init(struct omci_context **ref_context,
 			OMCI_ERROR_INVALID_PTR, __func__);
 
 		dbg_out_ret(__func__, OMCI_ERROR_INVALID_PTR);
+		if (_lfd >= 0) close(_lfd);
 		return OMCI_ERROR_INVALID_PTR;
 	}
 
@@ -313,10 +348,13 @@ enum omci_error omci_init(struct omci_context **ref_context,
 				  dbg_modules[OMCI_DBG_MODULE_VOIP].level);
 #endif
 
+	ILOG("[omcid] init: alloc ctx\n");
+
 	/* allocate context */
 	context = IFXOS_MemAlloc(sizeof(struct omci_context));
 	RETURN_IF_MALLOC_ERROR(context);
 
+	ILOG("[omcid] init: dbg_in\n");
 	dbg_prn("Using MIB for OLT #%d", mib);
 
 	memset(context, 0, sizeof(struct omci_context));
@@ -330,36 +368,43 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	context->failsafe = false;
 	context->action_timeout = OMCI_DEFAUL_MAX_ACTION_TIMEOUT;
 
+	ILOG("[omcid] init: lock\n");
 	/* init context lock */
 	error = lock_init(&context->lock);
 	if (error)
 		goto free_context;
 
+	ILOG("[omcid] init: alarm_copy\n");
 	/* init alarm copy */
 	error = alarm_copy_init(context);
 	if (error)
 		goto delete_context_lock;
 
+	ILOG("[omcid] init: mib_copy\n");
 	/* init MIB copy */
 	error = mib_copy_init(context);
 	if (error)
 		goto do_alarm_copy_shutdown;
 
+	ILOG("[omcid] init: tbl_copy\n");
 	/* init table attributes copy */
 	error = tbl_copy_init(context);
 	if (error)
 		goto do_mib_copy_shutdown;
 
+	ILOG("[omcid] init: msg_fifo\n");
 	/* create received messages FIFO */
 	error = msg_fifo_init(context);
 	if (error)
 		goto do_tbl_copy_shutdown;
 
+	ILOG("[omcid] init: timeout\n");
 	/* init timeout module and start timeout thread */
 	error = timeout_init(context);
 	if (error)
 		goto do_msg_fifo_shutdown;
 
+	ILOG("[omcid] init: events\n");
 	context->mib_on_reset = mib_on_reset;
 #ifdef INCLUDE_CLI_SUPPORT
 	context->cli_on_exec = cli_on_exec;
@@ -386,6 +431,8 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	}
 
 	/* called before the initial MIB was created */
+	ILOG("[omcid] omci_api_init...\n");
+	memset(&omci_api_init_data, 0, sizeof(omci_api_init_data));
 	error = (enum omci_error)omci_api_init(&omci_api_init_data,
 					       event_cb,
 					       context,
@@ -398,11 +445,13 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	}
 
 	/* create MIB */
+	ILOG("[omcid] mib_create...\n");
 	error = mib_create(context);
 	if (error)
 		goto do_omci_api_shutdown;
 
 	/* called after the initial MIB was created */
+	ILOG("[omcid] omci_api_start...\n");
 	error = (enum omci_error)omci_api_start(context->api);
 	if (error) {
 		dbg_err("ERROR(%d) OMCI API start error", error);
@@ -410,32 +459,37 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	}
 
 #ifdef INCLUDE_MCC
-	/* initialize multicast control */
+	/* initialize multicast control — non-fatal, omcid must work without it */
+	ILOG("[omcid] omci_mcc_init...\n");
 	error = omci_mcc_init(context);
 	if (error) {
-		dbg_err("ERROR(%d) MCC init error", error);
-		goto do_mib_destroy;
+		dbg_err("MCC init failed (%d), multicast disabled", error);
+		error = OMCI_SUCCESS;
 	}
 #endif
 
 	/* start core thread */
+	ILOG("[omcid] core_thread_start...\n");
 	error = core_thread_start(context);
 	if (error)
 		goto do_mcc_shutdown;
 
 	/* start message handler thread */
+	ILOG("[omcid] action_thread_start...\n");
 	error = action_thread_start(context);
 	if (error)
 		goto do_core_thread_stop;
 
 #ifdef INCLUDE_PM
 	/* initialize performance monitoring */
+	ILOG("[omcid] pm_init...\n");
 	error = pm_init(context);
 	if (error)
 		goto do_pm_shutdown;
 #endif
 
 	/* start OMCI processing */
+	ILOG("[omcid] omci_processing_enable...\n");
 	(void)omci_processing_enable(context, true);
 
 	/* store startup time */
@@ -444,6 +498,8 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	/* point ref_context to allocated context */
 	*ref_context = context;
 
+	ILOG("[omcid] init complete\n");
+	if (_lfd >= 0) close(_lfd);
 	dbg_out_ret(__func__, OMCI_SUCCESS);
 	return OMCI_SUCCESS;
 

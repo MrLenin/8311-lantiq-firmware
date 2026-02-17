@@ -8,6 +8,10 @@
   this software module.
 
 ******************************************************************************/
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+
 #include "ifxos_time.h"
 #include "ifxos_memory_alloc.h"
 #include "ifxos_std_defs.h"
@@ -443,11 +447,28 @@ int main(int argc, char *argv[])
 {
 	enum omci_error ret = OMCI_SUCCESS;
 	struct omci_context *context;
+	int dbg_fd;
 #ifdef INCLUDE_CLI_SUPPORT
 	omci_cli_on_exec *cli_cb = cli_cmd_execute;
 #else
 	omci_cli_on_exec *cli_cb = NULL;
 #endif
+
+	/* Raw write to stderr — bypasses stdio buffering.
+	   If procd captures fd 2, this will appear in syslog. */
+	write(STDERR_FILENO, "[omcid] main() entered\n", 23);
+
+	/* Also log to a file so we can check even if procd
+	   doesn't capture stderr at all. */
+	dbg_fd = open("/tmp/omcid_init.log",
+		      O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+#define INITLOG(msg) do { \
+	write(STDERR_FILENO, msg, sizeof(msg) - 1); \
+	if (dbg_fd >= 0) write(dbg_fd, msg, sizeof(msg) - 1); \
+} while (0)
+
+	INITLOG("[omcid] main() entered\n");
 
 #ifdef INCLUDE_IFXOS_SYSOBJ_SUPPORT
 	IFXOS_SysObject_Setup(0);
@@ -463,9 +484,12 @@ int main(int argc, char *argv[])
 	omci_config.omcc_version = 0xA0;
 	omci_config.lct_port = 0xFF;
 
+	INITLOG("[omcid] parsing args...\n");
+
 	/* parse command arguments */
 	if (omci_arg_parse(argc, argv)) {
 		/* return with OK if need to print help or version */
+		if (dbg_fd >= 0) close(dbg_fd);
 		goto free_args;
 	}
 
@@ -476,6 +500,7 @@ int main(int argc, char *argv[])
 
 	/* read initial config data */
 	/* todo: use UCI access functions to read values */
+	INITLOG("[omcid] handler_install...\n");
 	omci_handler_install();
 
 	/* initialize OMCI stack */
@@ -485,20 +510,25 @@ int main(int argc, char *argv[])
 		    omci_config.omcc_version);
 	context = NULL;
 
+	INITLOG("[omcid] calling omci_init...\n");
+
 	ret = omci_init(&context, mib_on_reset, cli_cb,
 			omci_config.mib, omci_config.omcc_version,
 			omci_config.iop_mask, omci_config.lct_port);
 	if (ret != OMCI_SUCCESS) {
 		omci_printfe(OMCID "ERROR(%d) OMCI daemon initialize failed\n",
 			     ret);
-
+		INITLOG("[omcid] omci_init FAILED\n");
+		if (dbg_fd >= 0) close(dbg_fd);
 		goto do_omci_shutdown;
 	}
 
 	omci_printf(OMCID "OMCI daemon initialized\n");
+	INITLOG("[omcid] omci_init done, calling cli_start...\n");
 
 #ifdef INCLUDE_CLI_SUPPORT
 	ret = cli_start((void*)context, omci_config.start_console);
+	INITLOG("[omcid] cli_start returned\n");
 	if (ret != OMCI_SUCCESS)
 		omci_printfe(OMCID "ERROR(%d) CLI start failed\n", ret);
 

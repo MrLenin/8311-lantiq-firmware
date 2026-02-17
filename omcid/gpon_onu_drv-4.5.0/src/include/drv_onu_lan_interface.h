@@ -567,7 +567,8 @@ union lan_port_capability_cfg_get_u {
   - An error code in case of error.
 
 */
-#define FIO_LAN_CFG_SET _IOW(LAN_MAGIC, 0x01, struct lan_cfg)
+/* v7.5.1 struct is 16 bytes (was 20 in v4.5.0 — one field removed). */
+#define FIO_LAN_CFG_SET _IOW(LAN_MAGIC, 0x01, char[16])
 
 /**
   Read the Ethernet interface hardware configuration.
@@ -582,7 +583,8 @@ union lan_port_capability_cfg_get_u {
   - An error code in case of error.
 
 */
-#define FIO_LAN_CFG_GET _IOR(LAN_MAGIC, 0x02, struct lan_cfg)
+/* v7.5.1 struct is 16 bytes (was 20 in v4.5.0 — one field removed). */
+#define FIO_LAN_CFG_GET _IOR(LAN_MAGIC, 0x02, char[16])
 
 /**
   Configure the Ethernet per-port interface hardware.
@@ -774,7 +776,8 @@ union lan_port_capability_cfg_get_u {
    - 0: if successful
    - GPE_STATUS_NO_SUPPORT: if the UNI port ID is invalid
 */
-#define FIO_LAN_TCA_GET _IOWR(LAN_MAGIC, 0x0E, struct lan_cnt_val)
+/* v7.5.1 TCA_GET includes port index (372 bytes, not bare lan_cnt_val). */
+#define FIO_LAN_TCA_GET _IOWR(LAN_MAGIC, 0x0E, char[372])
 
 /**
   Configure the Wake-on-LAN function.

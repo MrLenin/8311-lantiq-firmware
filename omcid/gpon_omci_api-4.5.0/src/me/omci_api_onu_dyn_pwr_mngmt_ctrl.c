@@ -28,6 +28,8 @@ enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 	struct gtc_op_mode mode;
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 
+	memset(&mode, 0, sizeof(mode));
+
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n"
 		  "   pwr_reduction_mngmt_mode=0x%X\n"

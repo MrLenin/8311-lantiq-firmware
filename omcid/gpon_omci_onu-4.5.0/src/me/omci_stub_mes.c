@@ -49,7 +49,7 @@ struct me_class me_dot1ag_md_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -100,7 +100,7 @@ struct me_class me_dot1ag_ma_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -143,7 +143,7 @@ struct me_class me_dot1ag_def_md_lvl_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, get_next_action_handle, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -216,7 +216,7 @@ struct me_class me_dot1ag_mep_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -276,7 +276,7 @@ struct me_class me_dot1ag_mep_status_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -307,11 +307,11 @@ struct me_class me_dot1ag_mep_ccm_db_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
-	NULL, sizeof(struct omci_dot1ag_mep_ccm_db),
+	NULL, 0, /* all attrs NOT_DEF — no data storage */
 	OMCI_ME_PROP_NO_UPLOAD,
 #ifdef INCLUDE_OMCI_SELF_DESCRIPTION
 	{ "Dot1ag MEP CCM database", ME_CREATED_BY_ONT, NULL, 0, ME_SUPPORTED },
@@ -343,7 +343,7 @@ struct me_class me_dot1ag_cfm_stack_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -400,7 +400,7 @@ struct me_class me_dot1ag_cmi_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -474,7 +474,7 @@ struct me_class me_eth_ext_pmhd_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  get_action_handle /* get current data */ },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -521,7 +521,7 @@ struct me_class me_energy_consumption_pmhd_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  get_action_handle /* get current data */ },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -583,7 +583,7 @@ struct me_class me_poe_ctrl_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -658,7 +658,7 @@ struct me_class me_eth_ext_pmhd_64_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  get_action_handle /* get current data */ },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -696,7 +696,7 @@ struct me_class me_zte_emop_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -746,7 +746,7 @@ struct me_class me_onu_loop_detection_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -798,7 +798,7 @@ struct me_class me_ext_mop_class = {
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, get_next_action_handle, NULL, NULL, NULL },
 	default_me_init, default_me_shutdown, default_me_validate,
-	NULL, NULL, NULL,
+	default_me_update, NULL, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif

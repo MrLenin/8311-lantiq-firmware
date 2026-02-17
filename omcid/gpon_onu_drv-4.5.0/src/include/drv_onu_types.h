@@ -355,6 +355,8 @@ struct lan_cnt_val {
 	struct octrll_counter tx;
 	/** Transmit and receive Ethernet MAC counters. */
 	struct mac_counter mac;
+	/** Padding: v7.5.1 has 2 additional counters (368 bytes total, was 352). */
+	uint64_t _v751_reserved[2];
 };
 
 /** Ethernet interface operation modes
@@ -516,13 +518,18 @@ enum mdio_mode_speed {
 	MDIO_MODE_SPEED_20M = 3
 };
 
-/** SGMII autonegotiation modes
+/** SGMII autonegotiation modes.
+    v7.5.1 added modes 2 (SGMII clause 37) and 3 (SERDES).
 */
 enum sgmii_autoneg_mode {
-	/** SGMII MAC */
+	/** SGMII MAC autonegotiation */
 	SGMII_MAC_ANEG = 0,
-	/** SGMII PHY */
-	SGMII_PHY_ANEG = 1
+	/** SGMII PHY autonegotiation */
+	SGMII_PHY_ANEG = 1,
+	/** SGMII clause 37 autonegotiation (eim_sgmii_autonegotiation_setup) */
+	SGMII_CLAUSE37_ANEG = 2,
+	/** SERDES autonegotiation (eim_serdes_autonegotiation_setup) */
+	SGMII_SERDES_ANEG = 3
 };
 
 /** Bridge-related counter(s).
