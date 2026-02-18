@@ -210,6 +210,51 @@ struct omci_ext_mop {
 	uint8_t static_acl_table[24];  /* 24B R/W table */
 } __PACKED__;
 
+/* ---- ME 146: VoIP Application Service Profile ---- */
+struct omci_voip_app_svc_profile {
+	uint8_t cid_features;               /* 1B R/W/SBC */
+	uint8_t call_waiting_features;      /* 1B R/W/SBC */
+	uint16_t call_progress_features;    /* 2B R/W/SBC */
+	uint16_t call_presentation_features; /* 2B R/W/SBC */
+	uint8_t direct_connect_feature;     /* 1B R/W/SBC */
+	uint16_t direct_connect_uri_ptr;    /* 2B R/W/SBC */
+	uint16_t bridged_line_agent_uri_ptr; /* 2B R/W/SBC */
+	uint16_t conference_factory_uri_ptr; /* 2B R/W/SBC */
+	uint16_t dial_tone_delay_timer;     /* 2B R/W optional */
+	uint16_t ip_host_ptr;               /* 2B R/W optional */
+} __PACKED__;
+
+/* ---- ME 147: VoIP Feature Access Codes ---- */
+struct omci_voip_feature_access_codes {
+	uint8_t cancel_call_waiting[5];     /* 5B R/W optional */
+	uint8_t call_hold[5];               /* 5B R/W optional */
+	uint8_t call_park[5];               /* 5B R/W optional */
+	uint8_t caller_id_activate[5];      /* 5B R/W optional */
+	uint8_t caller_id_deactivate[5];    /* 5B R/W optional */
+	uint8_t dnd_activate[5];            /* 5B R/W optional */
+	uint8_t dnd_deactivate[5];          /* 5B R/W optional */
+	uint8_t dnd_pin_change[5];          /* 5B R/W optional */
+	uint8_t emergency_svc_number[5];    /* 5B R/W optional */
+	uint8_t intercom_service[5];        /* 5B R/W optional */
+	uint8_t blind_call_transfer[5];     /* 5B R/W optional */
+	uint8_t attended_call_transfer[5];  /* 5B R/W optional */
+} __PACKED__;
+
+/* ---- ME 149: SIP Config Portal ---- */
+struct omci_sip_config_portal {
+	uint8_t config_text_table[25];      /* xB R table */
+} __PACKED__;
+
+/* ---- ME 283: RTP Pseudowire Parameters ---- */
+struct omci_rtp_pw_params {
+	uint16_t clock_reference;           /* 2B R/W/SBC */
+	uint8_t rtp_timestamp_mode;         /* 1B R/W/SBC */
+	uint16_t ptype;                     /* 2B R/W/SBC */
+	uint8_t ssrc[8];                    /* 8B R/W/SBC */
+	uint16_t expected_ptype;            /* 2B R/W/SBC optional */
+	uint8_t expected_ssrc[8];           /* 8B R/W/SBC optional */
+} __PACKED__;
+
 __END_DECLS
 
 #endif

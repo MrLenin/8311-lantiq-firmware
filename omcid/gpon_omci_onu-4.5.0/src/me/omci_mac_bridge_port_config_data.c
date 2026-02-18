@@ -99,7 +99,8 @@ static enum omci_error me_update(struct omci_context *context,
 							  upd_data->
 							  inbound_td_ptr,
 							  upd_data->
-							  mac_learning_depth);
+							  mac_learning_depth,
+							  0, 0);
 
 	if (ret != OMCI_API_SUCCESS) {
 		me_dbg_err(me, "can't update Managed Entitiy");

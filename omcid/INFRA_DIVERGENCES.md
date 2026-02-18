@@ -37,12 +37,8 @@ Error string: "Action Handled Event init failed". This is likely used for synchr
 between the core thread and action handler — the action thread signals this event when
 it finishes processing a message, allowing the core thread to wait for completion.
 
-**Impact**: MEDIUM. Without this, the core thread may poll `action.ready` instead of
-blocking on an event. The v4.5.0 code uses `action.ready` volatile flag checks, which
-still works but is less efficient.
-
-**Action**: Add `IFXOS_event_t action_handled_event` to `struct omci_context` after
-`action_event`. Initialize in `omci_init()`, use in action handler completion path.
+**Status**: **FIXED** — `action_handled_event` added to context, initialized in `omci_init()`,
+used in action handler completion path.
 
 ### 1c. PM and MCC initialization
 
@@ -56,9 +52,8 @@ Shipping `omci_init()` calls (in order):
 Our v4.5.0 has `pm_init` behind `#ifdef INCLUDE_PM` (disabled) and MCC behind
 `--enable-mcc` configure flag.
 
-**Impact**: HIGH for PM (14 MEs depend on it). MEDIUM for MCC (multicast ISPs).
-
-**Action**: Enable `INCLUDE_PM` in build. Verify MCC compiles with `--enable-mcc`.
+**Status**: **FIXED** — `INCLUDE_PM` enabled, all 14+4 PM MEs registered. MCC enabled
+(`INCLUDE_MCC`), full v8.6.3-derived MCC implementation compiled and linked.
 
 ### 1d. Config callback struct
 
@@ -92,10 +87,7 @@ without modifying the OMCI stack; we modify the stack directly.
 | v4.5.0 | 200 (ms) |
 | Shipping | 900 (ms) — `*(uint32_t*)(context + 0x1134) = 900` |
 
-**Impact**: MEDIUM — affects how long omcid waits for ME action handlers before
-returning BUSY. 200ms may be too aggressive for slow operations.
-
-**Action**: Change `OMCI_DEFAUL_MAX_ACTION_TIMEOUT` from 200 to 900 in `omci_core.h`.
+**Status**: **FIXED** — Changed from 200 to 900 in `omci_core.h`.
 
 ---
 
@@ -113,11 +105,8 @@ Asserts data_size == 24 (0x18). Returns LOID string for Chinese ISP authenticati
 Reads "omci_lpwd" from firmware environment via `context->uboot_get` callback.
 Asserts data_size == 12 (0xc). Returns LPWD string.
 
-**Impact**: MEDIUM — only needed for Chinese ISPs using LOID authentication.
-v8.6.3 has this in `src/omci_config_api.c`.
-
-**Action**: Implement `omci_config_api.c` with direct UCI reads (no callback needed).
-Read from `fwenv_get 8311_loid` / `fwenv_get 8311_lpwd` or UCI equivalent.
+**Status**: **FIXED** — Implemented `omci_config_api.c` with direct fwenv reads.
+LOID/LPWD retrieved via `fwenv_get` (no callback needed).
 
 ---
 
@@ -138,12 +127,9 @@ IP Host Config Data (ME 134, class_id = 0x86) attributes:
 Shipping binary strings confirm: `ubus_connect`, `ubus_register_event_handler`,
 `uloop_init`, `uloop_fd_add`, `uloop_run_events`, "Ubus init failed!", "Ubus start failed!"
 
-**Impact**: MEDIUM — without this, ME 134 IP attributes won't auto-update when
-interface comes up/down. OLTs that query ME 134 may see stale data.
-
-**Action**: Implement ubus event monitoring for network interface state changes.
-The v8.6.3 `omci_net.c` is likely the reference for this. Can use existing ubus
-infrastructure (device has libubus already).
+**Status**: **FIXED** — Phase H. Implemented ubus event monitoring in `omci_ubus.c`.
+Registers for `network.interface` events, calls `omci_net_iface_state_cb` on change.
+Linked against `-lubus -luloop`. Graceful fallback if ubusd not ready at daemon start.
 
 ---
 
@@ -186,12 +172,8 @@ New API functions in shipping:
 These extend the MAC Bridge Port Filter Table Data (ME 49/80) with dynamic entry
 management. v4.5.0 has the ME handlers but may not have these dynamic APIs.
 
-**Impact**: MEDIUM — affects ME 80 (MAC Bridge Port Filter Table Data). Some OLTs
-use dynamic filter entries for MAC-based filtering.
-
-**Action**: Check v4.5.0 `omci_api_table_access.c` for existing filter functions.
-If missing, implement using v8.6.3 as reference. These likely call existing GPE
-table ioctls.
+**Status**: **FIXED** — Phase C. GPE exception table writes enabled (was `#if 0`),
+`omci_api_mac_bridge_port_filter_assign` implemented, dynamic entry add/remove working.
 
 ---
 
@@ -206,10 +188,8 @@ omci_api_refresh_mbp_mac_learning_depth
 A new function that refreshes the MAC learning depth setting on bridge ports. Called
 when bridge configuration changes.
 
-**Impact**: LOW — affects MAC learning table size per bridge port. Default values
-typically work for home gateway scenarios.
-
-**Action**: Investigate in v8.6.3 source. Low priority.
+**Status**: **FIXED** — Already handled by v4.5.0 `_data_set` function. Confirmed via
+stock decompilation that the refresh function just re-calls the same ioctl path.
 
 ---
 
@@ -223,13 +203,8 @@ These are API functions for PM MEs that go beyond basic interval counters:
 | `*_cnt_reset` | Reset counter capability | 3 |
 | `*_mtu_exceeded_discard_*` | Frame size violation counting | 2 |
 
-Present in shipping binary strings. Absent from v4.5.0 unless `INCLUDE_PM` is enabled.
-
-**Impact**: HIGH (collectively with PM enablement) — OLTs that collect PM data
-query these counters.
-
-**Action**: Enable `INCLUDE_PM` to get the framework, then add `_total_cnt_get`
-functions. The v8.6.3 source has the implementation patterns.
+**Status**: **FIXED** — Phase D. `INCLUDE_PM` enabled, all `_total_cnt_get` (8),
+`_cnt_reset` (3), and `_mtu_exceeded_discard` (2) functions implemented.
 
 ---
 
@@ -246,10 +221,7 @@ Confirmed strings: `libubus.so`, `ubus_connect`, `ubus_register_event_handler`,
 v4.5.0 does NOT use ubus/uloop. It relies on direct kernel driver events
 via ioctl/callback.
 
-**Impact**: MEDIUM — adds network state awareness. Device has libubus.so available.
-
-**Action**: Add ubus event handling in the daemon or a new `omci_net.c` module.
-Reference v8.6.3 `omci_net.c` for the implementation pattern.
+**Status**: **FIXED** — Phase H. See §3 above.
 
 ---
 
@@ -263,43 +235,41 @@ Reference v8.6.3 `omci_net.c` for the implementation pattern.
 | `omci_api_onu_loop_detection_packet_send` | Send loop detection packet |
 | `omci_onu_loop_detect_action` | Trigger loop detection action |
 
-These are the API functions behind ME 65528 (ONU Loop Detection). We already have
-the ME stub registered; these API functions provide the actual hardware interface.
-
-**Impact**: MEDIUM — some Asian ISPs enable loop detection. Without the API
-functions, the ME accepts OMCI commands but doesn't actually detect loops.
-
-**Action**: Implement API functions. The kernel driver (`mod_onu.ko`) likely has
-the `FIO_ONU_LOOP_*` ioctl interface. Check v8.6.3 `omci_api_onu_loop_detection.c`.
+**Status**: **FIXED** — Phase A (API layer: 4 ioctl wrapper functions) and Phase B
+(ME handler: timers, state machine, alarms, per-instance priv data). Full ME 65528
+handler with `FIO_LAN_PORT_LOOP_DETECTION_CFG_SET` and `_PACKET_SEND` ioctls,
+exception config table entry for ethertype 0xFFFA, send/recovery timers.
 
 ---
 
-## 10. Summary: Implementation Priority
+## 10. Summary: Implementation Priority — ALL COMPLETE
 
-### P0 — High Impact, Required for Parity
+All items from the original priority list have been implemented.
 
-| Item | Section | Effort |
+### P0 — High Impact ✓
+
+| Item | Section | Status |
 |------|---------|--------|
-| Enable INCLUDE_PM | §1c, §7 | MEDIUM — enable flag, reconcile class_id 333→341 |
-| Action timeout 200→900 | §1e | TRIVIAL — one constant change |
-| Action Handled Event | §1b | LOW — add event to struct, init, use in handler |
+| Enable INCLUDE_PM | §1c, §7 | **FIXED** — Phase D, class_id 333→341 reconciled |
+| Action timeout 200→900 | §1e | **FIXED** — constant changed in `omci_core.h` |
+| Action Handled Event | §1b | **FIXED** — third event added, wired in action handler |
 
-### P1 — Medium Impact, Common ISP Needs
+### P1 — Medium Impact ✓
 
-| Item | Section | Effort |
+| Item | Section | Status |
 |------|---------|--------|
-| MCC init verification | §1c | LOW — verify `--enable-mcc` works |
-| LOID/LPWD config API | §2 | LOW — simple UCI/fwenv getter |
-| ubus/uloop + net state cb | §3, §8 | MEDIUM — new module, link libubus |
-| MAC bridge port filter APIs | §5 | MEDIUM — implement 3 API functions |
+| MCC init verification | §1c | **FIXED** — Phase G, full v8.6.3-derived MCC |
+| LOID/LPWD config API | §2 | **FIXED** — `omci_config_api.c` with fwenv reads |
+| ubus/uloop + net state cb | §3, §8 | **FIXED** — Phase H, `omci_ubus.c` linked |
+| MAC bridge port filter APIs | §5 | **FIXED** — Phase C, 3 API functions + exception writes |
 
-### P2 — Low Impact, Nice to Have
+### P2 — Low Impact ✓
 
-| Item | Section | Effort |
+| Item | Section | Status |
 |------|---------|--------|
-| Loop detection API | §9 | MEDIUM — need ioctl investigation |
-| MAC learning depth refresh | §6 | LOW — single API function |
-| PM total_cnt / cnt_reset | §7 | LOW (after PM enabled) |
+| Loop detection API + ME | §9 | **FIXED** — Phase A (API) + Phase B (ME handler) |
+| MAC learning depth refresh | §6 | **FIXED** — already in v4.5.0 `_data_set` path |
+| PM total_cnt / cnt_reset | §7 | **FIXED** — Phase D, 13 functions added |
 
 ---
 

@@ -55,6 +55,32 @@ omci_api_mac_bridge_port_pmhd_cnt_get(struct omci_api_ctx *ctx,
 				      uint64_t *received_frame,
 				      uint64_t *received_and_discarded);
 
+/** Retrieve cumulative (total) MAC Bridge Port PMHD counters */
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_total_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				uint64_t *forwarded_frame,
+				uint64_t *delay_exceed_discard,
+				uint64_t *mtu_exceed_discard,
+				uint64_t *received_frame,
+				uint64_t *received_and_discarded);
+
+/** Retrieve MTU exceeded discard counter (interval-based) */
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_mtu_exceeded_discard_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				const bool get_curr,
+				uint64_t *mtu_exceed_discard);
+
+/** Retrieve cumulative MTU exceeded discard counter */
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_mtu_exceeded_discard_total_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				uint64_t *mtu_exceed_discard);
+
 /** @} */
 
 /** @} */

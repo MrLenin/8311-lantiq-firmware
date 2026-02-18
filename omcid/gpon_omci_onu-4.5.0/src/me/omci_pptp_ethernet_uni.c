@@ -106,7 +106,6 @@ static enum omci_error me_update(struct omci_context *context,
 
 	ret = omci_api_pptp_ethernet_uni_update(context->api,
 						me->instance_id,
-						upd_data->admin_state,
 						upd_data->expected_type,
 						upd_data->auto_detect_config,
 						upd_data->ether_loopback_config,

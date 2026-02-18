@@ -236,6 +236,10 @@ enum mapper_id_type {
 	    v7.5.1 stock uses mapper table 0x1d for this. */
 	MAPPER_LCT_MEID_TO_METER_IDX,
 
+	/** IPv6 Host Config Data ME Identifier to LAN port index.
+	    v7.5.1 stock uses mapper table 0x1f for this. */
+	MAPPER_IPV6HOST_MEID_TO_IDX,
+
 	MAPPER_IDTYPE_MAX
 };
 

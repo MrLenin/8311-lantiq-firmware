@@ -78,17 +78,15 @@ extern struct me_class me_uni_g_class;
 extern struct me_class me_vlan_tagging_filter_data_class;
 extern struct me_class me_vlan_tagging_operation_config_data_class;
 extern struct me_class me_pptp_pots_uni_class;
-#ifdef INCLUDE_OMCI_ONU_VOIP
 extern struct me_class me_voip_config_data_class;
 extern struct me_class me_voip_voice_ctp_class;
 extern struct me_class me_voip_media_profile_class;
-extern struct me_class me_sip_user_data_class;
-extern struct me_class me_sip_agent_config_data_class;
 extern struct me_class me_rtp_profile_data_class;
-extern struct me_class me_network_dial_plan_table_class;
 extern struct me_class me_voice_service_profile_class;
 extern struct me_class me_voip_line_status_class;
-#endif
+extern struct me_class me_sip_user_data_class;
+extern struct me_class me_sip_agent_config_data_class;
+extern struct me_class me_network_dial_plan_table_class;
 #ifdef INCLUDE_CLI_SUPPORT
 extern struct me_class me_onu_remote_debug_class;
 #endif
@@ -101,12 +99,10 @@ extern struct me_class me_ethernet_us_pmhd_class;
 extern struct me_class me_fec_pmhd_class;
 extern struct me_class me_gal_ethernet_class;
 extern struct me_class me_gem_port_pmhd_class;
-#ifdef INCLUDE_OMCI_ONU_VOIP
 extern struct me_class me_rtp_pmhd_class;
 extern struct me_class me_sip_call_init_pmhd_class;
 extern struct me_class me_sip_agent_pmhd_class;
 extern struct me_class me_call_control_pmhd_class;
-#endif
 extern struct me_class me_mac_bridge_pmhd_class;
 extern struct me_class me_mac_bridge_port_pmhd_class;
 extern struct me_class me_threshold_data1_class;
@@ -134,6 +130,10 @@ extern struct me_class me_eth_ext_pmhd_class;
 extern struct me_class me_energy_consumption_pmhd_class;
 extern struct me_class me_poe_ctrl_class;
 extern struct me_class me_eth_ext_pmhd_64_class;
+extern struct me_class me_voip_app_svc_profile_class;
+extern struct me_class me_voip_feature_access_codes_class;
+extern struct me_class me_sip_config_portal_class;
+extern struct me_class me_rtp_pw_params_class;
 extern struct me_class me_zte_emop_class;
 extern struct me_class me_onu_loop_detection_class;
 extern struct me_class me_ext_mop_class;
@@ -222,17 +222,15 @@ struct me_class *me_def_class_array[] = {
 	&me_traffic_scheduler_class,
 	&me_uni_g_class,
 	&me_pptp_pots_uni_class,
-#ifdef INCLUDE_OMCI_ONU_VOIP
 	&me_voip_config_data_class,
 	&me_voip_voice_ctp_class,
 	&me_voip_media_profile_class,
-	&me_sip_user_data_class,
-	&me_sip_agent_config_data_class,
 	&me_rtp_profile_data_class,
-	&me_network_dial_plan_table_class,
 	&me_voice_service_profile_class,
 	&me_voip_line_status_class,
-#endif
+	&me_sip_user_data_class,
+	&me_sip_agent_config_data_class,
+	&me_network_dial_plan_table_class,
 #ifdef INCLUDE_CLI_SUPPORT
 	&me_onu_remote_debug_class,
 #endif
@@ -245,12 +243,10 @@ struct me_class *me_def_class_array[] = {
 	&me_fec_pmhd_class,
 	&me_gal_ethernet_class,
 	&me_gem_port_pmhd_class,
-#ifdef INCLUDE_OMCI_ONU_VOIP
 	&me_rtp_pmhd_class,
 	&me_sip_call_init_pmhd_class,
 	&me_sip_agent_pmhd_class,
 	&me_call_control_pmhd_class,
-#endif
 	&me_mac_bridge_pmhd_class,
 	&me_mac_bridge_port_pmhd_class,
 	&me_threshold_data1_class,
@@ -278,6 +274,10 @@ struct me_class *me_def_class_array[] = {
 	&me_energy_consumption_pmhd_class,
 	&me_poe_ctrl_class,
 	&me_eth_ext_pmhd_64_class,
+	&me_voip_app_svc_profile_class,
+	&me_voip_feature_access_codes_class,
+	&me_sip_config_portal_class,
+	&me_rtp_pw_params_class,
 	&me_zte_emop_class,
 	&me_onu_loop_detection_class,
 	&me_ext_mop_class,

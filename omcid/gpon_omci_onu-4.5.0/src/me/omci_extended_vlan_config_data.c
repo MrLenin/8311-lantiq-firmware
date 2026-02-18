@@ -155,8 +155,9 @@ static enum omci_error me_validate(struct omci_context *context,
 		break;
 
 	case 0x04:
+		/* IPv6 host config data (G.988 Table 9.3.32-1) */
 		error = mib_me_find(context,
-				    OMCI_ME_PPTP_XDSL_UNI_1,
+				    OMCI_ME_IPV6_CONFIG_DATA,
 				    upd_data->associated_me_ptr, NULL);
 
 		break;
@@ -192,6 +193,14 @@ static enum omci_error me_validate(struct omci_context *context,
 	case 0x09:
 		error = mib_me_find(context,
 				    OMCI_ME_ETHERNET_FLOW_TP,
+				    upd_data->associated_me_ptr, NULL);
+
+		break;
+
+	case 0x0A:
+		/* VEIP (G.988 Table 9.3.32-1, value 10) */
+		error = mib_me_find(context,
+				    OMCI_ME_VIRTUAL_ETHERNET_INTERFACE_POINT,
 				    upd_data->associated_me_ptr, NULL);
 
 		break;
@@ -788,7 +797,7 @@ static enum omci_error me_shutdown(struct omci_context *context,
 	return OMCI_SUCCESS;
 }
 
-static uint16_t association_type_cp[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+static uint16_t association_type_cp[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 static uint16_t ds_mode_cp[] = { 0, 1 };
 
 /** Managed Entity class */

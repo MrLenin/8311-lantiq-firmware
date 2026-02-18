@@ -75,6 +75,21 @@ omci_api_gem_port_pmhd_thr_set(struct omci_api_ctx *ctx,
 			       uint32_t tx_payload_bytes,
 			       uint32_t lost_packets);
 
+/** Reset GEM Port PMHD counters (GTC + GPE GEM) */
+enum omci_api_return
+omci_api_gem_port_pmhd_cnt_reset(struct omci_api_ctx *ctx,
+				 uint16_t me_id);
+
+/** Retrieve cumulative (total) GEM Port PMHD counters */
+enum omci_api_return
+omci_api_gem_port_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     uint64_t *tx_gem_frames,
+				     uint64_t *rx_gem_frames,
+				     uint64_t *rx_payload_bytes,
+				     uint64_t *tx_payload_bytes,
+				     uint32_t *lost_packets);
+
 /** @} */
 
 /** @} */

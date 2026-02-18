@@ -18,13 +18,8 @@
 #include "omci_core.h"
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
-#include "voip/omci_api_voip.h"
-#include "me/omci_pptp_pots_uni.h"
-#include "me/omci_voip_voice_ctp.h"
-#include "me/omci_voip_media_profile.h"
 #include "me/omci_voice_service_profile.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
 
 /** \addtogroup OMCI_ME_VOICE_SERVICE_PROFILE
    @{
@@ -979,4 +974,3 @@ struct me_class me_voice_service_profile_class = {
 };
 
 /** @} */
-#endif

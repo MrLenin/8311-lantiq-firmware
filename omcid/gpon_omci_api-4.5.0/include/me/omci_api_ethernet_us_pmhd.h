@@ -94,6 +94,25 @@ omci_api_ethernet_us_pmhd_thr_set(struct omci_api_ctx *ctx,
 				  uint32_t cnt_undersized_packets,
 				  uint32_t cnt_oversized_packets);
 
+/** Retrieve cumulative (total) Ethernet Frame US PMHD counters */
+enum omci_api_return
+omci_api_ethernet_us_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+					uint16_t me_id,
+					uint64_t *cnt_drop_events,
+					uint64_t *cnt_octets,
+					uint64_t *cnt_packets,
+					uint64_t *cnt_broadcast_packets,
+					uint64_t *cnt_multicast_packets,
+					uint64_t *cnt_crc_errored_packets,
+					uint64_t *cnt_undersized_packets,
+					uint64_t *cnt_oversized_packets,
+					uint64_t *cnt64_octets_packets,
+					uint64_t *cnt127_octets_packets,
+					uint64_t *cnt255_octets_packets,
+					uint64_t *cnt511_octets_packets,
+					uint64_t *cnt1023_octets_packets,
+					uint64_t *cnt1518_octets_packets);
+
 /** @} */
 
 /** @} */

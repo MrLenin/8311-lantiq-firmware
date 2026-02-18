@@ -76,4 +76,13 @@ omci_api_gal_ethernet_pmhd_thr_set(struct omci_api_ctx *ctx,
 	return ret;
 }
 
+enum omci_api_return
+omci_api_gal_ethernet_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+					 uint16_t me_id,
+					 uint64_t *cnt_discarded_frames)
+{
+	return omci_api_gal_ethernet_pmhd_cnt_get(ctx, me_id, true, false,
+						  cnt_discarded_frames);
+}
+
 /** @} */

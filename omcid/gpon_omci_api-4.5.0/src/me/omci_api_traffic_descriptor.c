@@ -97,6 +97,16 @@ omci_api_traffic_descriptor_update(struct omci_api_ctx *ctx,
 	td[td_idx].egress_color_marking = egress_color_marking;
 	td[td_idx].meter_type = meter_type;
 
+	/* v7.5.1: update all attached shapers when TD params change */
+	{
+		int i;
+		for (i = 0; i < MAX_TD_SHAPER; i++) {
+			if (!td[td_idx].shaper[i].enable)
+				continue;
+			omci_api_shaper_update(ctx, td[td_idx].shaper[i].index);
+		}
+	}
+
 	omci_api_traffic_descriptor_meter_update(ctx, td_idx);
 
 	return ret;
@@ -206,14 +216,14 @@ omci_api_traffic_descriptor_meter_update(struct omci_api_ctx *ctx,
 	if (td_idx >= ONU_GPE_MAX_TRAFFIC_DESCRIPTOR)
 		return OMCI_API_ERROR;
 
-	for(i=0;i<MAX_TD_METER;i++) {
-		if(td[td_idx].meter[i].enable)
+	/* v7.5.1: iterate all ENABLED meters and update each.
+	   v4.5.0 had inverted logic (processed first disabled entry). */
+	for (i = 0; i < MAX_TD_METER; i++) {
+		if (!td[td_idx].meter[i].enable)
 			continue;
-		omci_api_meter_set(ctx, td[td_idx].meter[i].index, &td[td_idx]);
-		break;
+		omci_api_meter_set(ctx, td[td_idx].meter[i].index,
+				   &td[td_idx]);
 	}
-	if (i == MAX_TD_METER)
-		return OMCI_API_ERROR;
 
 	return OMCI_API_SUCCESS;
 }

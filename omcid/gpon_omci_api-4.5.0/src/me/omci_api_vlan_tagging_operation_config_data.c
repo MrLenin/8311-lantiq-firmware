@@ -127,7 +127,7 @@ omci_api_vlan_tagging_operation_us_mode_2(struct omci_api_ctx *ctx,
 	/* no tag */
 	extvlan.vlan_treatment_tbl[1].tagb_treatment = 0xF;
 	extvlan.vlan_treatment_tbl[1].inner_not_generate = 1;
-	/* transmit as received�*/
+	/* transmit as received�*/
 	extvlan.vlan_treatment_tbl[1].outer_not_generate = 0;
 	extvlan.vlan_treatment_tbl[1].discard_enable = 0;
 
@@ -427,16 +427,20 @@ omci_api_vlan_tagging_operation_conf_data_update(struct omci_api_ctx *ctx,
 	case 0:
 	case 10:
 		ret = omci_api_uni2lan(ctx, association_ptr, &lan_port);
-		if(ret == OMCI_API_SUCCESS) {
+		if (ret == OMCI_API_SUCCESS) {
 			ret = omci_api_lan_port_ext_vlan_modify(ctx,
 					lan_port,
-					ds_vlan_tag_oper_mode != 0 ? 1: 0,
+					ds_vlan_tag_oper_mode != 0 ? 1 : 0,
 					vlan_rule_grp_ds,
-					us_vlan_tag_oper_mode != 0 ? 1: 0,
+					us_vlan_tag_oper_mode != 0 ? 1 : 0,
 					vlan_rule_grp_us,
 					true);
 			if (ret != OMCI_API_SUCCESS)
 				return ret;
+
+			/* v7.5.1: store LAN port mapping for cleanup in destroy */
+			explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+				     me_id, lan_port);
 
 			ret = omci_api_vlan_tagging_operation_conf_mc_entries_update(
 					ctx, me_id, lan_port,
@@ -444,17 +448,87 @@ omci_api_vlan_tagging_operation_conf_data_update(struct omci_api_ctx *ctx,
 		}
 		break;
 	case 1:
+		/* IP host config data — fixed LAN4 (management port) */
 		ret = omci_api_lan_port_ext_vlan_modify(ctx,
 				4,
-				ds_vlan_tag_oper_mode != 0 ? true: false,
+				ds_vlan_tag_oper_mode != 0 ? true : false,
 				vlan_rule_grp_ds,
-				us_vlan_tag_oper_mode != 0 ? true: false,
+				us_vlan_tag_oper_mode != 0 ? true : false,
 				vlan_rule_grp_us,
 				true);
+		if (ret == OMCI_API_SUCCESS)
+			explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+				     me_id, 4);
 		break;
-	case 5:
+	case 3:
+	{
+		/* MAC bridge port config data — v7.5.1 stock uses
+		   pptp_uni_bridge_port_get to find TP behind bridge port.
+		   UNI side: set ext VLAN on the LAN port.
+		   ANI side: skip ext VLAN (applied at GEM level). */
+		uint8_t bp_tp_type, bp_conn_idx;
+
+		ret = omci_api_bridge_port_tp_info_get(ctx, association_ptr,
+						       &bp_tp_type, &bp_conn_idx);
+		if (ret != OMCI_API_SUCCESS)
+			break;
+
+		if (!(bp_tp_type & 0x2)) {
+			/* UNI side — set ext VLAN on connected LAN port */
+			ret = omci_api_lan_port_ext_vlan_modify(ctx,
+					bp_conn_idx,
+					ds_vlan_tag_oper_mode != 0 ? 1 : 0,
+					vlan_rule_grp_ds,
+					us_vlan_tag_oper_mode != 0 ? 1 : 0,
+					vlan_rule_grp_us,
+					true);
+			if (ret == OMCI_API_SUCCESS)
+				explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+					     me_id, bp_conn_idx);
+		}
+		/* ANI side: stock calls bridge_port_uni_enable +
+		   bridge_port_ds_mode_set — deferred to Phase I */
 		break;
-	case 6:
+	}
+	case 4:
+	{
+		/* PPTP xDSL UNI / IPv6 host — v7.5.1 stock uses mapper 0x1f.
+		   On Falcon hardware, no xDSL exists, but mapper 0x1f is
+		   shared with IPv6 host config data. */
+		uint32_t lan_idx;
+
+		ret = index_get(ctx, MAPPER_IPV6HOST_MEID_TO_IDX,
+				association_ptr, &lan_idx);
+		if (ret != OMCI_API_SUCCESS)
+			break;
+		ret = omci_api_lan_port_ext_vlan_modify(ctx,
+				(uint16_t)lan_idx,
+				ds_vlan_tag_oper_mode != 0 ? 1 : 0,
+				vlan_rule_grp_ds,
+				us_vlan_tag_oper_mode != 0 ? 1 : 0,
+				vlan_rule_grp_us,
+				true);
+		if (ret == OMCI_API_SUCCESS)
+			explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+				     me_id, lan_idx);
+		break;
+	}
+	case 11:
+		/* v7.5.1: VEIP association type (mapper 0x1e in stock) */
+		ret = omci_api_uni2lan(ctx, association_ptr, &lan_port);
+		if (ret == OMCI_API_SUCCESS) {
+			ret = omci_api_lan_port_ext_vlan_modify(ctx,
+					lan_port,
+					ds_vlan_tag_oper_mode != 0 ? 1 : 0,
+					vlan_rule_grp_ds,
+					us_vlan_tag_oper_mode != 0 ? 1 : 0,
+					vlan_rule_grp_us,
+					true);
+			if (ret == OMCI_API_SUCCESS)
+				explicit_map(ctx,
+					     MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+					     me_id, lan_port);
+		}
 		break;
 	default:
 		break;
@@ -469,15 +543,16 @@ omci_api_vlan_tagging_operation_conf_data_destroy(struct omci_api_ctx *ctx,
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	uint32_t vlan_rule_grp;
+	uint32_t lan_idx;
 	struct gpe_ext_vlan extvlan;
 
-	DBG(OMCI_API_MSG, ("%s\n" "   me_id=%u\n", __FUNCTION__, me_id));
+	DBG(OMCI_API_MSG, ("%s me_id=%u\n", __FUNCTION__, me_id));
 
 	ret = index_get(ctx, MAPPER_VLANTOCD_MEID_TO_VLANRULEGRP_US,
 		       me_id, &vlan_rule_grp);
 	if (ret == OMCI_API_SUCCESS) {
 		id_remove(ctx, MAPPER_VLANTOCD_MEID_TO_VLANRULEGRP_US, me_id);
-		
+
 		vlan_rule_grp *= 2;
 
 		memset(&extvlan, 0x00, sizeof(struct gpe_ext_vlan));
@@ -525,7 +600,17 @@ omci_api_vlan_tagging_operation_conf_data_destroy(struct omci_api_ctx *ctx,
 			&extvlan, sizeof(extvlan));
 	}
 
-	return ret;
+	/* v7.5.1: clear LAN port ext VLAN config before removing mapper */
+	ret = index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+			me_id, &lan_idx);
+	if (ret == OMCI_API_SUCCESS) {
+		omci_api_lan_port_ext_vlan_modify(ctx,
+						  (uint16_t)lan_idx,
+						  0, 0, 0, 0, 0);
+		id_remove(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX, me_id);
+	}
+
+	return OMCI_API_SUCCESS;
 }
 
 /** @} */

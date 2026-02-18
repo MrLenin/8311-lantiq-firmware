@@ -21,12 +21,6 @@
    @{
 */
 
-#ifdef INCLUDE_OMCI_API_MCC
-#	define ANI_UMC_FLOOD	1
-#else
-#	define ANI_UMC_FLOOD	0
-#endif
-
 enum omci_api_return
 omci_api_mac_bridge_port_config_data_pmapper(struct omci_api_ctx *ctx,
 					    uint16_t bridge_me,
@@ -248,7 +242,9 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 					    uint16_t tp_ptr,
 					    uint16_t outbound_td_ptr,
 					    uint16_t inbound_td_ptr,
-					    uint8_t mac_learning_depth)
+					    uint8_t mac_learning_depth,
+					    uint8_t mc_umc_flag1,
+					    uint8_t mc_umc_flag2)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	uint32_t bridge_idx = 0;
@@ -260,7 +256,8 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 	uint32_t ctp;
 	uint8_t learning_ind;
 	uint8_t port_bridging_ind;
-	uint8_t unknown_uc_mac_discard, unknown_mc_mac_discard = 0;
+	uint8_t unknown_uc_mac_discard;
+	uint8_t umc_flag1 = 0, umc_flag2 = 0;
 	uint8_t mac_learning_depth_from_bridge;
 	uint8_t dir;
 	struct gpe_gem_port gem_port;
@@ -314,7 +311,6 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 		omci_api_mac_bridge_port_config_data_pmapper(ctx, bridge_id_ptr,
 							     me_id, tp_ptr);
 		omci_api_mac_bridge_direction_set(ctx, bridge_idx, 3);
-		unknown_mc_mac_discard = ANI_UMC_FLOOD;
 		break;
 
 		case 4: /* IP host config data */
@@ -344,26 +340,16 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 			/* link: gem port -> bridge port */
 			omci_api_gem_port_interworking_modify(ctx, gpix, 6, 0,
 							      bridge_port_idx);
-			if (port_num == 0x88) {
-				/* link: bridge port -> UNI 5 (lan interface) */
-				omci_api_bridge_port_tp_modify(ctx,
-							       bridge_port_idx,
-							       0, 5);
-				omci_api_lan_port_interworking_modify(ctx,
-							       5, 0xa8, 0,
-							       bridge_port_idx);
-				omci_api_lan_port_enable(ctx, 5, 1);
-			} else {
-				/* link: bridge port -> gem port */
-				omci_api_bridge_port_tp_modify(ctx,
-							       bridge_port_idx,
-							       3, gpix);
+				/* v7.5.1: removed port_num==0x88 special case.
+			   link: bridge port -> gem port */
+			omci_api_bridge_port_tp_modify(ctx,
+						       bridge_port_idx,
+						       3, gpix);
 
-				omci_api_gem_port_us_info_get(ctx, gpix,
-							      &gp_valid);
-				if (!gp_valid)
-					no_learning = true;
-			}
+			omci_api_gem_port_us_info_get(ctx, gpix,
+						      &gp_valid);
+			if (!gp_valid)
+				no_learning = true;
 			omci_api_bridge_flooding_modify(ctx, false, 0xFF,
 							bridge_idx,
 							bridge_port_idx);
@@ -372,7 +358,6 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 				("omci_api_mac_bridge_port_config_data_update:"
 				 " CTP missing\n"));
 		}
-		unknown_mc_mac_discard = ANI_UMC_FLOOD;
 		break;
 
 		case 6: /* Multicast GEM interworking termination point */
@@ -410,13 +395,27 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 		/* link: gem port -> bridge port */
 		omci_api_gem_port_interworking_modify(ctx, gpix & 0xFFFF, 6, 1,
 							    bridge_port_idx);
+		/* v7.5.1: bridge_port_tp_modify for MC GEM (stock has this) */
+		omci_api_bridge_port_tp_modify(ctx, bridge_port_idx,
+					       3, gpix & 0xFFFF);
 		no_learning = true;
-		unknown_mc_mac_discard = ANI_UMC_FLOOD;
+		/* v7.5.1: MC flood flags from caller (MCC sets these) */
+		umc_flag1 = mc_umc_flag1 ? 1 : 0;
+		umc_flag2 = mc_umc_flag2 ? 1 : 0;
 		break;
 
 		case 11: /* VEIP */
 		omci_api_bridge_flooding_modify(ctx, false, 0xFF,
 						bridge_idx, bridge_port_idx);
+		break;
+
+		case 0xFF: /* Internal bridge port */
+		omci_api_mac_bridge_direction_set(ctx, bridge_idx, 3);
+		omci_api_bridge_flooding_modify(ctx, true, 2,
+						bridge_idx, bridge_port_idx);
+		omci_api_bridge_port_tp_modify(ctx, bridge_port_idx, 1, 0);
+		omci_api_lan_port_interworking_modify(ctx, 3, 0x90, 0,
+						      bridge_port_idx);
 		break;
 	}
 
@@ -435,15 +434,15 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 							learning_ind,
 							mac_learning_depth);
 
+	/* v7.5.1: no port_num==0x88 special case */
 	omci_api_bridge_port_local_switching_modify(ctx, bridge_port_idx,
-						    port_num != 0x88 ?
-							port_bridging_ind : 1);
+						    port_bridging_ind);
 
 	omci_api_bridge_port_uuc_mac_flood_modify(ctx, bridge_port_idx,
 						  unknown_uc_mac_discard);
 
 	omci_api_bridge_port_umc_mac_flood_modify(ctx, bridge_port_idx,
-						  unknown_mc_mac_discard);
+						  umc_flag1, umc_flag2);
 
 	return OMCI_API_SUCCESS;
 }

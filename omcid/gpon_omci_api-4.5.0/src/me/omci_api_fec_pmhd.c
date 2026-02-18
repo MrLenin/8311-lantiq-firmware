@@ -124,4 +124,22 @@ omci_api_fec_pmhd_thr_set(struct omci_api_ctx *ctx,
 	return ret;
 }
 
+enum omci_api_return
+omci_api_fec_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				uint16_t me_id,
+				uint32_t *cnt_corrected_bytes,
+				uint32_t *cnt_corrected_code_words,
+				uint32_t *cnt_uncorrected_code_words,
+				uint32_t *cnt_total_code_words,
+				uint16_t *cnt_fec_seconds)
+{
+	/* reset_cnt=false, current=true for cumulative */
+	return omci_api_fec_pmhd_cnt_get(ctx, me_id, false, true,
+					 cnt_corrected_bytes,
+					 cnt_corrected_code_words,
+					 cnt_uncorrected_code_words,
+					 cnt_total_code_words,
+					 cnt_fec_seconds);
+}
+
 /** @} */

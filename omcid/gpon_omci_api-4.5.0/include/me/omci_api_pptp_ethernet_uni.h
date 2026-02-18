@@ -153,23 +153,25 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 
 /** Update PPTP Ethernet UNI ME resources
 
+   v7.5.1: admin_state removed from signature (handled by _enabled/_disabled).
+   dte_dce_ind, pause_time, bridge_or_router_cfg, power_control are received
+   for logging but not passed to _config.
+
    \param[in] ctx                  OMCI API context pointer
    \param[in] me_id                Managed Entity identifier
-   \param[in] admin_state          Administrative state
    \param[in] expected_type        Expected type
    \param[in] auto_detect_cfg      Auto detection configuration
    \param[in] ethernet_loopback    Ethernet loopback configuration
    \param[in] max_frame_size       Max frame size
-   \param[in] dte_dce_ind          DTE or DCE ind
-   \param[in] pause_time           Pause time
-   \param[in] bridge_or_router_cfg Bridged or IP ind
+   \param[in] dte_dce_ind          DTE or DCE ind (logged only)
+   \param[in] pause_time           Pause time (logged only)
+   \param[in] bridge_or_router_cfg Bridged or IP ind (logged only)
    \param[in] pppoe_filter         PPPoE filter
-   \param[in] power_control        Power control
+   \param[in] power_control        Power control (logged only)
 */
 enum omci_api_return
 omci_api_pptp_ethernet_uni_update(struct omci_api_ctx *ctx,
 				  uint16_t me_id,
-				  uint8_t admin_state,
 				  uint8_t expected_type,
 				  uint8_t auto_detect_cfg,
 				  uint8_t ethernet_loopback,

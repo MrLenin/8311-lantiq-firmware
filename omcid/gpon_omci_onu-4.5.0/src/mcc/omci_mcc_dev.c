@@ -331,18 +331,34 @@ enum omci_error mcc_dev_fid_get(struct mcc_dev_ctx *dev,
 
 /**
  * Enable/disable VLAN-unaware multicast forwarding mode.
- * In VLAN-unaware mode, all multicast uses default FID regardless of VLAN tags.
+ * Stock v7.5.1 programs the GPE SCE constants vlan_unaware_l3_mc field
+ * so the hardware treats all multicast as VLAN-unaware at the GPE level.
  */
 enum omci_error mcc_dev_vlan_unaware_mode_enable(struct mcc_dev_ctx *dev,
 						 const bool enable)
 {
-	/* The GPE doesn't have a single "VLAN unaware" toggle for multicast.
-	   Instead, this affects how FID lookups work:
-	   - Unaware mode: always use default FID (handled in mcc_dev_fid_get)
-	   - Aware mode: look up FID from VLAN tag
+	struct gpe_sce_constants sce;
+	enum omci_error error;
 
-	   Store the mode flag so mcc_dev_fid_get can check it.
-	   The actual GPE behavior is controlled by per-VLAN FID entries. */
+	/* Read current SCE constants */
+	memset(&sce, 0, sizeof(sce));
+	error = mcc_ioctl(dev, FIO_GPE_SCE_CONSTANTS_GET,
+			  &sce, sizeof(sce));
+	if (error != OMCI_SUCCESS) {
+		dbg_err("MCC: SCE constants GET failed");
+		return error;
+	}
+
+	/* Set vlan_unaware_l3_mc flag (offset 16 in SCE constants) */
+	sce.vlan_unaware_l3_mc = enable ? 1 : 0;
+
+	error = mcc_ioctl(dev, FIO_GPE_SCE_CONSTANTS_SET,
+			  &sce, sizeof(sce));
+	if (error != OMCI_SUCCESS) {
+		dbg_err("MCC: SCE constants SET failed");
+		return error;
+	}
+
 	dev->vlan_unaware = enable;
 	return OMCI_SUCCESS;
 }

@@ -17,9 +17,8 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_sip_call_init_pmhd.h"
-#include "me/omci_api_sip_call_init_pmhd.h"
 
-#if defined(INCLUDE_PM) && defined(INCLUDE_OMCI_ONU_VOIP)
+#ifdef INCLUDE_PM
 
 /** \addtogroup OMCI_SIP_CALL_INIT_PMHD
    @{
@@ -29,36 +28,7 @@ static enum omci_error me_counters_get(struct omci_context *context,
 				       struct me *me,
 				       enum omci_pm_interval interval)
 {
-	struct omci_me_sip_call_init_pmhd *me_data;
-	uint32_t failed_to_connect, failed_to_validate, timeout,
-		 failure_received, failed_to_auth;
-	enum omci_api_return ret;
-
-	dbg_in(__func__, "%p, %p, %lu", (void *)context, (void *)me, interval);
-
-	me_data = (struct omci_me_sip_call_init_pmhd *)me->data;
-
-	ret = omci_api_sip_call_init_pmhd_cnt_get(context->api,
-						  me->instance_id,
-						  &failed_to_connect,
-						  &failed_to_validate,
-						  &timeout,
-						  &failure_received,
-						  &failed_to_auth);
-	if (ret != OMCI_API_SUCCESS) {
-		me_dbg_err(me, "DRV ERR(%d) Can't get counters", ret);
-
-		dbg_out_ret(__func__, OMCI_ERROR_DRV);
-		return OMCI_ERROR_DRV;
-	}
-
-	me_data->failed_to_connect = failed_to_connect;
-	me_data->failed_to_validate = failed_to_validate;
-	me_data->timeout = timeout;
-	me_data->failure_received = failure_received;
-	me_data->failed_to_auth = failed_to_auth;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
+	/* No telephony hardware — counters stay at zero */
 	return OMCI_SUCCESS;
 }
 
@@ -270,4 +240,4 @@ struct me_class me_sip_call_init_pmhd_class = {
 
 /** @} */
 
-#endif
+#endif /* INCLUDE_PM */

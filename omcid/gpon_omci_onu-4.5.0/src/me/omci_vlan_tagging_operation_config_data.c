@@ -200,7 +200,7 @@ static enum omci_error me_shutdown(struct omci_context *context,
 
 static uint16_t us_tagging_mode_cp[] = { 0, 1, 2 };
 static uint16_t ds_tagging_mode_cp[] = { 0, 1 };
-static uint16_t association_type_cp[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+static uint16_t association_type_cp[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
 
 /** Managed Entity class */
 struct me_class me_vlan_tagging_operation_config_data_class = {

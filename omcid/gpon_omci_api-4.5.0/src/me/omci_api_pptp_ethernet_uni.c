@@ -34,17 +34,11 @@
 static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	struct omci_api_ctx *ctx,
 	uint8_t port_idx,
-	bool create,
 	uint8_t expected_type,
 	uint8_t auto_detect_cfg,
 	uint8_t ethernet_loopback,
 	uint16_t max_frame_size,
-	uint8_t dte_dce_ind,
-	uint16_t pause_time,
-	uint8_t bridge_or_router_cfg,
-	uint8_t pppoe_filter,
-	uint8_t power_control,
-	uint8_t admin_state)
+	uint8_t pppoe_filter)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS, err;
 	struct lan_port_cfg lan_cfg;
@@ -58,8 +52,9 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	if (ctx->remote)
 		return ret;
 
-	DLOG("ME11 config: port=%u create=%d admin=%u",
-	     port_idx, create, admin_state);
+	DLOG("ME11 config: port=%u exp=%u auto=%u loop=%u mfs=%u ppoe=%u",
+	     port_idx, expected_type, auto_detect_cfg, ethernet_loopback,
+	     max_frame_size, pppoe_filter);
 
 	lan_cap_cfg_old.in.index = port_idx;
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CAPABILITY_CFG_GET,
@@ -303,28 +298,10 @@ static enum omci_api_return omci_api_pptp_ethernet_uni_config(
 	lan_cfg.max_frame_size = max_frame_size;
 
 	DLOG("ME11 config: CFG_SET uni_port_en=%u mode=%u "
-	     "speed=%u duplex=%u flow=%u mfs=%u autoneg=%u sizeof=%u",
+	     "speed=%u duplex=%u flow=%u mfs=%u autoneg=%u",
 	     lan_cfg.uni_port_en, lan_cfg.mode, lan_cfg.speed_mode,
 	     lan_cfg.duplex_mode, lan_cfg.flow_control_mode,
-	     lan_cfg.max_frame_size, lan_cfg.autoneg_mode,
-	     (unsigned)sizeof(struct lan_port_cfg));
-
-	/* Hex dump the exact bytes being sent */
-	{
-		const uint8_t *p = (const uint8_t *)&lan_cfg;
-		unsigned i;
-		FILE *_f = fopen("/tmp/8311_me11.log", "a");
-		if (_f) {
-			fprintf(_f, "ME11 config: CFG_SET hex dump (%u bytes):\n",
-				(unsigned)sizeof(struct lan_port_cfg));
-			for (i = 0; i < sizeof(struct lan_port_cfg); i++) {
-				fprintf(_f, "%02x ", p[i]);
-				if ((i % 16) == 15) fprintf(_f, "\n");
-			}
-			fprintf(_f, "\n");
-			fclose(_f);
-		}
-	}
+	     lan_cfg.max_frame_size, lan_cfg.autoneg_mode);
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CFG_SET,
 		      &lan_cfg, sizeof(struct lan_port_cfg));
@@ -623,6 +600,7 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	uint32_t uni_port_idx = 0;
 	struct lan_port_cfg cfg;
+	struct gpe_table_entry entry;
 
 	DBG(OMCI_API_MSG, ("%s\n" "   me_id=%u\n", __FUNCTION__, me_id));
 
@@ -631,7 +609,14 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 	if (ret != OMCI_API_SUCCESS)
 		return ret;
 
-	omci_api_lan_port_enable(ctx, uni_port_idx, 0);
+	/* v7.5.1: clear table valid bit (stock FUN_00446624).
+	   Stock does NOT call FIO_LAN_PORT_DISABLE here. */
+	ret = table_read(ctx, ONU_GPE_LAN_PORT_TABLE_ID, uni_port_idx,
+			 sizeof(struct gpe_lan_port_table), &entry);
+	if (ret == OMCI_API_SUCCESS) {
+		entry.data.lan_port.valid = 0;
+		table_write(ctx, sizeof(struct gpe_lan_port_table), &entry);
+	}
 
 	cfg.index = (uint8_t)uni_port_idx;
 
@@ -646,7 +631,7 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 
 	if (cfg.mode == LAN_MODE_OFF) {
 		DBG(OMCI_API_ERR, ("lan port %d isn't configured yet, "
-				   "skip configuration\n", uni_port_idx ));
+				   "skip configuration\n", uni_port_idx));
 	} else {
 		cfg.index = (uint8_t)uni_port_idx;
 		cfg.uni_port_en = false;
@@ -654,7 +639,7 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 		ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_PORT_CFG_SET,
 			      &cfg, sizeof(struct lan_port_cfg));
 		if (ret != OMCI_API_SUCCESS) {
-			DBG(OMCI_API_ERR, ("%s: lan port cfg get error\n",
+			DBG(OMCI_API_ERR, ("%s: lan port cfg set error\n",
 				__FUNCTION__));
 			return ret;
 		}
@@ -668,7 +653,6 @@ omci_api_pptp_ethernet_uni_destroy(struct omci_api_ctx *ctx,
 enum omci_api_return
 omci_api_pptp_ethernet_uni_update(struct omci_api_ctx *ctx,
 				  uint16_t me_id,
-				  uint8_t admin_state,
 				  uint8_t expected_type,
 				  uint8_t auto_detect_cfg,
 				  uint8_t ethernet_loopback,
@@ -682,6 +666,9 @@ omci_api_pptp_ethernet_uni_update(struct omci_api_ctx *ctx,
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	uint32_t uni_port_idx = 0;
 
+	/* v7.5.1: admin_state removed from signature. dte_dce_ind,
+	   pause_time, bridge_or_router_cfg, power_control are received
+	   but only logged — not passed to _config. */
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n" "   expected_type=%u\n"
 		  "   auto_detect_cfg=%u\n" "   ethernet_loopback=%u\n"
@@ -701,17 +688,11 @@ omci_api_pptp_ethernet_uni_update(struct omci_api_ctx *ctx,
 
 	ret = omci_api_pptp_ethernet_uni_config(ctx,
 						uni_port_idx,
-						false,
 						expected_type,
 						auto_detect_cfg,
 						ethernet_loopback,
 						max_frame_size,
-						dte_dce_ind,
-						pause_time,
-						bridge_or_router_cfg,
-						pppoe_filter,
-						power_control,
-						admin_state);
+						pppoe_filter);
 
 	if (ret != OMCI_API_SUCCESS) {
 		(void)error_notify(ctx, 11, me_id, OMCI_API_ACTION_UPDATE, ret);

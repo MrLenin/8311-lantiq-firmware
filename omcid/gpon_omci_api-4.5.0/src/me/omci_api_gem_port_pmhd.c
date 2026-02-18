@@ -143,4 +143,64 @@ omci_api_gem_port_pmhd_thr_set(struct omci_api_ctx *ctx,
 	return ret;
 }
 
+enum omci_api_return
+omci_api_gem_port_pmhd_cnt_reset(struct omci_api_ctx *ctx,
+				 uint16_t me_id)
+{
+	enum omci_api_return ret;
+	uint32_t gpix = 0;
+	struct gtc_cnt_interval gtc_param;
+	struct gpe_gem_cnt_interval gpe_param;
+
+	DBG(OMCI_API_MSG, ("%s me_id=%u\n", __FUNCTION__, me_id));
+
+	ret = index_get(ctx, MAPPER_GEMPORTCTP_MEID_TO_IDX, me_id, &gpix);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	gpix = gpix & 0xFFFF;
+
+	/* Reset GTC counters (lost_packets = rx_gem_frames_dropped) */
+	memset(&gtc_param, 0, sizeof(gtc_param));
+	gtc_param.reset_mask = ONU_GTC_CNT_RST_MASK_RX_GEM_FRAMES_DROPPED;
+	gtc_param.curr = 0;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GTC_COUNTER_RESET,
+		      &gtc_param, sizeof(gtc_param));
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	/* Reset GPE GEM counters (tx/rx frames + bytes) */
+	memset(&gpe_param, 0, sizeof(gpe_param));
+	gpe_param.gem_port_index = gpix;
+	gpe_param.reset_mask = ONU_GPE_GEM_CNT_RST_MASK_TX_FRAMES |
+			       ONU_GPE_GEM_CNT_RST_MASK_RX_FRAMES |
+			       ONU_GPE_GEM_CNT_RST_MASK_RX_BYTES |
+			       ONU_GPE_GEM_CNT_RST_MASK_TX_BYTES;
+	gpe_param.curr = 0;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_GEM_COUNTER_RESET,
+		      &gpe_param, sizeof(gpe_param));
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_gem_port_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     uint64_t *tx_gem_frames,
+				     uint64_t *rx_gem_frames,
+				     uint64_t *rx_payload_bytes,
+				     uint64_t *tx_payload_bytes,
+				     uint32_t *lost_packets)
+{
+	/* reset_cnt=false, current=true for cumulative */
+	return omci_api_gem_port_pmhd_cnt_get(ctx, me_id, false, true,
+					      tx_gem_frames,
+					      rx_gem_frames,
+					      rx_payload_bytes,
+					      tx_payload_bytes,
+					      lost_packets);
+}
+
 /** @} */

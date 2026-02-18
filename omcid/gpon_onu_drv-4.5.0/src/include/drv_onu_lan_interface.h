@@ -1006,6 +1006,54 @@ union lan_port_capability_cfg_get_u {
 #define FIO_LAN_PORT_802_1X_AUTH_CFG_GET \
 	_IOWR(LAN_MAGIC, 0x26, struct lan_port_802_1x_auth_cfg)
 
+/** Loop detection per-port configuration (v7.5.1, 12 bytes).
+    Used by \ref FIO_LAN_PORT_LOOP_DETECTION_CFG_SET and
+    \ref FIO_LAN_PORT_LOOP_DETECTION_CFG_GET.
+    Derived from stock ioctl 0x800C0727 (_IOW, 12 bytes, cmd 0x27).
+*/
+struct lan_port_loop_detection_cfg {
+	/** LAN port index (0 to ONU_GPE_MAX_ETH_UNI - 1). */
+	uint32_t index;
+	/** Loop detection enable (0 = disable, 1 = enable). */
+	uint32_t enable;
+	/** Auto-shutdown port on loop detected (0 = no, 1 = yes). */
+	uint32_t port_shutdown;
+} __PACKED__;
+
+/** Loop detection packet send (v7.5.1, 8 bytes).
+    Used by \ref FIO_LAN_PORT_LOOP_DETECTION_PACKET_SEND.
+    Derived from stock ioctl 0x80080729 (_IOW, 8 bytes, cmd 0x29).
+*/
+struct lan_port_loop_detection_packet_send {
+	/** LAN port index (0 to ONU_GPE_MAX_ETH_UNI - 1). */
+	uint32_t index;
+	/** S-VLAN tag (upper 16 bits) and C-VLAN tag (lower 16 bits). */
+	uint16_t svlan;
+	uint16_t cvlan;
+} __PACKED__;
+
+/**
+   Configure loop detection per LAN port.
+   \param lan_port_loop_detection_cfg Pointer to \ref lan_port_loop_detection_cfg.
+*/
+#define FIO_LAN_PORT_LOOP_DETECTION_CFG_SET \
+	_IOW(LAN_MAGIC, 0x27, struct lan_port_loop_detection_cfg)
+
+/**
+   Read loop detection per LAN port.
+   \param lan_port_loop_detection_cfg Pointer to \ref lan_port_loop_detection_cfg.
+*/
+#define FIO_LAN_PORT_LOOP_DETECTION_CFG_GET \
+	_IOWR(LAN_MAGIC, 0x28, struct lan_port_loop_detection_cfg)
+
+/**
+   Send a loop detection frame on a LAN port.
+   \param lan_port_loop_detection_packet_send Pointer to
+          \ref lan_port_loop_detection_packet_send.
+*/
+#define FIO_LAN_PORT_LOOP_DETECTION_PACKET_SEND \
+	_IOW(LAN_MAGIC, 0x29, struct lan_port_loop_detection_packet_send)
+
 /** 802.1X authorization result. */
 enum lan_port_802_1x_auth_result {
 	/** Port authorized — normal traffic flows. */

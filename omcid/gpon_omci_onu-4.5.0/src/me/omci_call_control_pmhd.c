@@ -17,9 +17,8 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_call_control_pmhd.h"
-#include "me/omci_api_call_control_pmhd.h"
 
-#if defined(INCLUDE_PM) && defined(INCLUDE_OMCI_ONU_VOIP)
+#ifdef INCLUDE_PM
 
 /** \addtogroup OMCI_CALL_CONTROL_PMHD
    @{
@@ -29,36 +28,7 @@ static enum omci_error me_counters_get(struct omci_context *context,
 				       struct me *me,
 				       enum omci_pm_interval interval)
 {
-	struct omci_me_call_control_pmhd *me_data;
-	uint32_t call_setup_failures, call_setup_timer, call_terminate_failures,
-		 analog_port_releases, analog_port_offhook_timer;
-	enum omci_api_return ret;
-
-	dbg_in(__func__, "%p, %p, %lu", (void *)context, (void *)me, interval);
-
-	me_data = (struct omci_me_call_control_pmhd *)me->data;
-
-	ret = omci_api_call_control_pmhd_cnt_get(context->api,
-						 me->instance_id,
-						 &call_setup_failures,
-						 &call_setup_timer,
-						 &call_terminate_failures,
-						 &analog_port_releases,
-						 &analog_port_offhook_timer);
-	if (ret != OMCI_API_SUCCESS) {
-		me_dbg_err(me, "DRV ERR(%d) Can't get counters", ret);
-
-		dbg_out_ret(__func__, OMCI_ERROR_DRV);
-		return OMCI_ERROR_DRV;
-	}
-
-	me_data->call_setup_failures = call_setup_failures;
-	me_data->call_setup_timer = call_setup_timer;
-	me_data->call_terminate_failures = call_terminate_failures;
-	me_data->analog_port_releases = analog_port_releases;
-	me_data->analog_port_offhook_timer = analog_port_offhook_timer;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
+	/* No telephony hardware — counters stay at zero */
 	return OMCI_SUCCESS;
 }
 
@@ -270,5 +240,5 @@ struct me_class me_call_control_pmhd_class = {
 
 /** @} */
 
-#endif
+#endif /* INCLUDE_PM */
 

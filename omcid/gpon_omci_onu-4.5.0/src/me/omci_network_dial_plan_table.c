@@ -20,7 +20,6 @@
 #include "omci_me_handlers.h"
 #include "me/omci_network_dial_plan_table.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
 
 /** \addtogroup OMCI_ME_NETWORK_DIAL_PLAN_TABLE
    @{
@@ -466,4 +465,3 @@ struct me_class me_network_dial_plan_table_class = {
 };
 
 /** @} */
-#endif

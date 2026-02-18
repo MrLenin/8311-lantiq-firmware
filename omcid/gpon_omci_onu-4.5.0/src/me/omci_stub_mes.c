@@ -13,6 +13,7 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_stub_mes.h"
+#include "me/omci_onu_loop_detection.h"
 
 /* ========================================================================
  * ME 299: Dot1ag Maintenance Domain
@@ -745,8 +746,11 @@ struct me_class me_onu_loop_detection_class = {
 	  set_action_handle, get_action_handle, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-	default_me_init, default_me_shutdown, default_me_validate,
-	default_me_update, NULL, NULL,
+	omci_onu_loop_detection_me_init,
+	omci_onu_loop_detection_me_shutdown,
+	default_me_validate,
+	omci_onu_loop_detection_me_update,
+	omci_onu_loop_detection_me_tbl_copy, NULL,
 #ifdef INCLUDE_PM
 	NULL, NULL,
 #endif
@@ -805,6 +809,208 @@ struct me_class me_ext_mop_class = {
 	NULL, sizeof(struct omci_ext_mop), OMCI_ME_PROP_NONE,
 #ifdef INCLUDE_OMCI_SELF_DESCRIPTION
 	{ "Ext multicast oper profile", ME_CREATED_BY_OLT, NULL, 0, ME_SUPPORTED },
+#endif
+	0, 0, 0, 0, 0, 0
+};
+
+/* ========================================================================
+ * ME 146: VoIP Application Service Profile
+ * Created/deleted by OLT. 10 attributes. G.988 §9.9.8.
+ * ======================================================================== */
+struct me_class me_voip_app_svc_profile_class = {
+	OMCI_ME_VOIP_APPLICATION_SERVICE_PROFILE,
+	{
+		/* 1 */ ATTR_BF("CID features", ATTR_SUPPORTED, 0xFF,
+			offsetof(struct omci_voip_app_svc_profile, cid_features), 1,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 2 */ ATTR_BF("Call waiting features", ATTR_SUPPORTED, 0xFF,
+			offsetof(struct omci_voip_app_svc_profile, call_waiting_features), 1,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 3 */ ATTR_UINT("Call progress features", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, call_progress_features), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 4 */ ATTR_UINT("Call presentation features", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, call_presentation_features), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 5 */ ATTR_UINT("Direct connect feature", ATTR_SUPPORTED, 0, 0xFF,
+			offsetof(struct omci_voip_app_svc_profile, direct_connect_feature), 1,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 6 */ ATTR_UINT("Direct connect URI ptr", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, direct_connect_uri_ptr), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 7 */ ATTR_UINT("Bridged line agent URI ptr", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, bridged_line_agent_uri_ptr), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 8 */ ATTR_UINT("Conference factory URI ptr", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, conference_factory_uri_ptr), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 9 */ ATTR_UINT("Dial tone delay timer", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, dial_tone_delay_timer), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 10 */ ATTR_UINT("IP host pointer", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_voip_app_svc_profile, ip_host_ptr), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF()
+	},
+	{ NULL, NULL, NULL, NULL,
+	  create_action_handle, NULL, delete_action_handle, NULL,
+	  set_action_handle, get_action_handle, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+	default_me_init, default_me_shutdown, default_me_validate,
+	default_me_update, NULL, NULL,
+#ifdef INCLUDE_PM
+	NULL, NULL,
+#endif
+	NULL, sizeof(struct omci_voip_app_svc_profile), OMCI_ME_PROP_NONE,
+#ifdef INCLUDE_OMCI_SELF_DESCRIPTION
+	{ "VoIP app service profile", ME_CREATED_BY_OLT, NULL, 0, ME_SUPPORTED },
+#endif
+	0, 0, 0, 0, 0, 0
+};
+
+/* ========================================================================
+ * ME 147: VoIP Feature Access Codes
+ * Created/deleted by OLT. 12 attributes (5B access code strings). G.988 §9.9.9.
+ * ======================================================================== */
+struct me_class me_voip_feature_access_codes_class = {
+	OMCI_ME_VOIP_FEATURE_ACCESS_CODES,
+	{
+		/* 1 */ ATTR_STR("Cancel call waiting", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, cancel_call_waiting), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 2 */ ATTR_STR("Call hold", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, call_hold), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 3 */ ATTR_STR("Call park", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, call_park), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 4 */ ATTR_STR("Caller ID activate", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, caller_id_activate), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 5 */ ATTR_STR("Caller ID deactivate", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, caller_id_deactivate), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 6 */ ATTR_STR("DND activate", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, dnd_activate), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 7 */ ATTR_STR("DND deactivate", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, dnd_deactivate), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 8 */ ATTR_STR("DND PIN change", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, dnd_pin_change), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 9 */ ATTR_STR("Emergency service number", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, emergency_svc_number), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 10 */ ATTR_STR("Intercom service", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, intercom_service), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 11 */ ATTR_STR("Blind call transfer", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, blind_call_transfer), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 12 */ ATTR_STR("Attended call transfer", ATTR_SUPPORTED,
+			offsetof(struct omci_voip_feature_access_codes, attended_call_transfer), 5,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_OPTIONAL, NULL),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF()
+	},
+	{ NULL, NULL, NULL, NULL,
+	  create_action_handle, NULL, delete_action_handle, NULL,
+	  set_action_handle, get_action_handle, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+	default_me_init, default_me_shutdown, default_me_validate,
+	default_me_update, NULL, NULL,
+#ifdef INCLUDE_PM
+	NULL, NULL,
+#endif
+	NULL, sizeof(struct omci_voip_feature_access_codes), OMCI_ME_PROP_NONE,
+#ifdef INCLUDE_OMCI_SELF_DESCRIPTION
+	{ "VoIP feature access codes", ME_CREATED_BY_OLT, NULL, 0, ME_SUPPORTED },
+#endif
+	0, 0, 0, 0, 0, 0
+};
+
+/* ========================================================================
+ * ME 149: SIP Config Portal
+ * Created by ONU. 1 table attribute. Get/Get next only. Not in MIB upload.
+ * G.988 §9.9.19. Config text table is vendor-specific, empty on this device.
+ * ======================================================================== */
+struct me_class me_sip_config_portal_class = {
+	OMCI_ME_SIP_CONFIG_PORTAL,
+	{
+		/* 1 */ ATTR_STR("Config text table", ATTR_SUPPORTED,
+			offsetof(struct omci_sip_config_portal, config_text_table), 25,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_TABLE, NULL),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF()
+	},
+	{ NULL, NULL, NULL, NULL,
+	  NULL, NULL, NULL, NULL,
+	  NULL, get_action_handle, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, get_next_action_handle, NULL, NULL, NULL },
+	default_me_init, default_me_shutdown, default_me_validate,
+	default_me_update, NULL, NULL,
+#ifdef INCLUDE_PM
+	NULL, NULL,
+#endif
+	NULL, sizeof(struct omci_sip_config_portal),
+	OMCI_ME_PROP_NO_UPLOAD,
+#ifdef INCLUDE_OMCI_SELF_DESCRIPTION
+	{ "SIP config portal", ME_CREATED_BY_ONT, NULL, 0, ME_SUPPORTED },
+#endif
+	0, 0, 0, 0, 0, 0
+};
+
+/* ========================================================================
+ * ME 283: RTP Pseudowire Parameters
+ * Created/deleted by OLT. 7 attributes. G.988 §9.8.6.
+ * No pseudowire hardware on this device — data-only stub.
+ * ======================================================================== */
+struct me_class me_rtp_pw_params_class = {
+	OMCI_ME_RTP_PSEUDOWIRE_PARAMETERS,
+	{
+		/* 1 */ ATTR_UINT("Clock reference", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_rtp_pw_params, clock_reference), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 2 */ ATTR_UINT("RTP timestamp mode", ATTR_SUPPORTED, 0, 2,
+			offsetof(struct omci_rtp_pw_params, rtp_timestamp_mode), 1,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 3 */ ATTR_UINT("PTYPE", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_rtp_pw_params, ptype), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 4 */ ATTR_STR("SSRC", ATTR_SUPPORTED,
+			offsetof(struct omci_rtp_pw_params, ssrc), 8,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC, NULL),
+		/* 5 */ ATTR_UINT("Expected PTYPE", ATTR_SUPPORTED, 0, 0xFFFF,
+			offsetof(struct omci_rtp_pw_params, expected_ptype), 2,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC
+			| OMCI_ATTR_PROP_OPTIONAL, NULL),
+		/* 6 */ ATTR_STR("Expected SSRC", ATTR_SUPPORTED,
+			offsetof(struct omci_rtp_pw_params, expected_ssrc), 8,
+			OMCI_ATTR_PROP_RD | OMCI_ATTR_PROP_WR | OMCI_ATTR_PROP_SBC
+			| OMCI_ATTR_PROP_OPTIONAL, NULL),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(), ATTR_NOT_DEF(),
+		ATTR_NOT_DEF(), ATTR_NOT_DEF()
+	},
+	{ NULL, NULL, NULL, NULL,
+	  create_action_handle, NULL, delete_action_handle, NULL,
+	  set_action_handle, get_action_handle, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+	default_me_init, default_me_shutdown, default_me_validate,
+	default_me_update, NULL, NULL,
+#ifdef INCLUDE_PM
+	NULL, NULL,
+#endif
+	NULL, sizeof(struct omci_rtp_pw_params), OMCI_ME_PROP_NONE,
+#ifdef INCLUDE_OMCI_SELF_DESCRIPTION
+	{ "RTP pseudowire params", ME_CREATED_BY_OLT, NULL, 0, ME_SUPPORTED },
 #endif
 	0, 0, 0, 0, 0, 0
 };

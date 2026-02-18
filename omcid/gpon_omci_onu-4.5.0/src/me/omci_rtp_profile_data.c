@@ -18,7 +18,6 @@
 #include "omci_me_handlers.h"
 #include "me/omci_rtp_profile_data.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
 
 /** \addtogroup OMCI_ME_RTP_PROFILE_DATA
    @{
@@ -204,5 +203,3 @@ struct me_class me_rtp_profile_data_class = {
 };
 
 /** @} */
-
-#endif

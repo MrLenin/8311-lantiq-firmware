@@ -200,4 +200,78 @@ omci_api_ethernet_pmhd_thr_set(struct omci_api_ctx *ctx,
 
 	return ret;
 }
+
+enum omci_api_return
+omci_api_ethernet_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     uint64_t *cnt_fcs_error,
+				     uint64_t *cnt_excessive_collisions,
+				     uint64_t *cnt_late_collisions,
+				     uint64_t *cnt_frames_too_long,
+				     uint64_t *cnt_rx_buffer_overflow_events,
+				     uint64_t *cnt_tx_buffer_overflow_events,
+				     uint64_t *cnt_single_collisions,
+				     uint64_t *cnt_multiple_collisions,
+				     uint64_t *cnt_sqe_test,
+				     uint64_t *cnt_deferred_transmissions,
+				     uint64_t *cnt_tx_mac_errors,
+				     uint64_t *cnt_carrier_sense_errors,
+				     uint64_t *cnt_alignment_error,
+				     uint64_t *cnt_rx_mac_errors)
+{
+	return omci_api_ethernet_pmhd_cnt_get(ctx, me_id, true, false,
+					      cnt_fcs_error,
+					      cnt_excessive_collisions,
+					      cnt_late_collisions,
+					      cnt_frames_too_long,
+					      cnt_rx_buffer_overflow_events,
+					      cnt_tx_buffer_overflow_events,
+					      cnt_single_collisions,
+					      cnt_multiple_collisions,
+					      cnt_sqe_test,
+					      cnt_deferred_transmissions,
+					      cnt_tx_mac_errors,
+					      cnt_carrier_sense_errors,
+					      cnt_alignment_error,
+					      cnt_rx_mac_errors);
+}
+
+enum omci_api_return
+omci_api_ethernet_pmhd_cnt_reset(struct omci_api_ctx *ctx,
+				 uint16_t me_id)
+{
+	enum omci_api_return ret;
+	struct lan_cnt_interval param;
+	uint8_t lan_port;
+
+	ret = omci_api_uni2lan(ctx, me_id, &lan_port);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	DBG(OMCI_API_MSG, ("%s me_id=%u\n", __FUNCTION__, me_id));
+
+	memset(&param, 0, sizeof(param));
+	param.index = lan_port;
+	param.reset_mask = (uint64_t)(ONU_LAN_CNT_RST_MASK_RX_FCS_ERR |
+				      ONU_LAN_CNT_RST_MASK_EXC_COL |
+				      ONU_LAN_CNT_RST_MASK_LATE_COL |
+				      ONU_LAN_CNT_RST_MASK_RX_OVSZ_FRAMES |
+				      ONU_LAN_CNT_RST_MASK_RX_BUFF_OVERFLOW |
+				      ONU_LAN_CNT_RST_MASK_TX_BUFF_OVERFLOW |
+				      ONU_LAN_CNT_RST_MASK_SGL_COL |
+				      ONU_LAN_CNT_RST_MASK_MUL_COL |
+				      ONU_LAN_CNT_RST_MASK_SQE_TST |
+				      ONU_LAN_CNT_RST_MASK_TX_DEF |
+				      ONU_LAN_CNT_RST_MASK_TX_MAC_ERR |
+				      ONU_LAN_CNT_RST_MASK_CAR_SENSE_ERR |
+				      ONU_LAN_CNT_RST_MASK_ALGN_ERR |
+				      ONU_LAN_CNT_RST_MASK_RX_MAC_ERR);
+	param.curr = 0;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_LAN_COUNTER_RESET,
+		      &param, sizeof(param));
+
+	return ret;
+}
+
 /** @} */

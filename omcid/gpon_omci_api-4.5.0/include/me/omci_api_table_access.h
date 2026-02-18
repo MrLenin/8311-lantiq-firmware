@@ -102,7 +102,8 @@ omci_api_bridge_port_uuc_mac_flood_modify(struct omci_api_ctx *ctx,
 enum omci_api_return
 omci_api_bridge_port_umc_mac_flood_modify(struct omci_api_ctx *ctx,
 					  const uint16_t bridge_port_index,
-					  const uint8_t unknown_mac_discard);
+					  const uint8_t flag1,
+					  const uint8_t flag2);
 
 enum omci_api_return omci_api_bridge_port_add(struct omci_api_ctx *ctx,
 					      const uint16_t bridge_port_index,
@@ -115,6 +116,19 @@ omci_api_bridge_port_delete(struct omci_api_ctx *ctx,
 enum omci_api_return omci_api_mac_bridge_port_is_ani(struct omci_api_ctx *ctx,
 						     uint16_t me_id,
 						     bool *ani_indication);
+
+/** Get bridge port TP type and connected termination point index.
+    Used by ME 171 and ME 78 to determine dispatch path.
+    \param[in]  ctx       OMCI API context pointer
+    \param[in]  me_id     MAC Bridge Port Config Data ME identifier
+    \param[out] tp_type   TP type (0=PPTP, 2=p-Mapper, 3=ITP)
+    \param[out] conn_idx  Connected TP instance index
+*/
+enum omci_api_return
+omci_api_bridge_port_tp_info_get(struct omci_api_ctx *ctx,
+				 uint16_t me_id,
+				 uint8_t *tp_type,
+				 uint8_t *conn_idx);
 
 enum omci_api_return omci_api_gem_port_us_add(struct omci_api_ctx *ctx,
 					      const uint16_t gpix,

@@ -210,42 +210,8 @@ static enum omci_api_return ext_vlan_idx_get(struct omci_api_ctx *ctx,
                               (true - ANI side, false - UNI side)
    \param[out] conn_idx       connected Termination Point instance index
 */
-static enum omci_api_return bridge_port_info_get(struct omci_api_ctx *ctx,
-					         uint16_t me_id,
-					         uint8_t *tp_type,
-						 uint8_t *conn_idx)
-{
-	enum omci_api_return ret = OMCI_API_SUCCESS;
-	struct gpe_table_entry entry;
-	uint32_t bridge_port_index = 0;
-
-	ret = bridge_port_idx_get(ctx, -1, me_id, &bridge_port_index);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_API_ERROR;
-
-	entry.id = ONU_GPE_BRIDGE_PORT_TABLE_ID;
-	entry.instance = 1;
-	entry.index = (uint8_t)bridge_port_index;
-
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_TABLE_ENTRY_GET, &entry,
-		      TABLE_ENTRY_SIZE(entry.data.bridge_port));
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_API_ERROR;
-
-	/* TP Type, indicates the type of instance connected to the egress
-	    bridge port. Values 0 to 3 are valid. The MSB of this field serves
-	    as the ANI indication (1 = ANI side, 0 = UNI side).
-	    - 0: PPTP Ethernet UNI
-	    - 1: reserved (do not use)
-	    - 2: p-Mapper
-	    - 3: ITP
-	*/
-	*tp_type = (uint8_t)entry.data.bridge_port.tp_type;
-
-	*conn_idx = (uint8_t)entry.data.bridge_port.tp_pointer;
-
-	return ret;
-}
+/* bridge_port_info_get: use shared omci_api_bridge_port_tp_info_get from
+   omci_api_table_access.c (also used by ME 78). */
 
 enum omci_api_return ext_vlan_custom_update(struct omci_api_ctx *ctx,
 						   const uint8_t ethertype)
@@ -574,8 +540,8 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 		{
 			uint8_t bp_tp_type;
 
-			ret = bridge_port_info_get(ctx, associated_ptr,
-						   &bp_tp_type, &tp_idx);
+			ret = omci_api_bridge_port_tp_info_get(ctx, associated_ptr,
+							       &bp_tp_type, &tp_idx);
 			if (ret != OMCI_API_SUCCESS)
 				return ret;
 			idx = tp_idx;
@@ -615,8 +581,26 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 		/* dispatch stays 0 = LAN */
 		break;
 	case 3:
-		/* fixed mapping to LAN4 */
+		/* IP host config data — fixed mapping to LAN4 */
 		idx = 4;
+		/* dispatch stays 0 = LAN */
+		break;
+	case 4:
+		/* IPv6 host config data — v7.5.1 stock uses mapper 0x1f.
+		   Same pattern as case 2 (PPTP) and case 10 (VEIP). */
+		ret = index_get(ctx, MAPPER_IPV6HOST_MEID_TO_IDX,
+				associated_ptr, &idx);
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
+
+		ret = index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+				me_id, &tmp_idx);
+		if (ret != OMCI_API_SUCCESS) {
+			ret = explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+					   me_id, idx);
+			if (ret != OMCI_API_SUCCESS)
+				return ret;
+		}
 		/* dispatch stays 0 = LAN */
 		break;
 	case 5:
@@ -637,6 +621,24 @@ omci_api_ext_vlan_cfg_data_update(struct omci_api_ctx *ctx,
 			return ret;
 		idx = idx & 0xFFFF;
 		dispatch = 1;  /* single GEM port */
+		break;
+	case 10:
+		/* VEIP — v7.5.1 stock handles this (mapper 0x1e).
+		   Same pattern as case 2 but uses VEIP mapper. */
+		ret = index_get(ctx, MAPPER_VEIP_MEID_TO_IDX,
+				associated_ptr, &idx);
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
+
+		ret = index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+				me_id, &tmp_idx);
+		if (ret != OMCI_API_SUCCESS) {
+			ret = explicit_map(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
+					   me_id, idx);
+			if (ret != OMCI_API_SUCCESS)
+				return ret;
+		}
+		/* dispatch stays 0 = LAN */
 		break;
 	default:
 		DBG(OMCI_API_ERR, ("Unsupported Association Type %u\n",
@@ -747,7 +749,12 @@ omci_api_ext_vlan_cfg_data_destroy(struct omci_api_ctx *ctx, uint16_t me_id)
 	ret = index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX,
 			me_id, &idx);
 	if (ret == OMCI_API_SUCCESS) {
-		id_remove(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX, me_id);
+		/* v7.5.1: clear LAN port ext VLAN config before removing mapper.
+		   Stock calls lan_port_ext_vlan_modify(ctx, idx, 0,0,0,0,0). */
+		ret = omci_api_lan_port_ext_vlan_modify(ctx,
+					(uint16_t)idx, 0, 0, 0, 0, 0);
+		if (ret == OMCI_API_SUCCESS)
+			id_remove(ctx, MAPPER_EXTVLANCD_MEID_TO_LAN_IDX, me_id);
 	}
 
 	return OMCI_API_SUCCESS;

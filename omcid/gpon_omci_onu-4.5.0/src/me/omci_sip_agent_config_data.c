@@ -19,13 +19,7 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_sip_agent_config_data.h"
-#include "me/omci_large_string.h"
-#include "me/omci_tcp_udp_config_data.h"
-#include "me/omci_network_address.h"
-#include "me/omci_ip_host_config_data.h"
-#include "me/omci_api_sip_agent_config_data.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
 
 /** \addtogroup OMCI_SIP_AGENT_CONFIG_DATA
    @{
@@ -161,26 +155,13 @@ static enum omci_error me_update(struct omci_context *context,
 				 void *data,
 				 uint16_t attr_mask)
 {
-	enum omci_api_return ret;
 	enum omci_error error;
 	struct omci_sip_agent_config_data *upd_data;
-	struct omci_sip_agent_config_data *me_data;
-	struct me *proxy_me, *tcp_udp_me, *ip_host_me, *host_part_uri_me,
-		  *registrar_me, *registrar_string_me;
-	char proxy[OMCI_ME_LARGE_STRING_SIZE] = { 0 };
-	char host_part_uri[OMCI_ME_LARGE_STRING_SIZE] = { 0 };
-	char registrar[OMCI_ME_LARGE_STRING_SIZE] = { 0 };
-	uint16_t port = 0;
-	uint8_t proto = 0;
-	uint32_t addr = 0;
-	uint16_t ip_host_ptr;
-	uint16_t registrar_ptr;
 
 	dbg_in(__func__, "%p, %p, %p, 0x%04x", (void *)context,
 	       (void *)me, (void *)data, attr_mask);
 
 	upd_data = (struct omci_sip_agent_config_data *) data;
-	me_data = (struct omci_sip_agent_config_data *) me->data;
 
 	if (attr_mask &
 	    omci_attr2mask(omci_sip_agent_config_data_sip_response)) {
@@ -188,121 +169,6 @@ static enum omci_error me_update(struct omci_context *context,
 				context, me, &upd_data->sip_response);
 		RETURN_IF_ERROR(error);
 	}
-
-	error = mib_me_find(context,
-			    OMCI_ME_LARGE_STRING,
-			    upd_data->proxy_ptr,
-			    &proxy_me);
-
-	if (error == OMCI_SUCCESS) {
-		me_lock(context, proxy_me);
-		large_string_get(context, proxy_me, proxy);
-		me_unlock(context, proxy_me);
-	}
-
-	error = mib_me_find(context,
-			    OMCI_ME_TCP_UDP_CONFIG_DATA,
-			    upd_data->tcp_udp_ptr,
-			    &tcp_udp_me);
-
-	if (error == OMCI_SUCCESS) {
-		me_lock(context, tcp_udp_me);
-
-		error = me_attr_read(context, tcp_udp_me,
-				     omci_me_tcp_udp_config_data_port_id,
-				     &port, sizeof(port));
-		if (error) {
-			me_unlock(context, tcp_udp_me);
-			RETURN_IF_ERROR(error);
-		}
-
-		error = me_attr_read(context, tcp_udp_me,
-				     omci_me_tcp_udp_config_data_protocol,
-				     &proto, sizeof(proto));
-		if (error) {
-			me_unlock(context, tcp_udp_me);
-			RETURN_IF_ERROR(error);
-		}
-
-		error = me_attr_read(context, tcp_udp_me,
-				     omci_me_tcp_udp_config_data_ip_host_ptr,
-				     &ip_host_ptr, sizeof(ip_host_ptr));
-		if (error) {
-			me_unlock(context, tcp_udp_me);
-			RETURN_IF_ERROR(error);
-		}
-
-		error = mib_me_find(context,
-				    OMCI_ME_IP_HOST_CONFIG_DATA,
-				    ip_host_ptr,
-				    &ip_host_me);
-		if (error) {
-			me_unlock(context, tcp_udp_me);
-			RETURN_IF_ERROR(error);
-		}
-
-		me_unlock(context, tcp_udp_me);
-
-		me_lock(context, ip_host_me);
-		error = me_attr_read(context, ip_host_me,
-				     omci_me_ip_host_config_data_ip_address,
-				     &addr, sizeof(addr));
-		me_unlock(context, ip_host_me);
-		RETURN_IF_ERROR(error);
-	}
-
-	error = mib_me_find(context,
-			    OMCI_ME_LARGE_STRING,
-			    upd_data->host_part_uri,
-			    &host_part_uri_me);
-
-	if (error == OMCI_SUCCESS) {
-		me_lock(context, host_part_uri_me);
-		large_string_get(context, host_part_uri_me,
-				 host_part_uri);
-		me_unlock(context, host_part_uri_me);
-	}
-
-	error = mib_me_find(context,
-			    OMCI_ME_NETWORK_ADDRESS,
-			    upd_data->sip_registrar,
-			    &registrar_me);
-
-	if (error == OMCI_SUCCESS) {
-		me_lock(context, registrar_me);
-		error = me_attr_read(context, registrar_me,
-				     omci_me_network_address_address_ptr,
-				     &registrar_ptr, sizeof(registrar_ptr));
-		me_unlock(context, registrar_me);
-		RETURN_IF_ERROR(error);
-
-		error = mib_me_find(context,
-				    OMCI_ME_LARGE_STRING,
-				    registrar_ptr,
-				    &registrar_string_me);
-		if (error == OMCI_SUCCESS) {
-			me_lock(context, registrar_string_me);
-			large_string_get(context, registrar_string_me,
-					 registrar);
-			me_unlock(context, registrar_string_me);
-		}
-	}
-
-	ret = omci_api_sip_agent_config_data_update(context->api,
-						    me->instance_id,
-						    proxy,
-						    upd_data->primary_sip_dns,
-						    upd_data->secondary_sip_dns,
-						    addr,
-						    proto,
-						    port,
-						    upd_data->ip_reg_exp_time,
-						    upd_data->
-						      sip_rereg_head_start_time,
-						    host_part_uri,
-						    registrar);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_ERROR_DRV;
 
 	dbg_out_ret(__func__, OMCI_SUCCESS);
 	return OMCI_SUCCESS;
@@ -341,7 +207,6 @@ static enum omci_error me_init(struct omci_context *context,
 static enum omci_error me_shutdown(struct omci_context *context,
 				   struct me *me)
 {
-	enum omci_api_return ret;
 	struct internal_data *me_internal_data;
 	struct sip_response_table_list_entry *list_entry;
 	struct sip_response_table_list_entry *next_list_entry;
@@ -350,12 +215,7 @@ static enum omci_error me_shutdown(struct omci_context *context,
 
 	me_internal_data = (struct internal_data *) me->internal_data;
 
-	ret = omci_api_sip_agent_config_data_destroy(context->api,
-						     me->instance_id);
-	if (ret != OMCI_API_SUCCESS)
-		return OMCI_ERROR_DRV;
-
-	/* clear ringing event table */
+	/* clear SIP response table */
 	DLIST_FOR_EACH_SAFE(list_entry, next_list_entry,
 			    &me_internal_data->list_head) {
 		/* remove entry */
@@ -611,5 +471,3 @@ struct me_class me_sip_agent_config_data_class = {
 };
 
 /** @} */
-
-#endif

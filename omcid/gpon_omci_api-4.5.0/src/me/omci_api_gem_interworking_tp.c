@@ -66,14 +66,18 @@ omci_api_gem_interworking_tp_update(struct omci_api_ctx *ctx,
 			return ret;
 	}
 
-	omci_api_gem_port_loop_modify(ctx, gpix, gal_loopback_configuration);
+	/* v7.5.1: skip loopback modify for broadcast GEM (interworking 6) */
+	if (interworking_option != 6)
+		omci_api_gem_port_loop_modify(ctx, gpix,
+					      gal_loopback_configuration);
 
 	if (gem_port.data_direction == 3) {
 		for (i=0;i<bridge->count;i++) {
 			if ((bridge->port[i].tp_type != 1) &&
-			    (bridge->port[i].tp_type != 4))
+			    (bridge->port[i].tp_type != 4) &&
+			    (bridge->port[i].tp_type != 7))
 				continue;
-			ret = index_get(ctx, MAPPER_MACBRIDGEPORT_MEID_TO_IDX, 
+			ret = index_get(ctx, MAPPER_MACBRIDGEPORT_MEID_TO_IDX,
 					bridge->port[i].me_id,
 					&bridge_port_idx);
 			if (ret != OMCI_API_SUCCESS)
@@ -86,10 +90,32 @@ omci_api_gem_interworking_tp_update(struct omci_api_ctx *ctx,
 						bridge_port_idx);
 				}
 			}
+			/* v7.5.1: tp_type 7 = IPv6 host config data */
+			if (bridge->port[i].tp_type == 7) {
+				uint32_t port_idx;
+				ret = index_get(ctx,
+						MAPPER_IPV6HOST_MEID_TO_IDX,
+						bridge->port[i].tp_ptr,
+						&port_idx);
+				if (ret == OMCI_API_SUCCESS) {
+					omci_api_lan_port_interworking_modify(
+						ctx, port_idx & 0xffff,
+						((port_idx + 0x40) * 2) & 0xff,
+						0, bridge_port_idx);
+				}
+			}
 			if (bridge->port[i].tp_type == 4) {
+				struct lan_port_802_1x_auth_cfg auth;
 				omci_api_lan_port_interworking_modify(ctx,
 					4, 0xa0, 0, bridge_port_idx);
 				omci_api_lan_port_enable(ctx, 4, 1);
+				/* v7.5.1: disable 802.1x auth for VEIP */
+				auth.port_id = 4;
+				auth.auth_result =
+					LAN_PORT_802_1X_AUTH_OPEN;
+				dev_ctl(ctx->remote, ctx->onu_fd,
+					FIO_LAN_PORT_802_1X_AUTH_CFG_SET,
+					&auth, sizeof(auth));
 			}
 		}
 	}

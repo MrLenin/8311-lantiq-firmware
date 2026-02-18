@@ -78,34 +78,17 @@ omci_api_gem_port_network_ctp_update(struct omci_api_ctx *ctx,
 			gem_port.gem_port_id = gem_port_id;
 			gem_port.data_direction = direction;
 			gem_port.encryption_enable = false;
-			if (me_id == 0x200) {
-				/* special case: we have to use
-				   the predefined GPIX: SW_GPIX*/
-				DBG(OMCI_API_ERR, ("add host2lan GPIX\n"));
-				gem_port.gem_port_index =
-					ctx->capability.max_gpix -
-								SW_GPIX_OFFSET;
+			/* v7.5.1: removed me_id==0x200 (host2lan) special
+			   case that used GEM_PORT_SET with SW_GPIX.
+			   Always use GEM_PORT_ADD. */
+			if (dev_ctl(ctx->remote, ctx->onu_fd,
+				    FIO_GPE_GEM_PORT_ADD, &gem_port,
+				    sizeof(gem_port)) != 0) {
 
-				if (dev_ctl(ctx->remote, ctx->onu_fd,
-					    FIO_GPE_GEM_PORT_SET, &gem_port,
-					    sizeof(gem_port)) != 0) {
-
-					DBG(OMCI_API_ERR,
-						("FIO_GPE_GEM_PORT_SET %d\n",
-								gem_port_id));
-					goto err;
-				}
-			} else {
-				/* add gem port */
-				if (dev_ctl(ctx->remote, ctx->onu_fd,
-					    FIO_GPE_GEM_PORT_ADD, &gem_port,
-					    sizeof(gem_port)) != 0) {
-
-					DBG(OMCI_API_ERR,
-						("FIO_GPE_GEM_PORT_ADD %d "
-						 "failed\n", gem_port_id));
-					goto err;
-				}
+				DBG(OMCI_API_ERR,
+					("FIO_GPE_GEM_PORT_ADD %d "
+					 "failed\n", gem_port_id));
+				goto err;
 			}
 		} else {
 			DBG(OMCI_API_ERR,
@@ -185,22 +168,44 @@ omci_api_gem_port_network_ctp_update(struct omci_api_ctx *ctx,
 					   us_traffic_descriptor_profile_ptr);
 	}
 
-	cfg.index = ds_priority_queue_ptr;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EGRESS_QUEUE_CFG_GET,
-		      &cfg, sizeof(cfg));
-	if (ret == OMCI_API_SUCCESS && cfg.enable) {
-		gpe_equeue_path.in.index = ds_priority_queue_ptr;
-		ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EGRESS_QUEUE_PATH_GET,
-				  &gpe_equeue_path, sizeof(gpe_equeue_path));
+	/* v7.5.1: guard against invalid ds_priority_queue_ptr and always
+	   call prio_selection_modify (reset when no valid queue). */
+	if (gpix != 0xffffffff &&
+	    ds_priority_queue_ptr != 0x0000 &&
+	    ds_priority_queue_ptr != 0xFFFF) {
+		cfg.index = ds_priority_queue_ptr;
+		ret = dev_ctl(ctx->remote, ctx->onu_fd,
+			      FIO_GPE_EGRESS_QUEUE_CFG_GET,
+			      &cfg, sizeof(cfg));
 		if (ret == OMCI_API_SUCCESS) {
-			if(gpe_equeue_path.out.epn >= 64 && gpe_equeue_path.out.epn < 68) {
-				omci_api_gem_port_ds_prio_selection_modify(ctx,
-							  gpix,
-							  true,
-							  gpe_equeue_path.out.info[0].leaf);
+			if (!cfg.enable)
+				return OMCI_API_SUCCESS;
+
+			gpe_equeue_path.in.index = ds_priority_queue_ptr;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_EGRESS_QUEUE_PATH_GET,
+				      &gpe_equeue_path,
+				      sizeof(gpe_equeue_path));
+			if (ret != OMCI_API_SUCCESS)
+				return OMCI_API_SUCCESS;
+
+			if (gpe_equeue_path.out.epn >= 64 &&
+			    gpe_equeue_path.out.epn < 68) {
+				/* v7.5.1: queue_selection_mode always
+				   false, only egress_queue_offset set */
+				omci_api_gem_port_ds_prio_selection_modify(
+					ctx, gpix, false,
+					gpe_equeue_path.out.info[0].leaf);
+				return OMCI_API_SUCCESS;
 			}
+			return OMCI_API_SUCCESS;
 		}
 	}
+
+	/* Reset prio selection when no valid DS queue */
+	if (gpix != 0xffffffff)
+		omci_api_gem_port_ds_prio_selection_modify(ctx, gpix,
+							   false, 0);
 
 	return OMCI_API_SUCCESS;
 err:

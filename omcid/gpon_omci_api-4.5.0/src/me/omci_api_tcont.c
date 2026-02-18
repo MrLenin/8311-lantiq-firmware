@@ -46,7 +46,12 @@ static enum omci_api_return omci_api_tcont_set(struct omci_api_ctx *ctx,
 	memset(&tcont, 0, sizeof(tcont));
 
 	ret = index_get(ctx, MAPPER_TCONT_MEID_TO_IDX, me_id, &tcont_idx);
-	if (ret != OMCI_API_SUCCESS) {
+	if (ret == OMCI_API_SUCCESS) {
+		/* Already mapped: set tcont_idx for GET/SET path below.
+		   v4.5.0 SDK bug: missed this, left tcont_idx=0 from memset.
+		   Stock (FUN_00441b9c) does: local_40 = mapper_result. */
+		tcont.tcont_idx = tcont_idx;
+	} else {
 		for (i = 0; i < ONU_GPE_MAX_TCONT; i++) {
 			tcont.tcont_idx = i;
 			ret = dev_ctl(ctx->remote, ctx->onu_fd,

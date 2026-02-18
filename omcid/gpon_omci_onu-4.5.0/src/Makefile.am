@@ -13,6 +13,7 @@ libomci_a_extra = \
    @top_srcdir@/src/omci_me.h \
    @top_srcdir@/src/omci_me_def.h \
    @top_srcdir@/src/omci_net.h \
+   @top_srcdir@/src/omci_ubus.h \
    @top_srcdir@/src/omci_me_handlers.h \
    @top_srcdir@/src/omci_mib.h \
    @top_srcdir@/src/omci_msg_dump.h \
@@ -123,6 +124,7 @@ libomci_a_extra = \
    @top_srcdir@/include/me/omci_onu_dyn_pwr_mngmt_ctrl.h \
    @top_srcdir@/include/me/omci_enhanced_security_control.h \
    @top_srcdir@/include/me/omci_ipv6_host_config_data.h \
+   @top_srcdir@/include/me/omci_onu_loop_detection.h \
    @top_srcdir@/include/me/omci_stub_mes.h \
    @top_srcdir@/include/me/omci_me_65529.h \
    @top_srcdir@/include/me/omci_me_65530.h
@@ -134,6 +136,7 @@ libomci_a_SOURCES = \
    omci_alarm.c \
    omci_config_api.c \
    omci_net.c \
+   omci_ubus.c \
    omci_interface.c \
    omci_core.c \
    omci_debug.c \
@@ -243,6 +246,7 @@ libomci_a_SOURCES = \
    me/omci_onu_dyn_pwr_mngmt_ctrl.c \
    me/omci_enhanced_security_control.c \
    me/omci_ipv6_host_config_data.c \
+   me/omci_onu_loop_detection.c \
    me/omci_stub_mes.c \
    uci/omci_uci_config.c \
    me/omci_me_65529.c \
@@ -356,5 +360,5 @@ omcid_LDADD = libomcidaemon.a \
                           $(cli_library)\
                           $(uci_library)\
                           $(dmalloc_library)\
-                          -lifxos -lpthread -lrt -lm
+                          -lifxos -lpthread -lrt -lm -ldl
 

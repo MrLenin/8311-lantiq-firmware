@@ -242,9 +242,10 @@ omci_api_priority_queue_destroy(struct omci_api_ctx *ctx,
 }
 
 /*
-	\todo
-	- discard_block_cnt_reset_interval - to be implemented
-	- threshold_value_for_discarded_blocks - to be implemented
+	v7.5.1 note: discard_block_cnt_reset_interval and
+	threshold_value_for_discarded_blocks are NOT implemented in stock
+	either — confirmed by decompilation. Only logged, never passed to
+	any ioctl. Original SDK TODO remains unresolved in shipping firmware.
 */
 enum omci_api_return
 omci_api_priority_queue_update(struct omci_api_ctx *ctx,

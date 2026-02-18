@@ -2,3 +2,55 @@ build/*
 out/*
 8311-mods/usr/lib/lua/8311/version.lua
 8311-mods/etc/8311_version
+
+# IDE / tool config
+.claude/
+.vscode/
+
+# Editor backup files
+*~
+*.swp
+
+# Temp / scratch files
+temp-file
+todo
+decompiled.c
+drv_onu_compat.h
+*.log
+
+# Reference files from WAS-110 repo (not adapted for this hardware)
+8311-mods/lib/8311.sh
+8311-mods/lib/8311_backend.sh
+8311-mods/lib/8311-vlans-lib.sh
+8311-mods/usr/lib/lua/luci/cbi.lua
+8311-mods/usr/lib/lua/luci/view/alt-footer.htm
+8311-mods/usr/lib/lua/luci/view/alt-header.htm
+8311-mods/usr/lib/lua/luci/view/nsection.htm
+8311-mods/usr/lib/lua/luci/view/tmap.htm
+8311-mods/usr/sbin/
+
+# Bundled binaries (not built from source here)
+8311-mods/usr/lib/libpcap.so*
+
+# omcid dev tools and Ghidra analysis
+omcid/ghidra/__pycache__/
+omcid/ghidra/output/
+omcid/ghidra/*.py
+omcid/extract_ioctls.py
+omcid/ioctl_compare.py
+omcid/ioctl_dump.c
+omcid/ioctl_dump_mips
+omcid/ioctl_dump_no_compat
+omcid/mod_onu_ioctls.txt
+omcid/sizeof_check*
+omcid/verify_layout.c
+
+# omcid build artifacts
+omcid/gpon_omci_onu-4.5.0/src/omcid.stripped
+
+# omci_logger (separate tool)
+/src/
+
+# Notes / documentation not part of firmware
+bell-aliant-dual-vlan.md
+orig-changelog

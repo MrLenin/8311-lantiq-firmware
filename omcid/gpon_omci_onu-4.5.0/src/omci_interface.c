@@ -33,6 +33,7 @@
 #ifdef INCLUDE_MCC
 #include "mcc/omci_mcc.h"
 #endif
+#include "omci_ubus.h"
 
 /** \addtogroup OMCI_API
    @{
@@ -468,6 +469,10 @@ enum omci_error omci_init(struct omci_context **ref_context,
 	}
 #endif
 
+	/* initialize ubus event monitoring — non-fatal */
+	ILOG("[omcid] omci_ubus_init...\n");
+	(void)omci_ubus_init(context);
+
 	/* start core thread */
 	ILOG("[omcid] core_thread_start...\n");
 	error = core_thread_start(context);
@@ -517,6 +522,7 @@ do_core_thread_stop:
 	(void)core_thread_stop(context);
 
 do_mcc_shutdown:
+	omci_ubus_exit(context);
 #ifdef INCLUDE_MCC
 	(void)omci_mcc_exit(context);
 #endif
@@ -568,6 +574,7 @@ enum omci_error omci_shutdown(struct omci_context *context)
 #ifdef INCLUDE_PM
 	(void)pm_shutdown(context);
 #endif
+	omci_ubus_exit(context);
 #ifdef INCLUDE_MCC
 	(void)omci_mcc_exit(context);
 #endif

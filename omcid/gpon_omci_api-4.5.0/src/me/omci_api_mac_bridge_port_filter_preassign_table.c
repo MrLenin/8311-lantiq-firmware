@@ -118,16 +118,12 @@ omci_api_exception_config_table_entry_update(struct omci_api_ctx *ctx,
 	entry.id 	= ONU_GPE_EXCEPTION_TABLE_ID;
 	entry.instance 	= 1;
 	entry.index 	= exception_table_entry_idx;
-#if 0
-	/** \todo review implementation - was just a quick fix for new FW
-	    interface */
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_TABLE_ENTRY_GET,
 		      &entry, TABLE_ENTRY_SIZE(entry.data.exception));
 	if (ret != OMCI_API_SUCCESS)
 		return OMCI_API_ERROR;
-#endif
-	/** \todo correct exception mask */
+
 	exception_flag_mask =
 		entry.data.exception.egress_exception_flag_mask;
 
@@ -161,24 +157,8 @@ omci_api_exception_config_table_entry_update(struct omci_api_ctx *ctx,
 			return OMCI_API_ERROR;
 		}
 	}
-#if 0
-	if (ani_indication) {
-		entry.data.ani_exception.exception_flag_mask =
-			exception_flag_mask;
-		entry.data.ani_exception.ingress_enable =
-			ingress_enable ? 1 : 0;
-		entry.data.ani_exception.egress_enable = egress_enable ? 1 : 0;
-	} else {
-		entry.data.lan_exception.exception_flag_mask =
-			exception_flag_mask;
-		/* don't switch off ingress exceptions if they are already
-		   enabled */
-		entry.data.lan_exception.ingress_enable |= ingress_enable;
-		entry.data.lan_exception.egress_enable = egress_enable ? 1 : 0;
-	}
-
-	/** \todo review implementation - was just a quick fix for new FW
-	    interface */
+	/* v7.5.1: exception table has egress + ingress flag masks only
+	   (no separate ani/lan structs). Apply to correct direction. */
 	if (ingress_enable)
 		entry.data.exception.ingress_exception_flag_mask =
 			exception_flag_mask;
@@ -190,9 +170,8 @@ omci_api_exception_config_table_entry_update(struct omci_api_ctx *ctx,
 	entry.instance 	= 1;
 	entry.index 	= exception_table_entry_idx;
 
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_TABLE_ENTRY_SET, &entry,
-			TABLE_ENTRY_SIZE(entry.data.exception));
-#endif
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_TABLE_ENTRY_SET,
+		      &entry, TABLE_ENTRY_SIZE(entry.data.exception));
 	return ret;
 }
 

@@ -530,20 +530,24 @@ omci_api_bridge_port_uuc_mac_flood_modify(struct omci_api_ctx *ctx,
 enum omci_api_return
 omci_api_bridge_port_umc_mac_flood_modify(struct omci_api_ctx *ctx,
 					  const uint16_t bridge_port_index,
-					  const uint8_t unknown_mac_discard)
+					  const uint8_t flag1,
+					  const uint8_t flag2)
 {
 	enum omci_api_return ret;
 	struct gpe_table_entry entry;
+	uint8_t *raw;
 
 	ret = table_read(ctx, ONU_GPE_BRIDGE_PORT_TABLE_ID, bridge_port_index,
 			sizeof(struct gpe_bridge_port_table), &entry);
 	if (ret != 0)
 		return OMCI_API_ERROR;
 
-	if (unknown_mac_discard)
-		entry.data.bridge_port.umc_flood_disable  = 1;
-	else
-		entry.data.bridge_port.umc_flood_disable = 0;
+	/* v7.5.1: Two MC flood control bits in bridge port table raw data.
+	   flag1 -> data byte 15, bit 4
+	   flag2 -> data byte 14, bit 2 */
+	raw = (uint8_t *)&entry.data.bridge_port;
+	raw[15] = (raw[15] & 0xef) | ((flag1 ? 1 : 0) << 4);
+	raw[14] = (raw[14] & 0xfb) | ((flag2 ? 1 : 0) << 2);
 
 	ret = table_write(ctx, sizeof(struct gpe_bridge_port_table), &entry);
 
@@ -919,6 +923,35 @@ enum omci_api_return omci_api_mac_bridge_port_is_ani(struct omci_api_ctx *ctx,
 	    - 3: ITP
 	*/
 	*ani_indication = entry.data.bridge_port.tp_type & 0x2 ? true : false;
+
+	return ret;
+}
+
+enum omci_api_return
+omci_api_bridge_port_tp_info_get(struct omci_api_ctx *ctx,
+				 uint16_t me_id,
+				 uint8_t *tp_type,
+				 uint8_t *conn_idx)
+{
+	enum omci_api_return ret = OMCI_API_SUCCESS;
+	struct gpe_table_entry entry;
+	uint32_t bridge_port_index = 0;
+
+	ret = bridge_port_idx_get(ctx, -1, me_id, &bridge_port_index);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_API_ERROR;
+
+	entry.id = ONU_GPE_BRIDGE_PORT_TABLE_ID;
+	entry.instance = 1;
+	entry.index = (uint8_t)bridge_port_index;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_TABLE_ENTRY_GET, &entry,
+		      TABLE_ENTRY_SIZE(entry.data.bridge_port));
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_API_ERROR;
+
+	*tp_type = (uint8_t)entry.data.bridge_port.tp_type;
+	*conn_idx = (uint8_t)entry.data.bridge_port.tp_pointer;
 
 	return ret;
 }

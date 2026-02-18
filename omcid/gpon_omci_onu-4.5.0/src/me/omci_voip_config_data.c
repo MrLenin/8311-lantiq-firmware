@@ -18,29 +18,9 @@
 #include "omci_me_handlers.h"
 #include "me/omci_voip_config_data.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
-
 /** \addtogroup OMCI_ME_VOIP_CONFIG_DATA
    @{
 */
-
-static enum omci_error me_update(struct omci_context *context,
-				 struct me *me,
-				 void *data,
-				 uint16_t attr_mask)
-{
-	struct omci_me_voip_config_data *upd_data;
-	struct omci_me_voip_config_data *me_data;
-
-	dbg_in(__func__, "%p, %p, %p, 0x%04x", (void *)context,
-	       (void *)me, (void *)data, attr_mask);
-
-	upd_data = (struct omci_me_voip_config_data *) data;
-	me_data = (struct omci_me_voip_config_data *) me->data;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
-	return OMCI_SUCCESS;
-}
 
 /** Managed Entity class */
 struct me_class me_voip_config_data_class = {
@@ -186,7 +166,7 @@ struct me_class me_voip_config_data_class = {
 	/* Validate Handler */
 	default_me_validate,
 	/* Update Handler */
-	me_update,
+	default_me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
 	/* Table Attribute Operations Handler */
@@ -222,5 +202,3 @@ struct me_class me_voip_config_data_class = {
 };
 
 /** @} */
-
-#endif

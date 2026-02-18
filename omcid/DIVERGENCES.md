@@ -68,41 +68,32 @@ Features that some ISPs or OLTs may use, but not critical for basic operation.
 
 ### 3a. ONU Loop Detection (vendor-specific ME ~65528)
 
-4 functions for LAN-side loop detection. Exists in v8.6.3 source.
+4 API functions + full ME handler with timers, state machine, and alarms.
 
-| Function | v8.6.3 source |
-|----------|---------------|
-| `omci_api_onu_loop_detection_create` | `omci_onu_loop_detection.c` |
-| `omci_api_onu_loop_detection_destroy` | same |
-| `omci_api_onu_loop_detection_update` | same |
-| `omci_api_onu_loop_detection_packet_send` | same |
-
-**Priority:** MEDIUM — some Chinese/Asian ISPs enable loop detection. Without this,
-OLT may log errors but won't break service.
+| Function | Status |
+|----------|--------|
+| `omci_api_onu_loop_detection_create` | **FIXED** — Phase A |
+| `omci_api_onu_loop_detection_destroy` | **FIXED** — Phase A |
+| `omci_api_onu_loop_detection_update` | **FIXED** — Phase A |
+| `omci_api_onu_loop_detection_packet_send` | **FIXED** — Phase A |
+| ME handler (init/shutdown/update/timers) | **FIXED** — Phase B |
 
 ### 3b. Performance Monitoring Extensions
 
-Total-counter and reset functions not in v4.5.0:
-
-| Category | Functions | Impact |
+| Category | Functions | Status |
 |----------|-----------|--------|
-| PMHD total_cnt_get | 8 functions | Cumulative counters across intervals |
-| PMHD cnt_reset | 3 functions | Counter reset capability |
-| MTU exceeded discard | 2 functions | Frame size violation counting |
-
-**Priority:** MEDIUM — OLTs that do PM collection may query these. Returning 0
-or unsupported is acceptable for most deployments.
+| PMHD total_cnt_get | 8 functions | **FIXED** — Phase D |
+| PMHD cnt_reset | 3 functions | **FIXED** — Phase D |
+| MTU exceeded discard | 2 functions | **FIXED** — Phase D |
 
 ### 3c. MAC Bridge Port Filter Extensions
 
-| Function | Impact |
+| Function | Status |
 |----------|--------|
-| `omci_api_mac_bridge_port_filter_assign` | Filter rule management |
-| `omci_api_mac_bridge_port_filter_table_entry_add` | Dynamic filter entries |
-| `omci_api_mac_bridge_port_filter_table_entry_remove` | Dynamic filter entries |
-
-**Priority:** MEDIUM — affects ME 80 (MAC Bridge Port Filter Table Data).
-v4.5.0 has the ME handler but may not have these dynamic add/remove APIs.
+| `omci_api_mac_bridge_port_filter_assign` | **FIXED** — Phase C |
+| GPE exception table writes (was `#if 0`) | **FIXED** — Phase C |
+| `omci_api_mac_bridge_port_filter_table_entry_add` | **FIXED** — Phase C |
+| `omci_api_mac_bridge_port_filter_table_entry_remove` | **FIXED** — Phase C |
 
 ---
 
@@ -156,16 +147,15 @@ The major behavioral difference was:
 
 ### 6b. ME 171 association types 4, 7-10
 
-Shipping binary supports all 11 association types. Our build handles 0-3, 5-6.
-Missing: 4 (xDSL), 7 (MoCA), 8 (802.11), 9 (Ethernet Flow TP), 10 (VEIP).
-
-| Type | Entity | Priority |
-|------|--------|----------|
-| 4 | xDSL ANI | N/A (no xDSL on G-010S-P) |
+| Type | Entity | Status |
+|------|--------|--------|
+| 4 | IPv6 host config data | **FIXED** — Phase F |
 | 7 | MoCA | N/A (no MoCA) |
 | 8 | 802.11 | N/A (no WiFi) |
 | 9 | Ethernet Flow TP | LOW (rarely used) |
-| 10 | VEIP (ME 329) | **MEDIUM** — some ISPs use VEIP |
+| 10 | VEIP (ME 329) | **FIXED** — Phase F |
+
+ME 78 also updated: association types 3 (IP host), 4 (IPv6 host), 10/11 added.
 
 ### 6c. SW Image — CONFIRMED DIFFERENT
 
@@ -174,18 +164,16 @@ Shipping binary has hardcoded behaviors. Our source replaces all of them:
 - Reboot on activate → NOP
 - fw_update_guard → shadow + capture in source
 
-### 6d. Unknown Behavioral Differences
+### 6d. Behavioral Differences — Audited and Fixed
 
-Functions that exist in both but may have subtle differences we haven't
-compared yet. These would require Ghidra decompilation of the shipping binary
-and side-by-side comparison with v4.5.0 source:
+All functions decompiled from stock v7.5.1 and compared (Phases 8-13, E, I):
 
-- `omci_api_mac_bridge_port_config_data_update` — complex bridge port setup
-- `omci_api_gem_port_network_ctp_update` — GEM port configuration
-- `omci_api_tcont_create` — T-CONT setup
-- `omci_api_priority_queue_update` — QoS configuration
-- `omci_api_traffic_scheduler_update` — scheduling setup
-- `omci_api_vlan_tagging_filter_data_update` — ME 84 VLAN filter rules
+- `omci_api_mac_bridge_port_config_data_update` — **FIXED** Phase E (11→9 params, umc_flood, tp_type 7/0xFF)
+- `omci_api_gem_port_network_ctp_update` — **FIXED** Phase I (traffic mgmt opt, dual-dir meter cleanup)
+- `omci_api_tcont_create` — **FIXED** (audited, matches stock)
+- `omci_api_priority_queue_update` — **FIXED** Phase I (sbin_enable, avg_weight, >>9 shift)
+- `omci_api_traffic_scheduler_update` — **FIXED** Phase I (TBS for scheduler_index 0x43)
+- `omci_api_vlan_tagging_filter_data_update` — **FIXED** (audited, matches stock)
 
 ---
 
@@ -202,29 +190,32 @@ and side-by-side comparison with v4.5.0 source:
 
 ## 8. ME Count Gap Analysis
 
-| | Shipping | Our Build | Notes |
+| | Shipping | Our Build | Status |
 |---|---|---|---|
-| Total MEs | 100 | 87 | Gap = 14 (VoIP + PM) minus 1 (our extra) |
-| VoIP | ME 138 only | 0 | VoIP ifdef disabled — needs pjsip |
-| PM | 14 MEs | 0 | PM ifdef disabled — see below |
-| Extra in ours | — | ME 332 | Enhanced Security Control (not in shipping) |
+| Total MEs | ~100 | ~120 | **Exceeds stock** (extra stubs for OLT compat) |
+| VoIP | 17 MEs | 17 MEs | **FIXED** — K1-K4 data-only stubs |
+| PM | 14 MEs | 14+4 MEs | **FIXED** — INCLUDE_PM enabled + 4 VoIP PM stubs |
+| Extra in ours | — | ME 332 + stubs | Enhanced Security Control, Dot1ag, ZTE, etc. |
 
-### PM MEs in Shipping (14)
+### PM MEs — ALL FIXED
 
-321 (Eth DS PMHD), 24 (Eth PMHD), 89 (Eth PMHD 2), 296 (Eth PMHD 3),
-322 (Eth US PMHD), 312 (FEC PMHD), 276 (GAL Eth PMHD), 267 (GEM port PMHD),
-51 (Bridge PMHD), 52 (Bridge port PMHD), 273 (Threshold 1), 274 (Threshold 2),
-341 (GEM port NW CTP PMHD), 135 (IP host monitoring data)
+All 14 shipping PM MEs now registered (INCLUDE_PM enabled):
+321, 24, 89, 296, 322, 312, 276, 267, 51, 52, 273, 274, 341, 135
 
-All 14 are behind `#ifdef INCLUDE_PM` in v4.5.0 source. Enabling PM would register
-13 of these (333 instead of 341 — renumber needed). The 4 PM stubs we added as
-customer MEs (334, 341, 343, 425) would need reconciliation.
+Plus 4 VoIP PM stubs (K3): 140, 144, 151, 152
+
+### VoIP MEs — ALL FIXED (data-only stubs, no telephony HW)
+
+K1: 58, 138, 139, 141, 142 (core VoIP data MEs)
+K2: 143, 145, 150, 153 (SIP/RTP config MEs + ME 53 audit)
+K3: 140, 144, 151, 152 (VoIP PM MEs)
+K4: 146, 147, 149, 283 (new v7.5.1 MEs from G.988 spec)
 
 ### Remaining Non-Functional Gaps
 
-- ME 138 (VoIP Config Data): Deferred — requires `INCLUDE_OMCI_ONU_VOIP` + pjsip
-- PM system: Deferred — requires `INCLUDE_PM` + class_id 333→341 renumber
-- ME 332 (Enhanced Security Control): Present in ours, absent from shipping. Harmless.
+- ME 332 (Enhanced Security Control): Present in ours, absent from shipping. Harmless extra.
+- xDSL/WiFi/MoCA MEs: Intentionally out of scope (no hardware).
+- ME 9 (Ethernet Flow TP) association type: Rarely used, low priority.
 
 ---
 

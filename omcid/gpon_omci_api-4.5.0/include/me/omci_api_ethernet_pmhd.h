@@ -111,6 +111,30 @@ omci_api_ethernet_pmhd_thr_set(struct omci_api_ctx *ctx,
 			       uint32_t cnt_alignment_error,
 			       uint32_t cnt_rx_mac_errors);
 
+/** Retrieve cumulative (total) Ethernet PMHD counters (curr=true, no reset) */
+enum omci_api_return
+omci_api_ethernet_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     uint64_t *cnt_fcs_error,
+				     uint64_t *cnt_excessive_collisions,
+				     uint64_t *cnt_late_collisions,
+				     uint64_t *cnt_frames_too_long,
+				     uint64_t *cnt_rx_buffer_overflow_events,
+				     uint64_t *cnt_tx_buffer_overflow_events,
+				     uint64_t *cnt_single_collisions,
+				     uint64_t *cnt_multiple_collisions,
+				     uint64_t *cnt_sqe_test,
+				     uint64_t *cnt_deferred_transmissions,
+				     uint64_t *cnt_tx_mac_errors,
+				     uint64_t *cnt_carrier_sense_errors,
+				     uint64_t *cnt_alignment_error,
+				     uint64_t *cnt_rx_mac_errors);
+
+/** Reset all Ethernet PMHD counters */
+enum omci_api_return
+omci_api_ethernet_pmhd_cnt_reset(struct omci_api_ctx *ctx,
+				 uint16_t me_id);
+
 /** @} */
 
 /** @} */

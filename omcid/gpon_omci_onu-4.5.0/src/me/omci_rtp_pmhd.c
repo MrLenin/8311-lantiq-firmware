@@ -18,9 +18,8 @@
 #include "omci_me_handlers.h"
 #include "me/omci_pptp_pots_uni.h"
 #include "me/omci_rtp_pmhd.h"
-#include "me/omci_api_rtp_pmhd.h"
 
-#if defined(INCLUDE_PM) && defined(INCLUDE_OMCI_ONU_VOIP)
+#ifdef INCLUDE_PM
 
 /** \addtogroup OMCI_RTP_PMHD
    @{
@@ -30,53 +29,7 @@ static enum omci_error me_counters_get(struct omci_context *context,
 				       struct me *me,
 				       enum omci_pm_interval interval)
 {
-	struct omci_me_rtp_pmhd *me_data;
-	uint32_t rtp_errors, packet_loss, max_jitter,
-		 max_time_between_rtcp_packets, buffer_underflows,
-		 buffer_overflows;
-	enum omci_api_return ret;
-
-	dbg_in(__func__, "%p, %p, %lu", (void *)context, (void *)me, interval);
-
-	me_data = (struct omci_me_rtp_pmhd *)me->data;
-
-	ret = omci_api_rtp_pmhd_cnt_get(context->api,
-					me->instance_id,
-					&rtp_errors,
-					&packet_loss,
-					&max_jitter,
-					&max_time_between_rtcp_packets,
-					&buffer_underflows,
-					&buffer_overflows);
-	if (ret != OMCI_API_SUCCESS) {
-		if (ret == OMCI_API_WRN_DEV_NO_DATA) {
-			dbg_out_ret(__func__, OMCI_SUCCESS);
-			return OMCI_SUCCESS;
-		} else {
-			me_dbg_err(me, "DRV ERR(%d) Can't get counters", ret);
-	
-			dbg_out_ret(__func__, OMCI_ERROR_DRV);
-			return OMCI_ERROR_DRV;
-		}
-	}
-
-	/* This attribute is calculated at the end of the 15-minute interval,
-	   and is undefined under the get current data action.*/
-	if (interval == OMCI_PM_INTERVAL_END)
-		me_data->packet_loss = packet_loss;
-
-	/* This attribute is a high water mark that represents the maximum
-	   jitter identified during the measured interval, expressed in RTP
-	   timestamp units.*/
-	if (max_jitter > me_data->max_jitter)
-		me_data->max_jitter = max_jitter;
-
-	me_data->rtp_errors = rtp_errors;
-	me_data->max_time_between_rtcp_packets = max_time_between_rtcp_packets;
-	me_data->buffer_underflows = buffer_underflows;
-	me_data->buffer_overflows = buffer_overflows;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
+	/* No telephony hardware — counters stay at zero */
 	return OMCI_SUCCESS;
 }
 
@@ -298,4 +251,4 @@ struct me_class me_rtp_pmhd_class = {
 
 /** @} */
 
-#endif
+#endif /* INCLUDE_PM */

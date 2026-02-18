@@ -65,6 +65,7 @@ libomciapi_a_extra = \
    @top_srcdir@/include/me/omci_api_vlan_tagging_filter_data.h \
    @top_srcdir@/include/me/omci_api_vlan_tagging_operation_config_data.h \
    @top_srcdir@/include/me/omci_api_onu_dyn_pwr_mngmt_ctrl.h \
+   @top_srcdir@/include/me/omci_api_onu_loop_detection.h \
    @top_srcdir@/include/me/omci_api_table_access.h \
    @top_srcdir@/include/mcc/omci_api_mcc.h \
    @top_srcdir@/src/mcc/omci_api_mcc_common.h \
@@ -133,6 +134,7 @@ libomciapi_a_SOURCES = \
    me/omci_api_vlan_tagging_filter_data.c \
    me/omci_api_vlan_tagging_operation_config_data.c \
    me/omci_api_onu_dyn_pwr_mngmt_ctrl.c \
+   me/omci_api_onu_loop_detection.c \
    me/omci_api_table_access.c \
    mcc/omci_api_mcc.c
 

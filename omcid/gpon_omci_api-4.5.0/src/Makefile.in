@@ -196,6 +196,7 @@ am_libomciapi_a_OBJECTS = libomciapi_a-omci_api.$(OBJEXT) \
 	libomciapi_a-omci_api_vlan_tagging_filter_data.$(OBJEXT) \
 	libomciapi_a-omci_api_vlan_tagging_operation_config_data.$(OBJEXT) \
 	libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.$(OBJEXT) \
+	libomciapi_a-omci_api_onu_loop_detection.$(OBJEXT) \
 	libomciapi_a-omci_api_table_access.$(OBJEXT) \
 	libomciapi_a-omci_api_mcc.$(OBJEXT) \
 	libomciapi_a-omci_api_pptp_pots_uni.$(OBJEXT) \
@@ -264,6 +265,7 @@ am__depfiles_remade = ./$(DEPDIR)/libomciapi_a-omci_api.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_olt_g.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_onu2_g.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.Po \
+	./$(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_onu_g.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_pptp_ethernet_uni.Po \
 	./$(DEPDIR)/libomciapi_a-omci_api_pptp_lct_uni.Po \
@@ -498,6 +500,7 @@ libomciapi_a_extra = @top_srcdir@/src/omci_api_common.h \
 	@top_srcdir@/include/me/omci_api_vlan_tagging_filter_data.h \
 	@top_srcdir@/include/me/omci_api_vlan_tagging_operation_config_data.h \
 	@top_srcdir@/include/me/omci_api_onu_dyn_pwr_mngmt_ctrl.h \
+	@top_srcdir@/include/me/omci_api_onu_loop_detection.h \
 	@top_srcdir@/include/me/omci_api_table_access.h \
 	@top_srcdir@/include/mcc/omci_api_mcc.h \
 	@top_srcdir@/src/mcc/omci_api_mcc_common.h \
@@ -553,6 +556,7 @@ libomciapi_a_SOURCES = omci_api.c omci_api_usock.c omci_api_event.c \
 	me/omci_api_vlan_tagging_filter_data.c \
 	me/omci_api_vlan_tagging_operation_config_data.c \
 	me/omci_api_onu_dyn_pwr_mngmt_ctrl.c \
+	me/omci_api_onu_loop_detection.c \
 	me/omci_api_table_access.c mcc/omci_api_mcc.c \
 	me/omci_api_pptp_pots_uni.c \
 	me/omci_api_sip_agent_config_data.c \
@@ -690,6 +694,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_olt_g.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_onu2_g.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_onu_g.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_pptp_ethernet_uni.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libomciapi_a-omci_api_pptp_lct_uni.Po@am__quote@ # am--include-marker
@@ -1562,6 +1567,20 @@ libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.obj: me/omci_api_onu_dyn_pwr_mngmt_
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -c -o libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.obj `if test -f 'me/omci_api_onu_dyn_pwr_mngmt_ctrl.c'; then $(CYGPATH_W) 'me/omci_api_onu_dyn_pwr_mngmt_ctrl.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_api_onu_dyn_pwr_mngmt_ctrl.c'; fi`
 
+libomciapi_a-omci_api_onu_loop_detection.o: me/omci_api_onu_loop_detection.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -MT libomciapi_a-omci_api_onu_loop_detection.o -MD -MP -MF $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Tpo -c -o libomciapi_a-omci_api_onu_loop_detection.o `test -f 'me/omci_api_onu_loop_detection.c' || echo '$(srcdir)/'`me/omci_api_onu_loop_detection.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Tpo $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_api_onu_loop_detection.c' object='libomciapi_a-omci_api_onu_loop_detection.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -c -o libomciapi_a-omci_api_onu_loop_detection.o `test -f 'me/omci_api_onu_loop_detection.c' || echo '$(srcdir)/'`me/omci_api_onu_loop_detection.c
+
+libomciapi_a-omci_api_onu_loop_detection.obj: me/omci_api_onu_loop_detection.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -MT libomciapi_a-omci_api_onu_loop_detection.obj -MD -MP -MF $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Tpo -c -o libomciapi_a-omci_api_onu_loop_detection.obj `if test -f 'me/omci_api_onu_loop_detection.c'; then $(CYGPATH_W) 'me/omci_api_onu_loop_detection.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_api_onu_loop_detection.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Tpo $(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='me/omci_api_onu_loop_detection.c' object='libomciapi_a-omci_api_onu_loop_detection.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -c -o libomciapi_a-omci_api_onu_loop_detection.obj `if test -f 'me/omci_api_onu_loop_detection.c'; then $(CYGPATH_W) 'me/omci_api_onu_loop_detection.c'; else $(CYGPATH_W) '$(srcdir)/me/omci_api_onu_loop_detection.c'; fi`
+
 libomciapi_a-omci_api_table_access.o: me/omci_api_table_access.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libomciapi_a_CFLAGS) $(CFLAGS) -MT libomciapi_a-omci_api_table_access.o -MD -MP -MF $(DEPDIR)/libomciapi_a-omci_api_table_access.Tpo -c -o libomciapi_a-omci_api_table_access.o `test -f 'me/omci_api_table_access.c' || echo '$(srcdir)/'`me/omci_api_table_access.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libomciapi_a-omci_api_table_access.Tpo $(DEPDIR)/libomciapi_a-omci_api_table_access.Po
@@ -1857,6 +1876,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_olt_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu2_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.Po
+	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_pptp_ethernet_uni.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_pptp_lct_uni.Po
@@ -1970,6 +1990,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_olt_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu2_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_dyn_pwr_mngmt_ctrl.Po
+	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_loop_detection.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_onu_g.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_pptp_ethernet_uni.Po
 	-rm -f ./$(DEPDIR)/libomciapi_a-omci_api_pptp_lct_uni.Po

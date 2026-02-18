@@ -46,6 +46,8 @@ __BEGIN_DECLS
     \param[in] outbound_td_ptr    Outbound TD pointer
     \param[in] inboud_td_ptr      Inbound TD pointer
     \param[in] mac_learning_depth MAC learning depth
+    \param[in] mc_umc_flag1       MC flood control flag 1 (tp_type 6 only)
+    \param[in] mc_umc_flag2       MC flood control flag 2 (tp_type 6 only)
 */
 enum omci_api_return
 omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
@@ -56,7 +58,9 @@ omci_api_mac_bridge_port_config_data_update(struct omci_api_ctx *ctx,
 					    uint16_t tp_ptr,
 					    uint16_t outbound_td_ptr,
 					    uint16_t inboud_td_ptr,
-					    uint8_t mac_learning_depth);
+					    uint8_t mac_learning_depth,
+					    uint8_t mc_umc_flag1,
+					    uint8_t mc_umc_flag2);
 
 /** Disable Managed Entity identifier mapping to driver index and clear
     corresponding driver structures

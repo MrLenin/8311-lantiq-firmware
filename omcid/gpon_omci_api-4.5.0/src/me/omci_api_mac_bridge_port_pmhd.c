@@ -66,4 +66,50 @@ omci_api_mac_bridge_port_pmhd_cnt_get(struct omci_api_ctx *ctx,
 	return OMCI_API_SUCCESS;
 }
 
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_total_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				uint64_t *forwarded_frame,
+				uint64_t *delay_exceed_discard,
+				uint64_t *mtu_exceed_discard,
+				uint64_t *received_frame,
+				uint64_t *received_and_discarded)
+{
+	return omci_api_mac_bridge_port_pmhd_cnt_get(ctx, me_id, true, false,
+						     forwarded_frame,
+						     delay_exceed_discard,
+						     mtu_exceed_discard,
+						     received_frame,
+						     received_and_discarded);
+}
+
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_mtu_exceeded_discard_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				const bool get_curr,
+				uint64_t *mtu_exceed_discard)
+{
+	uint64_t unused_fwd, unused_delay, unused_rx, unused_discard;
+
+	return omci_api_mac_bridge_port_pmhd_cnt_get(ctx, me_id,
+						     get_curr, false,
+						     &unused_fwd,
+						     &unused_delay,
+						     mtu_exceed_discard,
+						     &unused_rx,
+						     &unused_discard);
+}
+
+enum omci_api_return
+omci_api_mac_bridge_port_pmhd_mtu_exceeded_discard_total_cnt_get(
+				struct omci_api_ctx *ctx,
+				const uint16_t me_id,
+				uint64_t *mtu_exceed_discard)
+{
+	return omci_api_mac_bridge_port_pmhd_mtu_exceeded_discard_cnt_get(
+					ctx, me_id, true, mtu_exceed_discard);
+}
+
 /** @} */

@@ -17,9 +17,8 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 #include "me/omci_sip_agent_pmhd.h"
-#include "me/omci_api_sip_agent_pmhd.h"
 
-#if defined(INCLUDE_PM) && defined(INCLUDE_OMCI_ONU_VOIP)
+#ifdef INCLUDE_PM
 
 /** \addtogroup OMCI_SIP_AGENT_PMHD
    @{
@@ -29,55 +28,7 @@ static enum omci_error me_counters_get(struct omci_context *context,
 				       struct me *me,
 				       enum omci_pm_interval interval)
 {
-	struct omci_me_sip_agent_pmhd *me_data;
-	uint32_t  transactions, rx_invite_reqs , rx_invite_retrans,
-		  rx_noninvite_reqs, rx_noninvite_retrans, rx_response,
-		  rx_response_retrans, tx_invite_reqs, tx_invite_retrans,
-		  tx_noninvite_reqs, tx_noninvite_retrans, tx_response,
-		  tx_response_retrans;
-	enum omci_api_return ret;
-
-	dbg_in(__func__, "%p, %p, %lu", (void *)context, (void *)me, interval);
-
-	me_data = (struct omci_me_sip_agent_pmhd *)me->data;
-
-	ret = omci_api_sip_agent_pmhd_cnt_get(context->api,
-					      me->instance_id,
-					      &transactions,
-					      &rx_invite_reqs,
-					      &rx_invite_retrans,
-					      &rx_noninvite_reqs,
-					      &rx_noninvite_retrans,
-					      &rx_response,
-					      &rx_response_retrans,
-					      &tx_invite_reqs,
-					      &tx_invite_retrans,
-					      &tx_noninvite_reqs,
-					      &tx_noninvite_retrans,
-					      &tx_response,
-					      &tx_response_retrans);
-	if (ret != OMCI_API_SUCCESS) {
-		me_dbg_err(me, "DRV ERR(%d) Can't get counters", ret);
-
-		dbg_out_ret(__func__, OMCI_ERROR_DRV);
-		return OMCI_ERROR_DRV;
-	}
-
-	me_data->transactions = transactions;
-	me_data->rx_invite_reqs = rx_invite_reqs;
-	me_data->rx_invite_retrans = rx_invite_retrans;
-	me_data->rx_noninvite_reqs = rx_noninvite_reqs;
-	me_data->rx_noninvite_retrans = rx_noninvite_retrans;
-	me_data->rx_response = rx_response;
-	me_data->rx_response_retrans = rx_response_retrans;
-	me_data->tx_invite_reqs = tx_invite_reqs;
-	me_data->tx_invite_retrans = tx_invite_retrans;
-	me_data->tx_noninvite_reqs = tx_noninvite_reqs;
-	me_data->tx_noninvite_retrans = tx_noninvite_retrans;
-	me_data->tx_response = tx_response;
-	me_data->tx_response_retrans = tx_response_retrans;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
+	/* No telephony hardware — counters stay at zero */
 	return OMCI_SUCCESS;
 }
 
@@ -355,4 +306,4 @@ struct me_class me_sip_agent_pmhd_class = {
 
 /** @} */
 
-#endif
+#endif /* INCLUDE_PM */

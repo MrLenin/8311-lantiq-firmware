@@ -74,6 +74,16 @@ omci_api_fec_pmhd_thr_set(struct omci_api_ctx *ctx,
 			  uint32_t total_code_words,
 			  uint32_t fec_seconds);
 
+/** Retrieve cumulative (total) FEC PMHD counters */
+enum omci_api_return
+omci_api_fec_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				uint16_t me_id,
+				uint32_t *cnt_corrected_bytes,
+				uint32_t *cnt_corrected_code_words,
+				uint32_t *cnt_uncorrected_code_words,
+				uint32_t *cnt_total_code_words,
+				uint16_t *cnt_fec_seconds);
+
 /** @} */
 
 /** @} */

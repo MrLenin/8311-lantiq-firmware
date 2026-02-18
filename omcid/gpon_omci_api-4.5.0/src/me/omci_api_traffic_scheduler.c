@@ -104,6 +104,26 @@ omci_api_traffic_scheduler_create(struct omci_api_ctx *ctx,
 			goto sched_delete;
 	}
 
+	/* v7.5.1: create TBS for DS egress scheduler 0x43 (port-connected) */
+	if (scheduler_create.use_regular == 1 && scheduler_index == 0x43) {
+		uint32_t tbs_idx;
+		ret = id_map(ctx, MAPPER_PQUEUE_MEID_TO_TBS_IDX,
+			     0x80, &tbs_idx);
+		if (ret == OMCI_API_SUCCESS) {
+			tbs.index = tbs_idx;
+			tbs.tbs_scheduler_block_input = 0x218;
+			ret = dev_ctl(ctx->remote, ctx->onu_fd,
+				      FIO_GPE_TOKEN_BUCKET_SHAPER_CREATE,
+				      &tbs, sizeof(tbs));
+			if (ret != OMCI_API_SUCCESS)
+				DBG(OMCI_API_ERR,
+					("Can't create TBS for scheduler 0x43!\n"));
+		} else {
+			DBG(OMCI_API_ERR,
+				("Can't get TBS index for scheduler 0x43!\n"));
+		}
+	}
+
 	return OMCI_API_SUCCESS;
 
 sched_delete:
@@ -125,6 +145,19 @@ omci_api_traffic_scheduler_destroy(struct omci_api_ctx *ctx,
 	struct gpe_token_bucket_shaper tbs;
 
 	DBG(OMCI_API_MSG, ("%s\n" "   me_id=%u\n", __FUNCTION__, me_id));
+
+	/* v7.5.1: delete TBS for DS egress scheduler 0x43 */
+	if ((me_id & 0x7f) == 0x43) {
+		uint32_t tbs_idx;
+		if (index_get(ctx, MAPPER_PQUEUE_MEID_TO_TBS_IDX,
+			      0x80, &tbs_idx) == OMCI_API_SUCCESS) {
+			tbs.index = tbs_idx;
+			tbs.tbs_scheduler_block_input = 0x218;
+			dev_ctl(ctx->remote, ctx->onu_fd,
+				FIO_GPE_TOKEN_BUCKET_SHAPER_DELETE,
+				&tbs, sizeof(tbs));
+		}
+	}
 
 	scheduler.index = (uint8_t)scheduler_index;
 

@@ -59,6 +59,12 @@ omci_api_mac_bridge_pmhd_thr_set(struct omci_api_ctx *ctx,
 				 uint16_t me_id,
 				 uint32_t cnt_bridge_learning_discard);
 
+/** Retrieve cumulative (total) MAC Bridge PMHD counters */
+enum omci_api_return
+omci_api_mac_bridge_pmhd_total_cnt_get(struct omci_api_ctx *ctx,
+				       uint16_t me_id,
+				       uint32_t *cnt_bridge_learning_discard);
+
 /** @} */
 
 /** @} */

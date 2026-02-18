@@ -18,41 +18,10 @@
 #include "omci_me_handlers.h"
 #include "me/omci_voip_media_profile.h"
 
-#ifdef INCLUDE_OMCI_ONU_VOIP
 
 /** \addtogroup OMCI_ME_VOIP_MEDIA_PROFILE
    @{
 */
-
-static enum omci_error me_validate(struct omci_context *context,
-				   const struct me_class *me_class,
-				   uint16_t *exec_mask,
-				   const void *data)
-{
-	dbg_in(__func__, "%p, %p, %p, %p", (void *)context, (void *)me_class,
-	       (void *)exec_mask, (void *)data);
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
-	return OMCI_SUCCESS;
-}
-
-static enum omci_error me_update(struct omci_context *context,
-				 struct me *me,
-				 void *data,
-				 uint16_t attr_mask)
-{
-	struct omci_me_voip_media_profile *upd_data;
-	struct omci_me_voip_media_profile *me_data;
-
-	dbg_in(__func__, "%p, %p, %p, 0x%04x", (void *)context,
-	       (void *)me, (void *)data, attr_mask);
-
-	upd_data = (struct omci_me_voip_media_profile *) data;
-	me_data = (struct omci_me_voip_media_profile *) me->data;
-
-	dbg_out_ret(__func__, OMCI_SUCCESS);
-	return OMCI_SUCCESS;
-}
 
 static enum omci_error test_action_handle(struct omci_context *context,
 					  struct me *me,
@@ -277,9 +246,9 @@ struct me_class me_voip_media_profile_class = {
 	/* Shutdown Handler */
 	NULL,
 	/* Validate Handler */
-	me_validate,
+	default_me_validate,
 	/* Update Handler */
-	me_update,
+	default_me_update,
 	/* Table Attribute Copy Handler */
 	NULL,
 	/* Table Attribute Operations Handler */
@@ -315,5 +284,3 @@ struct me_class me_voip_media_profile_class = {
 };
 
 /** @} */
-
-#endif
