@@ -304,6 +304,12 @@ struct omci_api_ctx {
 	struct omci_api_timer *timer[OMCI_API_TIMER_MAX];
 	/** UNI to LAN IDs mapping */
 	int uni2lan[ONU_GPE_MAX_UNI];
+	/** v7.5.1: ANI exception meter state (ctx+0x3b38/0x3b3c in stock).
+	    Guards against double-creation if omci_api_start() re-enters. */
+	bool ani_meter_exists;
+	uint32_t ani_meter_idx;
+	/** v7.5.1: PLOAM emergency stop state from GTC config (ctx+0x3b51 in stock) */
+	bool ploam_emergency_stop;
 };
 
 #ifdef INCLUDE_OMCI_API_DMALLOC

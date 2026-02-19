@@ -35,20 +35,21 @@
 
 /*#define LOCAL_ETH*/
 
-/* Diagnostic: check SERDES link status */
+/* Diagnostic: check SERDES link status via full config read (v7.5.1) */
 static void _diag_serdes(struct omci_api_ctx *ctx, const char *label)
 {
-	union lan_port_status_get_u st;
+	union lan_port_cfg_get_u cfg;
 	FILE *f;
-	memset(&st, 0, sizeof(st));
-	st.in.index = 0;
-	if (dev_ctl(0, ctx->onu_fd, FIO_LAN_PORT_STATUS_GET,
-		    &st, sizeof(st)) == 0) {
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.in.index = 0;
+	if (dev_ctl(0, ctx->onu_fd, FIO_LAN_PORT_CFG_GET,
+		    &cfg, sizeof(cfg)) == 0) {
 		f = fopen("/tmp/8311_serdes.log", "a");
 		if (f) {
-			fprintf(f, "SERDES[%s]: enable=%u link=%u\n",
-				label, st.out.uni_port_en,
-				st.out.link_status);
+			fprintf(f, "SERDES[%s]: enable=%u speed=%u duplex=%u\n",
+				label, cfg.out.uni_port_en,
+				cfg.out.speed_mode,
+				cfg.out.duplex_mode);
 			fclose(f);
 		}
 	}
@@ -437,6 +438,23 @@ enum omci_api_return omci_api_init(struct omci_api_init_data *init,
 		}
 	}
 
+	/* v7.5.1: Read GTC config to check PLOAM emergency stop state.
+	   Stock does this before timer_init + event_handling_start. The
+	   emergency_stop_state field indicates if ONU is in O7 state. */
+	{
+		struct gtc_cfg gtc_cfg;
+		memset(&gtc_cfg, 0, sizeof(gtc_cfg));
+		if (dev_ctl(ctx->remote, ctx->onu_fd, FIO_GTC_CFG_GET,
+			    &gtc_cfg, sizeof(gtc_cfg)) == 0) {
+			ctx->ploam_emergency_stop =
+				(gtc_cfg.emergency_stop_state != 0);
+			DLOG("api_create: GTC_CFG_GET ok emerg_stop=%u",
+			     ctx->ploam_emergency_stop);
+		} else {
+			DLOG("api_create: GTC_CFG_GET failed (non-fatal)");
+		}
+	}
+
 	ALOG("[omcid] api: timer_init\n");
 	if (omci_api_timer_init(ctx) != OMCI_API_SUCCESS) {
 		DBG(OMCI_API_ERR, ("Can't initialize timer handling\n"));
@@ -695,26 +713,36 @@ line_en:
 		DLOG("api_start: VUNI2 queues 0xb0-0xb7 weight=0x200");
 	}
 
-	/* ANI exception meter */
-	memset(&meter_cfg, 0, sizeof(meter_cfg));
-	meter_cfg.cir = ONU_GPE_QOSL * 1000;
-	meter_cfg.pir = ONU_GPE_QOSL * 1000;
-	meter_cfg.cbs = ONU_GPE_QOSL * 30;
-	meter_cfg.pbs = ONU_GPE_QOSL * 30;
-	meter_cfg.mode = GPE_METER_RFC2698;
-	meter_cfg.color_aware = 0;
+	/* ANI exception meter — v7.5.1 idempotency guard (ctx+0x3b38 in stock).
+	   Stock checks existence flag before creating; logs "ANI_exception_meter_exists"
+	   and returns error 3 if already created. Prevents meter leak on re-entry. */
+	if (ctx->ani_meter_exists) {
+		DLOG("api_start: ANI exception meter already exists idx=%u",
+		     ctx->ani_meter_idx);
+	} else {
+		memset(&meter_cfg, 0, sizeof(meter_cfg));
+		meter_cfg.cir = ONU_GPE_QOSL * 1000;
+		meter_cfg.pir = ONU_GPE_QOSL * 1000;
+		meter_cfg.cbs = ONU_GPE_QOSL * 30;
+		meter_cfg.pbs = ONU_GPE_QOSL * 30;
+		meter_cfg.mode = GPE_METER_RFC2698;
+		meter_cfg.color_aware = 0;
 
-	ret = omci_api_meter_create(ctx, &meter_idx);
-	if (ret != 0) {
-		DLOG("api_start: ani_meter_create FAILED ret=%d", ret);
-		goto err;
+		ret = omci_api_meter_create(ctx, &meter_idx);
+		if (ret != 0) {
+			DLOG("api_start: ani_meter_create FAILED ret=%d", ret);
+			goto err;
+		}
+		meter_cfg.index = meter_idx;
+		ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_METER_CFG_SET,
+			      &meter_cfg, sizeof(meter_cfg));
+		DLOG("api_start: ani_meter idx=%u cfg ret=%d", meter_idx, ret);
+		if (ret != 0)
+			goto err;
+
+		ctx->ani_meter_exists = true;
+		ctx->ani_meter_idx = meter_idx;
 	}
-	meter_cfg.index = meter_idx;
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_METER_CFG_SET,
-		      &meter_cfg, sizeof(meter_cfg));
-	DLOG("api_start: ani_meter idx=%u cfg ret=%d", meter_idx, ret);
-	if (ret != 0)
-		goto err;
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_GET,
 			  &constants, sizeof(constants));
@@ -723,12 +751,13 @@ line_en:
 	if (ret != 0)
 		goto err;
 
-	constants.ani_exception_meter_id = meter_idx;
+	constants.ani_exception_meter_id = ctx->ani_meter_idx;
 	constants.ani_exception_enable = 1;
 
 	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_SCE_CONSTANTS_SET,
 				  &constants, sizeof(constants));
-	DLOG("api_start: SCE_CONSTANTS_SET ani_meter=%u ret=%d", meter_idx, ret);
+	DLOG("api_start: SCE_CONSTANTS_SET ani_meter=%u ret=%d",
+	     ctx->ani_meter_idx, ret);
 	if (ret != 0)
 		goto err;
 

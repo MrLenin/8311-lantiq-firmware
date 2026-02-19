@@ -219,7 +219,237 @@ K4: 146, 147, 149, 283 (new v7.5.1 MEs from G.988 spec)
 
 ---
 
-## 9. Methodology for Future Comparisons
+## 9. Kernel MIB Mirror (TODO)
+
+**Status**: Not implemented. Identified via omci_logger trace comparison.
+
+### What Stock Does
+
+The stock v7.5.1 binary pushes MIB template entries to the kernel driver during
+`me_init()` via a dedicated ioctl. These appear in the omci_logger trace as:
+
+```
+[...] ? TBL 31 sz=0 len=0                    ← kernel MIB reset (clear previous entries)
+[...] B ??? 01 sz=644 len=644 [00 04 02 14 41 4c 43 4c ...]   ← ME 4 (ONU-G), vendor "ALCL"
+[...] B ??? 01 sz=644 len=644 [00 14 02 00 42 56 4c 33 ...]   ← ME 257 (ONU2-G), equip ID
+[...] B ??? 01 sz=644 len=644 [00 04 02 14 41 4c 43 4c ...]   ← ME 4 updated with equip string
+[...] B ??? 01 sz=644 len=644 [00 04 02 14 41 4c 43 4c ...]   ← ME 4 after port init complete
+```
+
+The ioctl magic is unknown to our `omci_logger` (appears as `???`). Each entry is
+exactly 644 bytes. The payload starts with `class_id(2) + flags(2)` followed by the
+full ME attribute data (padded to 640 bytes).
+
+### Key Observations
+
+1. **`TBL 31` reset happens before any MIB entries** — the kernel MIB table is cleared
+   first, then populated incrementally during init.
+
+2. **Entries are interleaved with port init** — they're not a bulk copy. MIB entries appear
+   at specific points during initialization:
+   - First two entries immediately after SCE constants read (before port setup)
+   - Third entry after GPE config update (between GTC config and optic calibration)
+   - Fourth entry after LAN port 0 initialization completes
+
+   This interleaving means the kernel receives ME data as each ME is created, not as
+   a post-init dump. The `me_init()` handler for each ME likely calls the push ioctl.
+
+3. **Identity MEs are pushed** — ME 4 (ONU-G: vendor "ALCL") and ME 257 (ONU2-G:
+   equipment ID "BVL3A5HNAAG010SP") are the observed entries. These are exactly the
+   MEs needed for PLOAM fast-path identity responses during ranging.
+
+### What Our Build Does
+
+Nothing. Our v4.5.0 code loads MIBs entirely in userspace via `mib_create()` →
+`me_create()`. There is no kernel MIB mirror. The kernel driver has no copy of ME data.
+
+### Why This Matters
+
+The kernel MIB mirror likely serves multiple purposes:
+
+- **PLOAM fast-path**: During ONU ranging, the OLT queries identity attributes (serial
+  number, equipment ID) with tight timing constraints. If the kernel can respond directly
+  from its MIB mirror without round-tripping to userspace omcid, it eliminates latency
+  that could cause ranging timeouts.
+
+- **MIB upload acceleration**: When the OLT requests a full MIB upload (which can be
+  hundreds of MEs), the kernel can serve the data directly, reducing the number of
+  userspace/kernel transitions.
+
+- **Crash resilience**: If omcid crashes or is restarted, the kernel retains the last
+  known MIB state and can continue responding to OLT queries during the restart window.
+
+### Investigation Needed
+
+1. **Identify the ioctl**: The magic number for `B ??? 01` and `? TBL 31` is unknown.
+   Need to check v7.5.1 kernel module symbols or decompile the stock `omcid` MIB push
+   call sites to find the ioctl definitions.
+
+2. **Determine if essential**: Test on a real OLT to see if the absence of kernel MIB
+   mirror causes ranging failures or MIB upload issues. Bench test cannot evaluate this
+   since there's no OLT.
+
+3. **Struct layout**: The 644-byte entry format needs reverse engineering. First 4 bytes
+   are `class_id(2) + flags(2)`, remaining 640 bytes contain attribute data.
+
+---
+
+## 10. Ioctl Trace Comparison: Stock vs Custom Init
+
+**Source**: `omci_trace-stock.log` (637 lines) vs `omci_trace-custom.log` (553 lines)
+
+Both traces captured via `omci_logger` on the same hardware (G-010S-P) with no fiber/OLT
+connected. Stock = shipping v7.5.1 binary. Custom = our v4.5.0-based build (commit 091617f).
+
+### 10a. Init Sequence Order
+
+| Step | Stock | Custom | Difference |
+|------|-------|--------|------------|
+| 1 | `R GPE 61` (config read) | `R GPE 61` (config read) | **Same** |
+| 2 | `R ONU 11` (portmap) | `R ONU 11` (portmap) | **Same** |
+| 3 | **`R GTC 02`** (GTC config read) | `W EVT c9` (event setup) | **Different order** |
+| 4 | `W EVT c9` (event setup) | `W GPE 78` (flush) | Stock reads GTC before EVT |
+| 5 | `W GPE 78` (flush) | `W ??? 01` (download enable) | |
+| 6 | `W ??? 01` (download enable) | `W ONU 0b` (ONU write) | |
+| 7 | `W ONU 0b` (ONU write) | `W GTC 0b sz=40` | Custom writes GTC here |
+| 8 | **`? TBL 31`** (kernel MIB reset) | — | **Missing from custom** |
+| 9 | **`R TBL 24`** (SCE constants) | — | Stock reads SCE early |
+| 10 | **`B ??? 01`** x2 (MIB push) | — | **Missing from custom** |
+| 11 | `R GPE 02 / W GPE 01` | `W GPE 26` (GPE write) | |
+| 12 | **`W ??? 00 sz=40`** | — | **Unknown 40B write, missing** |
+| 13 | `R GPE 28 / W GPE 26` | `R GTC 02 / W GTC 01` | Stock reads GPE 28 first |
+| 14 | **`B ??? 01`** (MIB push #3) | `R GPE 02 / W GPE 01` | |
+| 15 | `R GTC 02 / W GTC 01` | GPE port setup | |
+| 16 | `R GPE 02 / W GPE 01` | LAN port 0 init | |
+| 17 | **Optic calibration** (5 ops) | — | **Missing from custom init** |
+| 18 | GPE port setup | Queue init (0x80-0x87) | |
+| 19 | LAN port 0 init | Scheduler init (0-7) | |
+| 20 | **`B ??? 01`** (MIB push #4) | Traffic schedulers | |
+| 21 | **LAN ports 1-3 init** | ANI queues | |
+| 22 | Queue init (0x80-0x87) | Exception config table | |
+| 23 | Scheduler init (0-7) | mib_copy (incl. optic reads) | |
+| 24 | Traffic schedulers | Error probes, alarms | |
+| 25 | ANI queues | | |
+| 26 | SCE constants write | | |
+| 27 | mib_copy | | |
+| 28 | Error probes, alarms | | |
+
+### 10b. Optic Calibration Timing
+
+**Stock** performs optic driver calibration during early init (before any port setup):
+```
+R ??? 03 sz=34   ← Read optic calibration data
+R ??? 01 sz=22   ← Read optic RSSI calibration
+W ??? 00 sz=22   ← Write adjusted calibration (byte 16-17 changed: 00 00 → a1 e8)
+R ??? 0d sz=24   ← Read BOSA TX data
+W ??? 02 sz=34   ← Write back calibration (last 4 bytes changed: 08 e2 → 2a b9 01 e8)
+```
+
+**Custom** reads optic data only during `mib_copy` (ANI-G attribute getters):
+```
+R ??? 0c sz=32   ← BOSA RX read (v7.5.1 struct, 32 bytes)
+R ??? 0d sz=24   ← BOSA TX read
+```
+
+**Impact**: Stock's early calibration write-back (`W ??? 00` and `W ??? 02`) adjusts the
+optic driver's internal calibration constants before any data path operations. This
+ensures accurate power readings from the first measurement. Our code reads raw values
+during mib_copy but never performs the calibration write-back — the optic driver uses
+whatever defaults the kernel module loaded at insmod time.
+
+This is `FIO_MM_CALIBRATION_CFG_SET` (cmd 0/2) and `FIO_MM_CALIBRATION_CFG_GET` (cmd 1/3).
+v4.5.0 `omci_api_ani_g.c` has `_calibration_init()` but it may not match stock behavior.
+**Needs decompilation to verify.**
+
+### 10c. Repeated Port 0 Init Passes (CORRECTED)
+
+**Original analysis was wrong.** Stock does NOT initialize 4 different LAN ports.
+ALL LAN ioctl operations in the stock trace have `index = 0` (port 0). What appeared
+to be 4-port init was actually 3 passes of `_config()` + `_enabled()` on the same port.
+
+**Stock** performs 3 passes of `_config()` + `_enabled()` on port 0 (lines 37-93):
+- Pass 1 (L37-56): Full init — `_config()` + `_enabled()` with PORT_ENABLE, table valid/auth, 802.1x
+- Pass 2 (L58-74): Redundant — same `_config()` + `_enabled()`, but PORT_ENABLE skipped
+  (already enabled), table data unchanged. Preceded by kernel MIB push (L57).
+- Pass 3 (L75-93): Redundant — same pattern, preceded by 3× GTC TOD reads (L85-87).
+
+**Custom** performs 1 pass on port 0 (lines 23-39), plus 3× diagnostic STATUS_GET reads.
+
+**Why stock has multiple passes:** Other MEs (UNI-G ME 264, MAC Bridge Port Config ME 47)
+cascade back into the PPTP UNI `_config()` + `_enabled()` functions during their own
+`me_init()`. This is an artifact of the stock ME framework's interconnected init — NOT
+intentional multi-port init.
+
+**Impact: NONE.** The functional table state is established entirely in pass 1 (valid bit,
+PORT_ENABLE, auth bit). Passes 2-3 read the table and write it back unchanged. Our single
+pass produces the same final hardware state. Verified by comparing GPE table data across
+all stock table writes — data words are identical after pass 1.
+
+### 10d. LAN Port State Polling Method
+
+**Stock** uses `B LAN 04 sz=52` (FIO_LAN_PORT_CFG_GET — full 52-byte config struct):
+```
+B LAN 04 sz=52 [...00 00 00 01 ff ff ff ff 00 00 00 04 00 00 00 0f...]
+```
+
+**Custom** uses `B LAN 09 sz=20` (FIO_LAN_PORT_STATE_GET — 20-byte state-only struct):
+```
+B LAN 09 sz=20 [...00 00 00 0f 00 00 00 01 00 00 00 01...]
+```
+
+**Impact**: Both retrieve link state information for alarm evaluation. The stock approach
+reads the full config (52 bytes) which includes PHY configuration, speed, duplex — more
+data than needed for state polling but ensures config consistency. Our approach reads
+only the state struct (20 bytes), which is more efficient but retrieves less data. The
+key field (link state bits) is present in both responses.
+
+Both produce the same alarm behavior: LAN-LOS alarm raised on ME 11.257, cleared ~5s later.
+
+### 10e. TCONT Create Logger Artifact (CORRECTED)
+
+**Original analysis was wrong.** GPE cmd 0x1b is `FIO_GPE_TCONT_CREATE` (char[8]),
+NOT `FIO_GPE_SCHEDULER_CFG_SET` (cmd 0x0E, struct gpe_scheduler_cfg = 12 bytes).
+
+**Stock**: `W GPE 1b sz=8 len=8 [id(4) + policy(4)]`
+**Custom**: `W GPE 1b sz=8 len=16 [id(4) + policy(4) + 8 extra bytes]`
+
+Both use the same 8-byte TCONT create ioctl (`FIO_GPE_TCONT_CREATE`). The `sz=8` field
+is the kernel ioctl size (correct in both). The `len=16` in custom is an omci_logger
+artifact — the logger reads 16 bytes from the ioctl buffer, but the kernel only copies
+`sz=8` bytes via `copy_from_user`. The extra 8 bytes (`77 7c 53 a0 00 ff 00 01`) are
+uninitialized stack data beyond the buffer boundary.
+
+**Impact: NONE.** Both stock and custom pass identical 8-byte data to the same ioctl.
+The kernel ignores bytes beyond `sz=8`. No code change needed.
+
+### 10f. SCE Constants Timing
+
+**Stock**: Reads SCE constants (`R TBL 24 sz=176`) early during init (line 15), before
+port setup. Writes them back (`W TBL 25 sz=176`) much later, after mib_copy (lines 614-617).
+
+**Custom**: Does not read SCE constants during early init. Writes them during the
+scheduler/traffic descriptor init phase (not shown in first 100 lines, occurs later).
+
+**Impact**: The early SCE read in stock may be checking for pre-existing GPE state or
+validating the constants before port initialization begins.
+
+### 10g. Timing Summary
+
+| Phase | Stock (s) | Custom (s) | Notes |
+|-------|-----------|------------|-------|
+| Init → port 0 complete | 0.13 | 0.07 | Custom faster (1 pass vs 3) |
+| Port 0 → queues done | 0.03 | 0.12 | Custom slower (fewer redundant passes) |
+| Queues → mib_copy | 0.12 | 0.45 | Custom slower (more scheduler ops) |
+| mib_copy → alarm | 0.4 | 0.5 | Comparable |
+| Alarm → clear | 4.8 | 4.6 | Comparable (~5s timeout) |
+| **Total init** | **1.9** | **~1.6*** | *Excludes logger reattach gap |
+
+Both traces show a ~5-second gap between LAN-LOS alarm assertion and clearance, matching
+the expected alarm debounce/holdoff timer in the event handler.
+
+---
+
+## 11. Methodology for Future Comparisons
 
 For systematic binary-vs-source comparison at scale:
 

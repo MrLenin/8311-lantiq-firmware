@@ -90,7 +90,7 @@ static void omci_api_goi_handle(struct omci_api_ctx *ctx)
 static void omci_api_onu_event_link_state_change(struct omci_api_ctx *ctx,
 						 struct onu_fifo_data *fifo_data)
 {
-	union lan_port_status_get_u port_status;
+	union lan_port_cfg_get_u port_cfg;
 	struct omci_api_event event;
 	uint32_t me_id;
 	int ret;
@@ -99,29 +99,32 @@ static void omci_api_onu_event_link_state_change(struct omci_api_ctx *ctx,
 	event.link_state.state =
 		ONU_OMCI_NTOH32(fifo_data->data.link_state.new);
 
-	port_status.in.index = ONU_OMCI_NTOH32(fifo_data->data.link_state.port);
+	/* v7.5.1: use FIO_LAN_PORT_CFG_GET (full 52-byte config) instead of
+	   FIO_LAN_PORT_STATUS_GET (20-byte state). The CFG_GET path reads PHY
+	   registers more directly and avoids stale state issues. */
+	port_cfg.in.index = ONU_OMCI_NTOH32(fifo_data->data.link_state.port);
 	ret = dev_ctl(ctx->remote, ctx->onu_fd,
-		      FIO_LAN_PORT_STATUS_GET,
-		      &port_status,
-		      sizeof(port_status));
+		      FIO_LAN_PORT_CFG_GET,
+		      &port_cfg,
+		      sizeof(port_cfg));
 	if (ret != OMCI_API_SUCCESS) {
-		DBG(OMCI_API_ERR, ("Can't get port #%d status "
+		DBG(OMCI_API_ERR, ("Can't get port #%d config "
 				   "on link state event\n",
 				   ONU_OMCI_NTOH32(fifo_data->data.link_state.
 				   port)));
 		return;
 	}
 
-	switch (port_status.out.link_status) {
-		case LAN_PHY_STATUS_10_UP:
+	switch (port_cfg.out.speed_mode) {
+		case LAN_MODE_SPEED_10:
 			event.link_state.config_ind = 1;
 			break;
 
-		case LAN_PHY_STATUS_100_UP:
+		case LAN_MODE_SPEED_100:
 			event.link_state.config_ind = 2;
 			break;
 
-		case LAN_PHY_STATUS_1000_UP:
+		case LAN_MODE_SPEED_1000:
 			event.link_state.config_ind = 3;
 			break;
 
@@ -130,7 +133,7 @@ static void omci_api_onu_event_link_state_change(struct omci_api_ctx *ctx,
 			break;
 	}
 
-	if (port_status.out.phy_duplex == LAN_PHY_MODE_DUPLEX_HALF)
+	if (port_cfg.out.duplex_mode == LAN_PHY_MODE_DUPLEX_HALF)
 		event.link_state.config_ind |= 0x10;
 
 	ret = id_get(ctx, MAPPER_PPTPETHUNI_MEID_TO_IDX,
