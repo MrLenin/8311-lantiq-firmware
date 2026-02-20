@@ -151,11 +151,11 @@ static enum omci_api_return ext_vlan_modify(struct omci_api_ctx *ctx,
 	return OMCI_API_SUCCESS;
 }
 
-static enum omci_api_return ext_vlan_idx_get(struct omci_api_ctx *ctx,
-					     uint16_t me_id,
-					     bool ds,
-					     bool mc_support,
-					     uint32_t *ext_vlan_idx)
+enum omci_api_return ext_vlan_idx_get(struct omci_api_ctx *ctx,
+				     uint16_t me_id,
+				     bool ds,
+				     bool mc_support,
+				     uint32_t *ext_vlan_idx)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	enum mapper_id_type id_type = ds ?
@@ -321,7 +321,7 @@ static enum omci_api_return rule_delete(struct omci_api_ctx *ctx,
 	return OMCI_API_SUCCESS;
 }
 
-static enum omci_api_return rule_clear(struct omci_api_ctx *ctx,
+enum omci_api_return ext_vlan_rule_clear(struct omci_api_ctx *ctx,
 					const bool ds,
 					uint32_t ext_vlan_idx)
 {
@@ -352,12 +352,12 @@ static enum omci_api_return rule_clear(struct omci_api_ctx *ctx,
 	return OMCI_API_SUCCESS;
 }
 
-static enum omci_api_return rule_add(struct omci_api_ctx *ctx,
-				     const bool ds,
-				     const uint32_t ext_vlan_idx,
-				     const uint16_t rule_idx,
-				     const uint16_t omci_idx,
-				     const struct vlan_filter *f)
+enum omci_api_return ext_vlan_rule_add(struct omci_api_ctx *ctx,
+				      const bool ds,
+				      const uint32_t ext_vlan_idx,
+				      const uint16_t rule_idx,
+				      const uint16_t omci_idx,
+				      const struct vlan_filter *f)
 {
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	union gpe_ext_vlan_get_u ext_vlan;
@@ -368,7 +368,7 @@ static enum omci_api_return rule_add(struct omci_api_ctx *ctx,
 	struct gpe_vlan_treatment_table new_treat = { 0 };
 	bool overridden = false;
 
-	DBG(OMCI_API_MSG, ("rule_add ext_vlan_idx: %d rule_idx: %d omci_idx: %d\n",
+	DBG(OMCI_API_MSG, ("ext_vlan_rule_add ext_vlan_idx: %d rule_idx: %d omci_idx: %d\n",
 						ext_vlan_idx, rule_idx, omci_idx));
 
 	memset(&ext_vlan, 0, sizeof(ext_vlan));
@@ -883,8 +883,8 @@ omci_api_extended_vlan_config_data_tag_oper_table_entry_add(struct omci_api_ctx
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
 
-		ret = rule_add(ctx, (bool)i, ext_vlan_idx,
-			       (uint16_t) entry_idx, omci_idx, &flt);
+		ret = ext_vlan_rule_add(ctx, (bool)i, ext_vlan_idx,
+				       (uint16_t) entry_idx, omci_idx, &flt);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
 	}
@@ -994,8 +994,8 @@ omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
 	if (ret != OMCI_API_SUCCESS)
 		return ret;
 
-	ret = rule_add(ctx, ds, ext_vlan_idx,
-		       (uint16_t) entry_idx, omci_idx, &flt);
+	ret = ext_vlan_rule_add(ctx, ds, ext_vlan_idx,
+			       (uint16_t) entry_idx, omci_idx, &flt);
 	if (ret != OMCI_API_SUCCESS)
 		return ret;
 
@@ -1082,6 +1082,112 @@ omci_api_extended_vlan_config_data_iop_ds_entry_add(
 }
 
 enum omci_api_return
+ext_vlan_shadow_ds_create_and_link(struct omci_api_ctx *ctx,
+				   uint16_t mapper_me_id,
+				   uint32_t *shadow_idx)
+{
+	enum omci_api_return ret;
+	uint32_t mapper_hw_idx;
+	uint32_t gpix[8];
+	unsigned int k;
+
+	DBG(OMCI_API_MSG, ("%s mapper_me_id=0x%04x\n",
+			   __FUNCTION__, mapper_me_id));
+
+	/* 1. Allocate shadow DS table using mapper ME as the key */
+	ret = ext_vlan_idx_get(ctx, mapper_me_id, true/*ds*/,
+			       false/*no mc*/, shadow_idx);
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR, ("%s ext_vlan_idx_get failed ret=%d\n",
+				   __FUNCTION__, ret));
+		return ret;
+	}
+
+	/* 2. Get mapper hardware index */
+	ret = index_get(ctx, MAPPER_DOT1PMAPPER_MEID_TO_IDX,
+			mapper_me_id, &mapper_hw_idx);
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR, ("%s mapper index_get failed ret=%d\n",
+				   __FUNCTION__, ret));
+		return ret;
+	}
+
+	/* 3. Get GEM ports under this mapper */
+	ret = omci_api_pmapper_get(ctx, (uint16_t)mapper_hw_idx,
+				   gpix, NULL, NULL, NULL);
+	if (ret != OMCI_API_SUCCESS) {
+		DBG(OMCI_API_ERR, ("%s pmapper_get failed ret=%d\n",
+				   __FUNCTION__, ret));
+		return ret;
+	}
+
+	/* 4. Link shadow DS table to each GEM port */
+	for (k = 0; k < 8; k++) {
+		if (gpix[k] == 255 || gpix[k] == 0xFFFF)
+			continue;
+		ret = omci_api_gem_port_ds_ext_vlan_modify(ctx,
+					(uint16_t)gpix[k], true,
+					(uint8_t)*shadow_idx);
+		if (ret != OMCI_API_SUCCESS) {
+			DBG(OMCI_API_ERR, ("%s gem_port_ds link failed "
+					   "gpix=%u ret=%d\n",
+					   __FUNCTION__, gpix[k], ret));
+			return ret;
+		}
+	}
+
+	DBG(OMCI_API_MSG, ("%s mapper_me_id=0x%04x -> shadow_idx=%u\n",
+			   __FUNCTION__, mapper_me_id, *shadow_idx));
+
+	return OMCI_API_SUCCESS;
+}
+
+enum omci_api_return
+ext_vlan_shadow_ds_destroy(struct omci_api_ctx *ctx,
+			   uint16_t mapper_me_id)
+{
+	enum omci_api_return ret;
+	uint32_t ext_vlan_idx;
+	uint32_t mapper_hw_idx;
+	uint32_t gpix[8];
+	unsigned int k;
+
+	DBG(OMCI_API_MSG, ("%s mapper_me_id=0x%04x\n",
+			   __FUNCTION__, mapper_me_id));
+
+	/* 1. Get shadow DS table index */
+	ret = index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_EXTVLANIDX_DS,
+			mapper_me_id, &ext_vlan_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return OMCI_API_SUCCESS;  /* no shadow = nothing to destroy */
+
+	/* 2. Clear all rules from the shadow table */
+	ext_vlan_rule_clear(ctx, true, ext_vlan_idx);
+
+	/* 3. Unlink from GEM ports — set DS ExtVLAN to disabled (0, false) */
+	ret = index_get(ctx, MAPPER_DOT1PMAPPER_MEID_TO_IDX,
+			mapper_me_id, &mapper_hw_idx);
+	if (ret == OMCI_API_SUCCESS) {
+		ret = omci_api_pmapper_get(ctx, (uint16_t)mapper_hw_idx,
+					   gpix, NULL, NULL, NULL);
+		if (ret == OMCI_API_SUCCESS) {
+			for (k = 0; k < 8; k++) {
+				if (gpix[k] == 255 || gpix[k] == 0xFFFF)
+					continue;
+				omci_api_gem_port_ds_ext_vlan_modify(ctx,
+						(uint16_t)gpix[k], false, 0);
+			}
+		}
+	}
+
+	/* 4. Remove resource mapping and delete GPE table */
+	id_remove(ctx, MAPPER_EXTVLANCD_MEID_TO_EXTVLANIDX_DS, mapper_me_id);
+	ext_vlan_delete(ctx, ext_vlan_idx);
+
+	return OMCI_API_SUCCESS;
+}
+
+enum omci_api_return
 omci_api_extended_vlan_config_data_tag_oper_table_entry_remove(struct
 							       omci_api_ctx
 							       *ctx,
@@ -1136,7 +1242,7 @@ omci_api_extended_vlan_config_data_tag_oper_table_clear(struct omci_api_ctx
 				       &ext_vlan_idx);
 		if (ret != OMCI_API_SUCCESS)
 			return ret;
-		rule_clear(ctx, (bool)i, ext_vlan_idx);
+		ext_vlan_rule_clear(ctx, (bool)i, ext_vlan_idx);
 	}
 
 

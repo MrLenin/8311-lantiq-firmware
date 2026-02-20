@@ -21,6 +21,7 @@
 #include "me/omci_extended_vlan_config_data.h"
 #include "me/omci_mac_bridge_port_config_data.h"
 #include "me/omci_api_extended_vlan_config_data.h"
+#include "me/omci_api_extended_vlan_table.h"
 
 /** IOP option bit for US pre-scan (generic vendor path) */
 #define OMCI_IOP_OPTION_4  4
@@ -69,6 +70,16 @@ struct rx_vlan_oper_list_entry {
 	struct rx_vlan_oper_list_entry *prev;
 };
 
+/** Maximum number of shadow DS tables (= max mappers we can split across) */
+#define MAX_SHADOW_DS_TABLES 8
+
+/** Shadow DS table info for dual-VLAN fix */
+struct shadow_ds_info {
+	uint16_t mapper_me_id;     /**< ME 130 instance used as ext_vlan key */
+	uint32_t ext_vlan_idx;     /**< Allocated GPE ExtVLAN table index */
+	bool     active;           /**< True if this shadow is in use */
+};
+
 /** Internal data */
 struct internal_data {
 	/** Received frame VLAN tagging operation table (list head) */
@@ -80,6 +91,10 @@ struct internal_data {
 	/** Number of default entries in Received frame VLAN tagging
 	    operation table */
 	size_t def_entries_num;
+
+	/** Shadow DS tables for dual-VLAN DS split fix */
+	struct shadow_ds_info shadow_ds[MAX_SHADOW_DS_TABLES];
+	uint8_t shadow_ds_count;
 };
 
 /** Maximum number of Ext VLAn default rules*/
@@ -298,6 +313,163 @@ static inline void dump_entry(struct me *me,
 		entry->treatment_inner_prio,
 		entry->treatment_inner_vid,
 		entry->treatment_inner_tpid_de);
+}
+
+/** DS collision group: multiple filter VIDs mapping to the same
+    treatment VID in the downstream direction */
+struct ds_collision_group {
+	uint16_t treatment_vid;       /**< Shared treatment VID */
+	uint16_t filter_vids[8];      /**< Conflicting filter VIDs */
+	uint16_t mapper_me_ids[8];    /**< Assigned mapper ME 130 instances */
+	uint8_t  count;               /**< Number of conflicting VIDs */
+};
+
+/** Detect DS many-to-one collisions in the sorted rule array.
+
+   Scans for non-default, non-discard entries where different filter_inner_vid
+   values map to the same treatment_inner_vid in the DS direction.
+
+   \param[in]  sort_array   Sorted rule pointers
+   \param[in]  entries_num  Number of entries
+   \param[out] groups       Output collision groups
+   \param[in]  max_groups   Size of groups array
+   \return Number of collision groups found
+*/
+static int detect_ds_collisions(
+	struct omci_rx_vlan_oper_table **sort_array,
+	size_t entries_num,
+	struct ds_collision_group *groups,
+	int max_groups)
+{
+	int num_groups = 0;
+	size_t i, j;
+	int g, found;
+
+	for (i = 0; i < entries_num && num_groups < max_groups; i++) {
+		/* Skip wildcards (vid >= 4095) and discard entries */
+		if (sort_array[i]->filter_inner_vid >= 4095)
+			continue;
+		if (sort_array[i]->treatment_tags_remove == 3)
+			continue;
+
+		/* Check if this treatment VID is already in a group */
+		found = -1;
+		for (g = 0; g < num_groups; g++) {
+			if (groups[g].treatment_vid ==
+			    sort_array[i]->treatment_inner_vid) {
+				found = g;
+				break;
+			}
+		}
+
+		/* See if any later entry has the same treatment VID */
+		for (j = i + 1; j < entries_num; j++) {
+			if (sort_array[j]->filter_inner_vid >= 4095)
+				continue;
+			if (sort_array[j]->treatment_tags_remove == 3)
+				continue;
+
+			if (sort_array[i]->treatment_inner_vid ==
+			    sort_array[j]->treatment_inner_vid &&
+			    sort_array[i]->filter_inner_vid !=
+			    sort_array[j]->filter_inner_vid) {
+				/* Collision found */
+				if (found < 0) {
+					/* Start new group with entry i */
+					if (num_groups >= max_groups)
+						break;
+					found = num_groups;
+					groups[found].treatment_vid =
+						sort_array[i]->treatment_inner_vid;
+					groups[found].filter_vids[0] =
+						sort_array[i]->filter_inner_vid;
+					groups[found].count = 1;
+					num_groups++;
+				}
+				/* Add entry j to group if not already there */
+				if (groups[found].count < 8) {
+					int k, dup = 0;
+					for (k = 0; k < groups[found].count; k++) {
+						if (groups[found].filter_vids[k] ==
+						    sort_array[j]->filter_inner_vid) {
+							dup = 1;
+							break;
+						}
+					}
+					if (!dup) {
+						groups[found].filter_vids[groups[found].count] =
+							sort_array[j]->filter_inner_vid;
+						groups[found].count++;
+					}
+				}
+			}
+		}
+	}
+
+	return num_groups;
+}
+
+/** Read dual-VLAN config from /tmp/8311_dual_vlan.conf.
+
+   File format:
+     "auto" — use instance order heuristic
+     "34:0x1102\n35:0x1103\n" — explicit VID:mapper mapping
+
+   \param[out] mapper_me_ids  Output array of mapper ME 130 instances
+   \param[out] filter_vids    Output array of filter VIDs (for explicit mapping)
+   \param[in]  max_entries    Size of output arrays
+   \param[out] is_auto        Set to true if "auto" mode
+   \return Number of mapper entries read, or 0 if disabled/error
+*/
+static int read_dual_vlan_config(uint16_t *mapper_me_ids,
+				 uint16_t *filter_vids,
+				 int max_entries,
+				 bool *is_auto)
+{
+	FILE *f;
+	char line[64];
+	int count = 0;
+	unsigned int vid, mapper;
+
+	*is_auto = false;
+
+	f = fopen("/tmp/8311_dual_vlan.conf", "r");
+	if (!f)
+		return 0;
+
+	while (fgets(line, sizeof(line), f) && count < max_entries) {
+		/* Skip comments and empty lines */
+		if (line[0] == '#' || line[0] == '\n' || line[0] == '\0')
+			continue;
+
+		if (strncmp(line, "auto", 4) == 0) {
+			*is_auto = true;
+			/* Read remaining lines as mapper ME IDs only */
+			while (fgets(line, sizeof(line), f) &&
+			       count < max_entries) {
+				if (line[0] == '#' || line[0] == '\n')
+					continue;
+				if (sscanf(line, "0x%x", &mapper) == 1 ||
+				    sscanf(line, "%u", &mapper) == 1) {
+					mapper_me_ids[count] =
+						(uint16_t)mapper;
+					count++;
+				}
+			}
+			break;
+		}
+
+		/* Explicit format: "vid:0xmapper" */
+		if (sscanf(line, "%u:0x%x", &vid, &mapper) == 2 ||
+		    sscanf(line, "%u:%u", &vid, &mapper) == 2) {
+			filter_vids[count] = (uint16_t)vid;
+			mapper_me_ids[count] = (uint16_t)mapper;
+			count++;
+		}
+	}
+
+	fclose(f);
+	return count;
 }
 
 /** Add/Delete/Clear multicast address table
@@ -564,18 +736,153 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 			}
 		}
 
-		/* Clear and reprogram GPE tables */
+		/* Collision detection + clear/reprogram GPE tables */
 		if (error == OMCI_SUCCESS) {
 			uint32_t us_idx = 0, ds_idx = 0;
+			struct ds_collision_group coll_groups[4];
+			int num_collisions = 0;
+			bool dual_vlan_active = false;
+			uint16_t cfg_mappers[MAX_SHADOW_DS_TABLES];
+			uint16_t cfg_vids[MAX_SHADOW_DS_TABLES];
+			int cfg_count = 0;
+			bool cfg_auto = false;
+			int s;
 
+			/* Detect DS many-to-one collisions */
+			if (ds_mode == 0) {
+				num_collisions = detect_ds_collisions(
+					sort_array,
+					me_internal_data->entries_num,
+					coll_groups, 4);
+
+				if (num_collisions > 0) {
+					cfg_count = read_dual_vlan_config(
+						cfg_mappers, cfg_vids,
+						MAX_SHADOW_DS_TABLES,
+						&cfg_auto);
+
+					if (cfg_count > 0)
+						dual_vlan_active = true;
+				}
+			}
+
+			/* Clean up previous shadow DS tables */
+			for (s = 0; s < me_internal_data->shadow_ds_count;
+			     s++) {
+				if (me_internal_data->shadow_ds[s].active) {
+					ext_vlan_shadow_ds_destroy(
+						context->api,
+						me_internal_data->shadow_ds[s].mapper_me_id);
+					me_internal_data->shadow_ds[s].active = false;
+				}
+			}
+			me_internal_data->shadow_ds_count = 0;
+
+			/* Assign mappers to collision groups */
+			if (dual_vlan_active) {
+				int g, v;
+				for (g = 0; g < num_collisions; g++) {
+					for (v = 0; v < coll_groups[g].count &&
+					     v < cfg_count; v++) {
+						if (cfg_auto) {
+							/* Auto: use mapper
+							   list in order */
+							coll_groups[g].mapper_me_ids[v] =
+								cfg_mappers[v];
+						} else {
+							/* Explicit: match VID
+							   to mapper */
+							int c;
+							coll_groups[g].mapper_me_ids[v] = 0;
+							for (c = 0; c < cfg_count; c++) {
+								if (cfg_vids[c] ==
+								    coll_groups[g].filter_vids[v]) {
+									coll_groups[g].mapper_me_ids[v] =
+										cfg_mappers[c];
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				/* Create shadow DS tables */
+				for (g = 0; g < num_collisions; g++) {
+					for (v = 0; v < coll_groups[g].count;
+					     v++) {
+						uint16_t mme =
+							coll_groups[g].mapper_me_ids[v];
+						uint32_t sidx;
+
+						if (mme == 0)
+							continue;
+
+						ret = ext_vlan_shadow_ds_create_and_link(
+							context->api,
+							mme, &sidx);
+						if (ret != OMCI_API_SUCCESS) {
+							me_dbg_err(me,
+								"DRV ERR(%d) "
+								"shadow create "
+								"mapper=0x%04x",
+								ret, mme);
+							continue;
+						}
+
+						if (me_internal_data->shadow_ds_count <
+						    MAX_SHADOW_DS_TABLES) {
+							int si = me_internal_data->shadow_ds_count;
+							me_internal_data->shadow_ds[si].mapper_me_id = mme;
+							me_internal_data->shadow_ds[si].ext_vlan_idx = sidx;
+							me_internal_data->shadow_ds[si].active = true;
+							me_internal_data->shadow_ds_count++;
+						}
+					}
+				}
+
+				me_dbg_msg(me,
+					   "DUAL_VLAN: %d collision groups, "
+					   "%d shadow DS tables created",
+					   num_collisions,
+					   me_internal_data->shadow_ds_count);
+			}
+
+			/* Clear original GPE tables */
 			omci_api_extended_vlan_config_data_tag_oper_table_clear(
 				context->api, me->instance_id, ds_mode);
 
+			/* Program rules */
 			for (i = 0; i < me_internal_data->entries_num; i++) {
 				struct omci_rx_vlan_oper_table *e =
 					sort_array[i];
+				bool is_colliding = false;
+				int coll_g = -1, coll_v = -1;
 
-				/* US direction */
+				/* Check if this entry is in a collision
+				   group (for DS split) */
+				if (dual_vlan_active) {
+					int g, v;
+					for (g = 0; g < num_collisions; g++) {
+						for (v = 0;
+						     v < coll_groups[g].count;
+						     v++) {
+							if (e->filter_inner_vid ==
+							    coll_groups[g].filter_vids[v] &&
+							    e->treatment_inner_vid ==
+							    coll_groups[g].treatment_vid) {
+								is_colliding = true;
+								coll_g = g;
+								coll_v = v;
+								break;
+							}
+						}
+						if (is_colliding)
+							break;
+					}
+				}
+
+				/* US direction — ALL rules go to original
+				   US table (no collision in US) */
 				ret = omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
 					context->api,
 					me->instance_id,
@@ -613,13 +920,78 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 					uint16_t ds_inner_vid =
 						e->treatment_inner_vid;
 
-					/* IOP bit 8: zero DS treatment
-					   inner prio/vid */
 					if (omci_iop_mask_isset(context,
 							OMCI_IOP_OPTION_8)) {
 						ds_inner_prio = 0;
 						ds_inner_vid = 0;
 					}
+
+					if (is_colliding &&
+					    coll_groups[coll_g].mapper_me_ids[coll_v] != 0) {
+						/* Colliding DS: program to
+						   shadow DS table instead */
+						uint16_t mme =
+							coll_groups[coll_g].mapper_me_ids[coll_v];
+						uint32_t sidx;
+						int omci_idx;
+						struct vlan_filter flt;
+
+						ret = ext_vlan_idx_get(
+							context->api,
+							mme, true, false,
+							&sidx);
+						if (ret != OMCI_API_SUCCESS) {
+							me_dbg_err(me,
+								"DRV ERR(%d) "
+								"shadow idx_get "
+								"mapper=0x%04x",
+								ret, mme);
+							error = OMCI_ERROR_DRV;
+							break;
+						}
+
+						flt.filter_outer_priority = e->filter_outer_prio;
+						flt.filter_outer_vid = e->filter_outer_vid;
+						flt.filter_outer_tpid_de = e->filter_outer_tpid_de;
+						flt.filter_inner_priority = e->filter_inner_prio;
+						flt.filter_inner_vid = e->filter_inner_vid;
+						flt.filter_inner_tpid_de = e->filter_inner_tpid_de;
+						flt.filter_ethertype = e->filter_ether_type;
+						flt.treatment_tags_to_remove = e->treatment_tags_remove;
+						flt.treatment_outer_priority = e->treatment_outer_prio;
+						flt.treatment_outer_vid = e->treatment_outer_vid;
+						flt.treatment_outer_tpid_de = e->treatment_outer_tpid_de;
+						flt.treatment_inner_priority = ds_inner_prio;
+						flt.treatment_inner_vid = ds_inner_vid;
+						flt.treatment_inner_tpid_de = e->treatment_inner_tpid_de;
+
+						omci_idx = omci_api_find_ext_vlan_rule(&flt, false);
+						if (omci_idx >= 0) {
+							ret = ext_vlan_rule_add(
+								context->api,
+								true, sidx,
+								0, /* first rule */
+								(uint16_t)omci_idx,
+								&flt);
+							if (ret != OMCI_API_SUCCESS)
+								me_dbg_err(me,
+									"DRV ERR(%d) "
+									"shadow DS add "
+									"mapper=0x%04x",
+									ret, mme);
+						}
+
+						me_dbg_msg(me,
+							   "DUAL_VLAN: VID %u -> "
+							   "shadow mapper 0x%04x",
+							   e->filter_inner_vid,
+							   mme);
+						/* Skip original DS table for
+						   this colliding rule */
+						continue;
+					}
+
+					/* Non-colliding DS: normal path */
 
 					/* ALCL: inject IOP DS passthrough
 					   (VID=0) before each real DS rule */
@@ -873,6 +1245,9 @@ static enum omci_error me_init(struct omci_context *context,
 	DLIST_HEAD_INIT(&me_internal_data->list_head);
 	me_internal_data->entries_num = 0;
 	me_internal_data->def_entries_num = 0;
+	me_internal_data->shadow_ds_count = 0;
+	memset(me_internal_data->shadow_ds, 0,
+	       sizeof(me_internal_data->shadow_ds));
 
 	RETURN_IF_PTR_NULL(init_data);
 
@@ -928,6 +1303,19 @@ static enum omci_error me_shutdown(struct omci_context *context,
 
 		me_dbg_prn(me, "Removed table entry (entries num = %lu)",
 			   me_internal_data->entries_num);
+	}
+
+	/* Destroy shadow DS tables (dual-VLAN fix) */
+	{
+		int s;
+		for (s = 0; s < me_internal_data->shadow_ds_count; s++) {
+			if (me_internal_data->shadow_ds[s].active) {
+				ext_vlan_shadow_ds_destroy(
+					context->api,
+					me_internal_data->shadow_ds[s].mapper_me_id);
+			}
+		}
+		me_internal_data->shadow_ds_count = 0;
 	}
 
 	IFXOS_MemFree(me->internal_data);

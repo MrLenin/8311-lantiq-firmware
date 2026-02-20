@@ -15,6 +15,9 @@
 
 __BEGIN_DECLS
 
+/* Forward declaration for ext_vlan_rule_add */
+struct vlan_filter;
+
 /** \addtogroup OMCI_API_ME
 
    @{
@@ -224,6 +227,78 @@ omci_api_extended_vlan_config_data_iop_ds_entry_add(
 						    uint16_t me_id,
 						    uint32_t entry_idx,
 						    uint8_t ds_mode);
+
+/** Get or allocate a GPE ExtVLAN table index for a given ME ID and direction.
+
+   On first call for a given (me_id, ds) pair, allocates a new GPE ExtVLAN
+   table and registers the mapping. Subsequent calls return the existing index.
+
+   \param[in]  ctx           OMCI API context pointer
+   \param[in]  me_id         Key (ME instance ID or shadow key)
+   \param[in]  ds            Direction: false=US, true=DS
+   \param[in]  mc_support    Allocate multicast companion table
+   \param[out] ext_vlan_idx  Allocated GPE ExtVLAN table index
+*/
+enum omci_api_return
+ext_vlan_idx_get(struct omci_api_ctx *ctx,
+		 uint16_t me_id,
+		 bool ds,
+		 bool mc_support,
+		 uint32_t *ext_vlan_idx);
+
+/** Clear all rules from a GPE ExtVLAN table.
+
+   \param[in] ctx           OMCI API context pointer
+   \param[in] ds            Direction: false=US, true=DS
+   \param[in] ext_vlan_idx  GPE ExtVLAN table index
+*/
+enum omci_api_return
+ext_vlan_rule_clear(struct omci_api_ctx *ctx,
+		    const bool ds,
+		    uint32_t ext_vlan_idx);
+
+/** Add a rule to a GPE ExtVLAN table.
+
+   \param[in] ctx           OMCI API context pointer
+   \param[in] ds            Direction: false=US, true=DS
+   \param[in] ext_vlan_idx  GPE ExtVLAN table index
+   \param[in] rule_idx      Position in table
+   \param[in] omci_idx      OMCI rule template index
+   \param[in] f             VLAN filter/treatment parameters
+*/
+enum omci_api_return
+ext_vlan_rule_add(struct omci_api_ctx *ctx,
+		  const bool ds,
+		  const uint32_t ext_vlan_idx,
+		  const uint16_t rule_idx,
+		  const uint16_t omci_idx,
+		  const struct vlan_filter *f);
+
+/** Create a shadow DS ExtVLAN table and link it to a mapper's GEM ports.
+
+   Allocates a new DS GPE ExtVLAN table keyed by mapper_me_id, then links
+   it to all GEM ports under that mapper (same pattern as assoc_type=1).
+
+   \param[in]  ctx            OMCI API context pointer
+   \param[in]  mapper_me_id   ME 130 instance ID (used as shadow key)
+   \param[out] shadow_idx     Allocated GPE ExtVLAN table index
+*/
+enum omci_api_return
+ext_vlan_shadow_ds_create_and_link(struct omci_api_ctx *ctx,
+				   uint16_t mapper_me_id,
+				   uint32_t *shadow_idx);
+
+/** Destroy a shadow DS ExtVLAN table and unlink from mapper's GEM ports.
+
+   Clears all rules, unlinks from GEM ports, removes resource mapping,
+   and deletes the GPE table.
+
+   \param[in] ctx            OMCI API context pointer
+   \param[in] mapper_me_id   ME 130 instance used as shadow key
+*/
+enum omci_api_return
+ext_vlan_shadow_ds_destroy(struct omci_api_ctx *ctx,
+			   uint16_t mapper_me_id);
 
 /** Remove existing entry from Received frame VLAN tagging operation table
 
