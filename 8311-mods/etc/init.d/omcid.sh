@@ -374,6 +374,43 @@ start_service() {
 		fi
 	fi
 
+	# --- Phase 7d: Dual-VLAN DS fix config ---
+	# Write /tmp/8311_dual_vlan.conf if enabled. omcid reads this file at
+	# runtime during ME 171 ExtVLAN table programming to detect and resolve
+	# DS many-to-one collisions (multiple customer VIDs → same transport VID).
+	local dual_vlan
+	local dual_vlan_mapper_list
+	local vlan_mapper_map
+
+	dual_vlan=$(uci -q get 8311.config.dual_vlan)
+	rm -f /tmp/8311_dual_vlan.conf
+
+	if [ "$dual_vlan" = "1" ]; then
+		vlan_mapper_map=$(uci -q get 8311.config.vlan_mapper_map)
+		dual_vlan_mapper_list=$(uci -q get 8311.config.dual_vlan_mapper_list)
+
+		if [ -n "$vlan_mapper_map" ]; then
+			# Explicit VID:mapper pairs — write one per line
+			logger -t "[omcid]" "Dual-VLAN: explicit map: $vlan_mapper_map"
+			echo "$vlan_mapper_map" | tr ',' '\n' | while read -r pair; do
+				local vid mapper
+				vid=${pair%%:*}
+				mapper=${pair#*:}
+				echo "${vid}:0x${mapper}"
+			done > /tmp/8311_dual_vlan.conf
+		elif [ -n "$dual_vlan_mapper_list" ]; then
+			# Auto mode with mapper ME ID list
+			logger -t "[omcid]" "Dual-VLAN: auto with mappers: $dual_vlan_mapper_list"
+			echo "auto" > /tmp/8311_dual_vlan.conf
+			echo "$dual_vlan_mapper_list" | tr ',' '\n' | while read -r id; do
+				echo "0x${id}"
+			done >> /tmp/8311_dual_vlan.conf
+		else
+			# No mapper info — can't activate without mapper ME IDs
+			logger -t "[omcid]" "Dual-VLAN: enabled but no mapper IDs configured, feature inactive"
+		fi
+	fi
+
 	# --- Phase 8: Launch omcid under procd with auto-respawn ---
 	# omcid flags:
 	#   -d  log level    -p  MIB file       -o  OMCC version

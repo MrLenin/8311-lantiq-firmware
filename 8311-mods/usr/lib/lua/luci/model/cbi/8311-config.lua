@@ -51,7 +51,8 @@ local omcid_opts = {"omcc_version", "iop_mask", "mib_file", "omci_log_level",
                     "omci_log_to_console", "sw_verA", "sw_verB", "pon_slot",
                     "vendor_id", "equipment_id", "hw_ver", "uni_type",
                     "cp_hw_ver_sync", "override_active", "override_commit",
-                    "mod_omcid", "patch_version", "omcid_8021x"}
+                    "mod_omcid", "patch_version", "omcid_8021x",
+                    "dual_vlan", "dual_vlan_mapper_list", "vlan_mapper_map"}
 
 -- Snapshot omcid-relevant options before commit so we can detect changes
 local _omcid_snapshot = {}
@@ -446,8 +447,39 @@ local n_to_1_vlan =
 n_to_1_vlan.datatype = "bool"
 n_to_1_vlan.rmempty = true
 
+local dual_vlan =
+	config:taboption("vlan", Flag, "dual_vlan", translate("Dual-VLAN DS Fix"),
+	translate("Fix downstream VLAN collision when the OLT maps multiple " ..
+	"customer VIDs to the same transport VID (e.g. Bell Aliant). Creates " ..
+	"per-mapper shadow GPE tables so each service receives its own " ..
+	"downstream traffic. Requires mapper ME IDs to be configured below " ..
+	"or auto-detected."))
+
+dual_vlan.datatype = "bool"
+dual_vlan.default = false
+dual_vlan.rmempty = true
+
+local dual_vlan_mapper_list =
+	config:taboption("vlan", Value, "dual_vlan_mapper_list", translate("Mapper ME IDs"),
+	translate("Comma-separated list of Mapper Service Profile (ME 130) instance " ..
+	"IDs in hex, ordered to match colliding VIDs from lowest to highest " ..
+	"(e.g. '1102,1103'). If empty, the instance order heuristic is used."))
+
+dual_vlan_mapper_list.datatype = "string"
+dual_vlan_mapper_list.rmempty = true
+dual_vlan_mapper_list:depends("dual_vlan", "1")
+
+-- Validate comma-separated hex mapper ME IDs (e.g. "1102,1103").
+function dual_vlan_mapper_list.validate(self, value)
+	if value == "" then return value end
+	for id in string.gmatch(value, "([^,]+)") do
+		if not string.match(id, "^%x+$") then return nil end
+	end
+	return value
+end
+
 local vlan_mapper_map =
-	config:taboption("vlan", Value, "vlan_mapper_map", translate("VLAN Mapper Map"),
+	config:taboption("vlan", Value, "vlan_mapper_map", translate("VID to Mapper Map"),
 	translate("Override automatic VID-to-mapper assignment for dual-VLAN ISPs. " ..
 	"Format: comma-separated VID:MAPPER_HEX pairs (e.g. '34:1102,35:1103'). " ..
 	"Only needed when automatic conflict detection assigns VIDs to the wrong " ..
@@ -455,6 +487,7 @@ local vlan_mapper_map =
 
 vlan_mapper_map.datatype = "string"
 vlan_mapper_map.rmempty = true
+vlan_mapper_map:depends("dual_vlan", "1")
 
 -- Validate comma-separated VID:MAPPER_HEX pairs (e.g. "34:1102,35:1103").
 -- Each VID must be in the valid VLAN range 1-4094, mapper must be hex.
