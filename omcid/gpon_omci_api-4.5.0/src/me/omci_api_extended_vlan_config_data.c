@@ -893,6 +893,195 @@ omci_api_extended_vlan_config_data_tag_oper_table_entry_add(struct omci_api_ctx
 }
 
 enum omci_api_return
+omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
+							    struct omci_api_ctx
+							    *ctx,
+							    uint16_t me_id,
+							    uint32_t entry_idx,
+							    uint8_t ds_mode,
+							    bool ds,
+							    uint8_t
+							    filter_outer_priority,
+							    uint16_t
+							    filter_outer_vid,
+							    uint8_t
+							    filter_outer_tpid_de,
+							    uint8_t
+							    filter_inner_priority,
+							    uint16_t
+							    filter_inner_vid,
+							    uint8_t
+							    filter_inner_tpid_de,
+							    uint8_t
+							    filter_ethertype,
+							    uint8_t
+							    treatment_tags_to_remove,
+							    uint8_t
+							    treatment_outer_priority,
+							    uint16_t
+							    treatment_outer_vid,
+							    uint8_t
+							    treatment_outer_tpid_de,
+							    uint8_t
+							    treatment_inner_priority,
+							    uint16_t
+							    treatment_inner_vid,
+							    uint8_t
+							    treatment_inner_tpid_de)
+{
+	enum omci_api_return ret = OMCI_API_SUCCESS;
+	uint32_t ext_vlan_idx;
+	int omci_idx;
+	struct vlan_filter flt;
+
+	DBG(OMCI_API_MSG, ("%s"
+		  " me_id=%u"
+		  " entry_idx=%u" " ds_mode=%u" " ds=%d"
+		  " filter_outer_priority=%u"
+		  " filter_outer_vid=%u" " filter_outer_tpid_de=%u"
+		  " filter_inner_priority=%u" " filter_inner_vid=%u"
+		  " filter_inner_tpid_de=%u" " filter_ethertype=%u"
+		  " treatment_tags_to_remove=%u"
+		  " treatment_outer_priority=%u"
+		  " treatment_outer_vid=%u"
+		  " treatment_outer_tpid_de=%u"
+		  " treatment_inner_prioprity=%u"
+		  " treatment_inner_vid=%u"
+		  " treatment_inner_tpid_de=%u\n",
+		  __FUNCTION__, me_id, entry_idx, ds_mode, ds,
+		  filter_outer_priority,
+		  filter_outer_vid,
+		  filter_outer_tpid_de, filter_inner_priority, filter_inner_vid,
+		  filter_inner_tpid_de, filter_ethertype,
+		  treatment_tags_to_remove,
+		  treatment_outer_priority, treatment_outer_vid,
+		  treatment_outer_tpid_de, treatment_inner_priority,
+		  treatment_inner_vid, treatment_inner_tpid_de));
+
+	if (entry_idx >= ONU_GPE_MAX_VLANS) {
+		DBG(OMCI_API_ERR, ("%s"
+			  " me_id=%u"
+			  " entry_idx=%u exceeds max value of %u\n",
+			  __FUNCTION__, me_id, entry_idx, ONU_GPE_MAX_VLANS));
+		return OMCI_API_ERROR;
+	}
+
+	flt.filter_outer_priority = filter_outer_priority;
+	flt.filter_outer_vid = filter_outer_vid;
+	flt.filter_outer_tpid_de = filter_outer_tpid_de;
+	flt.filter_inner_priority = filter_inner_priority;
+	flt.filter_inner_vid = filter_inner_vid;
+	flt.filter_inner_tpid_de = filter_inner_tpid_de;
+	flt.filter_ethertype = filter_ethertype;
+	flt.treatment_tags_to_remove = treatment_tags_to_remove;
+	flt.treatment_outer_priority = treatment_outer_priority;
+	flt.treatment_outer_vid = treatment_outer_vid;
+	flt.treatment_outer_tpid_de = treatment_outer_tpid_de;
+	flt.treatment_inner_priority = treatment_inner_priority;
+	flt.treatment_inner_vid = treatment_inner_vid;
+	flt.treatment_inner_tpid_de = treatment_inner_tpid_de;
+
+	omci_idx = omci_api_find_ext_vlan_rule(&flt, false);
+	if (omci_idx < 0) {
+		DBG(OMCI_API_ERR, ("can't find rule: %s"
+			  " me_id=%u"
+			  " entry_idx=%u" " ds_mode=%u" " ds=%d\n",
+			  __FUNCTION__, me_id, entry_idx, ds_mode, ds));
+		return OMCI_API_SUCCESS;
+	}
+
+	ret = ext_vlan_idx_get(ctx, me_id, ds, false, &ext_vlan_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	ret = rule_add(ctx, ds, ext_vlan_idx,
+		       (uint16_t) entry_idx, omci_idx, &flt);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	return OMCI_API_SUCCESS;
+}
+
+enum omci_api_return
+omci_api_extended_vlan_config_data_iop_ds_entry_add(
+						    struct omci_api_ctx *ctx,
+						    uint16_t me_id,
+						    uint32_t entry_idx,
+						    uint8_t ds_mode)
+{
+	enum omci_api_return ret = OMCI_API_SUCCESS;
+	uint32_t ext_vlan_idx;
+	union gpe_ext_vlan_get_u ext_vlan;
+	struct gpe_vlan_rule_table *r;
+	struct gpe_vlan_treatment_table *t;
+
+	/*
+	 * IOP DS passthrough entry (stock DAT_0045d514):
+	 * Filter: single-tag, VID=0 (priority-tagged), any priority
+	 * Treatment: don't modify either tag (passthrough)
+	 *
+	 * GPE words: rule 0x00001002 0x80000000
+	 *            treatment 0x00007C00 0x03E00000
+	 */
+
+	DBG(OMCI_API_MSG, ("%s me_id=%u entry_idx=%u ds_mode=%u\n",
+			   __FUNCTION__, me_id, entry_idx, ds_mode));
+
+	if (entry_idx >= ONU_GPE_MAX_VLANS) {
+		DBG(OMCI_API_ERR, ("%s entry_idx=%u exceeds max %u\n",
+				   __FUNCTION__, entry_idx, ONU_GPE_MAX_VLANS));
+		return OMCI_API_ERROR;
+	}
+
+	ret = ext_vlan_idx_get(ctx, me_id, true /* DS */, false, &ext_vlan_idx);
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	memset(&ext_vlan, 0, sizeof(ext_vlan));
+	ext_vlan.in.index = ext_vlan_idx;
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXT_VLAN_GET,
+		      &ext_vlan, sizeof(ext_vlan));
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	if (entry_idx < ext_vlan.out.num_valid_rules) {
+		if (entry_idx >= ONU_GPE_MAX_VLANS)
+			return OMCI_API_ERROR;
+		r = &(ext_vlan.out.vlan_rule_tbl[entry_idx]);
+		t = &(ext_vlan.out.vlan_treatment_tbl[entry_idx]);
+	} else {
+		if (ext_vlan.out.num_valid_rules >= ONU_GPE_MAX_VLANS)
+			return OMCI_API_ERROR;
+		r = &(ext_vlan.out.vlan_rule_tbl[ext_vlan.out.num_valid_rules]);
+		t = &(ext_vlan.out.vlan_treatment_tbl[ext_vlan.out.num_valid_rules]);
+		ext_vlan.out.num_valid_rules++;
+	}
+
+	/* Build IOP DS rule: single-tag VID=0 passthrough */
+	memset(r, 0, sizeof(*r));
+	r->valid = 1;
+	r->one_enable = 1;        /* match single-tagged */
+	r->outer_vid_enable = 1;  /* filter on outer VID */
+	r->outer_vid_filter = 0;  /* VID = 0 (priority-tagged) */
+
+	/* Build IOP DS treatment: don't modify either tag */
+	memset(t, 0, sizeof(*t));
+	t->valid = 1;
+	t->tagb_treatment = 15;      /* don't modify inner tag */
+	t->taga_treatment = 15;      /* don't modify outer tag */
+	t->inner_not_generate = 1;   /* don't generate inner tag */
+	t->outer_not_generate = 1;   /* don't generate outer tag */
+
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_EXT_VLAN_SET,
+		      &ext_vlan, sizeof(ext_vlan));
+	if (ret != OMCI_API_SUCCESS)
+		return ret;
+
+	return OMCI_API_SUCCESS;
+}
+
+enum omci_api_return
 omci_api_extended_vlan_config_data_tag_oper_table_entry_remove(struct
 							       omci_api_ctx
 							       *ctx,

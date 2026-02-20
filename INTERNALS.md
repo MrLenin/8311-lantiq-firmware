@@ -121,18 +121,18 @@ Byte  Hex   42-byte field          GPE rule/treatment field         Value
 13    0x00  outer_pri_filter       rule word 0 bits 11-9            0
 14    0x00  outer_pri_enable       rule word 0 bit 8                0
 15-29 0x00  (all inner filter, ethertype = 0)                       0
-30    0x00  tagb_tpid              treatment word 0 bits 30-28      0
-32-33 0x0000 tagb_vid              treatment word 0 bits 27-15      0
-34    0x0F  tagb_treatment         treatment word 0 bits 14-11      15 (don't modify)
-35    0x00  taga_tpid              treatment word 0 bits 9-7        0
-36-37 0x0000 taga_vid              treatment word 1/0 split         0
-38    0x0F  taga_treatment         treatment word 1 bits 25-22      15 (don't modify)
-39    0x01  inner_not_generate     treatment word 0 bit 10          1
-40    0x01  outer_not_generate     treatment word 1 bit 21          1
-41    0x00  discard_enable         treatment word 0 bit 31          0
+30    0x00  tagb_tpid              treatment word 0 bits 19-17      0
+32-33 0x0000 tagb_vid              treatment word 0 bits 16-4       0
+34    0x0F  tagb_treatment         treatment word 0 bits 3-0        15 (don't modify)
+35    0x00  taga_tpid              treatment word 1 bits 19-17      0
+36-37 0x0000 taga_vid              treatment word 1 bits 16-4       0
+38    0x0F  taga_treatment         treatment word 1 bits 3-0        15 (don't modify)
+39    0x01  inner_not_generate     treatment word 1 bit 26          1
+40    0x01  outer_not_generate     treatment word 1 bit 25          1
+41    0x00  discard_enable         treatment word 1 bit 24          0
 ```
 
-GPE words: rule `0x00001002 0x80000000`, treatment `0x00007C00 0x03E00000`
+GPE words: rule `0x00001002 0x80000000`, treatment `0x0000000F 0x8600000F`
 
 **Interpretation:** Single-tag passthrough for priority-tagged frames (VID=0).
 `one_enable=1` matches single-tagged frames; `outer_vid_enable=1, vid=0` filters
@@ -179,16 +179,16 @@ FILTER (bytes 0-29):                                GPE rule bitfield:
   byte 29:     ethtype_filter5_en                   rule word 1 bit 25
 
 TREATMENT (bytes 30-41):                             GPE treatment bitfield:
-  byte 30:     tagb_tpid (& 7)                      treatment word 0 bits 30-28
+  byte 30:     tagb_tpid (& 7)                      treatment word 0 bits 19-17
   byte 31:     (unused)
-  bytes 32-33: tagb_vid (BE u16 & 0x1FFF)            treatment word 0 bits 27-15
-  byte 34:     tagb_treatment (& 0xF, 15=no modify)  treatment word 0 bits 14-11
-  byte 35:     taga_tpid (& 7)                      treatment word 0 bits 9-7
-  bytes 36-37: taga_vid (BE u16 & 0x1FFF)            treatment word 1:0 split
-  byte 38:     taga_treatment (& 0xF, 15=no modify)  treatment word 1 bits 25-22
-  byte 39:     inner_not_generate (& 1)              treatment word 0 bit 10
-  byte 40:     outer_not_generate (& 1)              treatment word 1 bit 21
-  byte 41:     discard_enable (& 1)                  treatment word 0 bit 31
+  bytes 32-33: tagb_vid (BE u16 & 0x1FFF)            treatment word 0 bits 16-4
+  byte 34:     tagb_treatment (& 0xF, 15=no modify)  treatment word 0 bits 3-0
+  byte 35:     taga_tpid (& 7)                      treatment word 1 bits 19-17
+  bytes 36-37: taga_vid (BE u16 & 0x1FFF)            treatment word 1 bits 16-4
+  byte 38:     taga_treatment (& 0xF, 15=no modify)  treatment word 1 bits 3-0
+  byte 39:     inner_not_generate (& 1)              treatment word 1 bit 26
+  byte 40:     outer_not_generate (& 1)              treatment word 1 bit 25
+  byte 41:     discard_enable (& 1)                  treatment word 1 bit 24
 ```
 NOTE: "outer"/"inner" in the 42-byte format map to GPE `outer`/`inner` respectively.
 The naming is consistent with the GPE `gpe_vlan_rule_table` struct, NOT with OMCI
@@ -239,6 +239,88 @@ omcid auto-programs one default entry from `DAT_0045d540`:
 **Table keys** are dynamically allocated sequential integers (0, 1, 2...).
 Each ME 171 instance gets its own US+DS table pair via composite key
 `0xAB0000 | instance_id` (0xAB = 171 = ME class).
+
+#### Phase 0: rx_vlan_oper_table_entry_set Decompilation (Dual-VLAN Fix)
+
+Full decompilation of `rx_vlan_oper_table_entry_set` (VA `0x00415a44`, 3254 bytes,
+19 callees). Output: `omcid/ghidra/output/rx_vlan_oper_stock.c`.
+
+**Structure — 3 vendor paths:**
+```
+rx_vlan_oper_table_entry_set(ctx, me, entry, ds_mode, def)
+  IF delete sentinel (all treatment = 0xFF):
+    → delete path (linked list removal + tag_oper_table_entry_remove)
+  ELSE IF FUN_00408bf8(ctx, "HWTC"):   → hwtc_rule_add
+  ELSE IF FUN_00408bf8(ctx, "ALCL"):   → alcl_rule_add
+  ELSE:                                → comm_rule_add (generic)
+```
+
+**All three paths share the same pattern:**
+1. Walk linked list for existing entry (8-byte filter match)
+2. Override existing or insert new (alloc 0x20 = 32 bytes per entry)
+3. Build sort_array: non-default entries at front (qsorted by filter), default at back
+4. Assign sort indices to linked list entries
+5. `tag_oper_table_clear(ctx, me_id, ds_mode)` — clear GPE tables
+6. Programming loop — iterate sort_array, map filter→action, add to GPE
+
+**HWTC path differences:**
+- Replace semantics: removes existing entry before adding new one (not upsert)
+- Insertion order: non-default prepended, default appended (not just qsorted)
+- Sort indices assigned by linked list walk, not memcmp search
+
+**ALCL path differences:**
+- **IOP DS entry injection**: before each normal DS rule, inserts an extra entry
+  from `DAT_0045d514` (VID=0 passthrough) if action template flags `local_1c6 &&
+  local_1c4` are set. US and DS indices tracked independently (`local_154` / `local_160`).
+- **No pre-scan** for single-direction detection (generic path has a preliminary
+  scan that sets `local_15c=1` for US-only rules)
+- Error string: `"Can't set IOP DS ExtVLAN"` at `PTR_s_DRV_ERR__d__Can_t_set_IOP_DS_Ext_0041675c`
+
+**Generic path details (relevant to our v4.5.0 code):**
+- Pre-scan (first loop): checks if any rule has US action but no DS action.
+  If found, sets `local_15c=1` — later used to set `local_19f=1` (a flag in the
+  action template that modifies DS generation for single-direction rules).
+- Programming loop: calls `FUN_004390a0` (filter2action) per entry, then
+  `FUN_0043a130` (ext_vlan_action_add) for US (if has_us) and DS (if has_ds).
+- `FUN_00408cec(ctx, 8)` in DS block: ALCL vendor flag check. If true, zeroes
+  two action template fields (`local_1ba=0, local_1b0=0`). Applied even in
+  generic path.
+
+**Key findings for dual-VLAN fix:**
+
+1. **NO collision detection in any path.** None of the three vendor paths detect
+   or handle the case where multiple rules map different filter VIDs to the same
+   treatment VID in DS direction. First-match semantics in GPE means only the
+   first sorted rule fires.
+
+2. **ds_mode controls direction iteration.** `ext_vlan_num = ds_mode==0 ? 2 : 1`.
+   Loop `for (i=0; i<ext_vlan_num; i++)`, direction=`(bool)i`: i=0=US, i=1=DS.
+   - ds_mode=0: programs both US and DS
+   - ds_mode=1: programs US only
+   This means we can use `tag_oper_table_entry_add(ctx, me_id, idx, 1, ...)`
+   to program only US for colliding entries, then program their DS to shadow tables.
+
+3. **Table key confirmed.** `DAT_00439488 = 0x00AB0000`. Stock key = `0xAB0000 | me_id`.
+   Our v4.5.0 uses `index_get(ctx, MAPPER_EXTVLANCD_MEID_TO_EXTVLANIDX_{US,DS}, me_id, &idx)`.
+   Key is just `me_id` (16-bit) with mapper type selecting US(39)/DS(40) resource.
+   Shadow tables can use mapper ME 130 instance IDs as keys — no collision with
+   ME 171 instances (0x0101 vs 0x1102/0x1103).
+
+4. **Default entries safe for collision detection.** Default entries (`def=true`)
+   are placed after sorted non-default entries. Collision detection should only
+   examine non-default entries (those with `entry->def == false` and
+   `filter_inner_vid < 4095` and `treatment_tags_remove != 3`).
+
+5. **Our v4.5.0 has NO vendor dispatch.** Single generic path. No IOP DS entry,
+   no HWTC replace semantics. Simpler baseline for the fix. All modifications go
+   into `rx_vlan_oper_table_entry_set` (ME handler) and new API wrapper functions.
+
+6. **Shadow DS API approach.** For colliding entries in the modified ME handler:
+   - Call `tag_oper_table_entry_add(ctx, me_id, us_idx, 1/*US only*/, ...)` for US
+   - Call new `omci_api_ext_vlan_shadow_ds_add(ctx, mapper_me_id, ds_idx, ...)` for DS
+   Shadow DS function uses `ext_vlan_idx_get(ctx, mapper_me_id, true, false, &idx)`
+   to get/create the shadow GPE table, then `rule_add(ctx, true, idx, ...)` to
+   program the DS rule.
 
 #### ME 266 (GEM Interworking TP)
 

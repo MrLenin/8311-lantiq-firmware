@@ -48,6 +48,9 @@ static enum omci_error me_update(struct omci_context *context,
 	upd_data = (struct omci_me_olt_g *) data;
 	me_data = (struct omci_me_olt_g *) me->data;
 
+	/* Cache OLT vendor ID for vendor-specific dispatch (e.g., HWTC, ALCL) */
+	memcpy(context->olt_vendor_id, upd_data->olt_vendor_id, 4);
+
 #ifdef INCLUDE_G984_4_AMENDMENT_2
 	multiframe_count = upd_data->tod_info[0] << 24 |
 		upd_data->tod_info[1] << 16 |
@@ -101,6 +104,9 @@ static enum omci_error me_init(struct omci_context *context,
 		       sizeof(data.olt_equipment_id));
 		memset(data.olt_version, ' ', sizeof(data.olt_version));
 	}
+
+	/* Cache OLT vendor ID for vendor-specific dispatch */
+	memcpy(context->olt_vendor_id, data.olt_vendor_id, 4);
 
 	error = me_data_write(context, me, &data, sizeof(data),
 			      ~me->class->inv_attr_mask, suppress_avc);

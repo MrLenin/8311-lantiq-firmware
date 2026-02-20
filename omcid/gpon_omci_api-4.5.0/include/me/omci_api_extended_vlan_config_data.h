@@ -145,6 +145,86 @@ omci_api_extended_vlan_config_data_tag_oper_table_entry_add(struct omci_api_ctx
 							    uint8_t
 							    treatment_inner_tpid_de);
 
+/** Add entry to Received frame VLAN tagging operation table (single direction)
+
+   Like _tag_oper_table_entry_add but programs only US or DS, not both.
+   Enables independent US/DS index counters in the ME handler.
+
+   \param[in] ctx                       OMCI API context pointer
+   \param[in] me_id                     Managed Entity identifier
+   \param[in] entry_idx                 Entry index (US or DS specific)
+   \param[in] ds_mode                   Downstream mode
+   \param[in] ds                        Direction: false=US, true=DS
+   \param[in] filter_outer_priority     Filter outer priority
+   \param[in] filter_outer_vid          Filter outer VID
+   \param[in] filter_outer_tpid_de      Filter outer TPID/DE
+   \param[in] filter_inner_priority     Filter inner priority
+   \param[in] filter_inner_vid          Filter inner VID
+   \param[in] filter_inner_tpid_de      Filter inner TPID/DE
+   \param[in] filter_ethertype          Filter Ethertype
+   \param[in] treatment_tags_to_remove  Treatment tags to remove
+   \param[in] treatment_outer_priority  Treatment outer priority
+   \param[in] treatment_outer_vid       Treatment outer VID
+   \param[in] treatment_outer_tpid_de   Treatment outer TPID/DE
+   \param[in] treatment_inner_priority  Treatment inner priority
+   \param[in] treatment_inner_vid       Treatment inner VID
+   \param[in] treatment_inner_tpid_de   Treatment inner TPID/DE
+*/
+enum omci_api_return
+omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
+							    struct omci_api_ctx
+							    *ctx,
+							    uint16_t me_id,
+							    uint32_t entry_idx,
+							    uint8_t ds_mode,
+							    bool ds,
+							    uint8_t
+							    filter_outer_priority,
+							    uint16_t
+							    filter_outer_vid,
+							    uint8_t
+							    filter_outer_tpid_de,
+							    uint8_t
+							    filter_inner_priority,
+							    uint16_t
+							    filter_inner_vid,
+							    uint8_t
+							    filter_inner_tpid_de,
+							    uint8_t
+							    filter_ethertype,
+							    uint8_t
+							    treatment_tags_to_remove,
+							    uint8_t
+							    treatment_outer_priority,
+							    uint16_t
+							    treatment_outer_vid,
+							    uint8_t
+							    treatment_outer_tpid_de,
+							    uint8_t
+							    treatment_inner_priority,
+							    uint16_t
+							    treatment_inner_vid,
+							    uint8_t
+							    treatment_inner_tpid_de);
+
+/** Add IOP DS passthrough entry (ALCL vendor path)
+
+   Programs a hardcoded single-tag VID=0 passthrough rule into the DS direction
+   of the ExtVLAN table. This is the Nokia OLT interop entry from stock v7.5.1
+   DAT_0045d514: catches priority-tagged DS frames before VID-specific rules.
+
+   \param[in] ctx       OMCI API context pointer
+   \param[in] me_id     Managed Entity identifier
+   \param[in] entry_idx DS entry index
+   \param[in] ds_mode   Downstream mode
+*/
+enum omci_api_return
+omci_api_extended_vlan_config_data_iop_ds_entry_add(
+						    struct omci_api_ctx *ctx,
+						    uint16_t me_id,
+						    uint32_t entry_idx,
+						    uint8_t ds_mode);
+
 /** Remove existing entry from Received frame VLAN tagging operation table
 
    \param[in] ctx               OMCI API context pointer

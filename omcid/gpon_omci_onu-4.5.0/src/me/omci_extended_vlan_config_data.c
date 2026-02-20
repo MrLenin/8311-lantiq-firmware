@@ -22,6 +22,27 @@
 #include "me/omci_mac_bridge_port_config_data.h"
 #include "me/omci_api_extended_vlan_config_data.h"
 
+/** IOP option bit for US pre-scan (generic vendor path) */
+#define OMCI_IOP_OPTION_4  4
+/** IOP option bit for zeroing DS treatment_inner_prio/vid (all vendor paths) */
+#define OMCI_IOP_OPTION_8  8
+
+/** OLT vendor type for vendor-specific ExtVLAN programming paths */
+enum olt_vendor_type {
+	OLT_VENDOR_HWTC,
+	OLT_VENDOR_ALCL,
+	OLT_VENDOR_GENERIC
+};
+
+static enum olt_vendor_type get_olt_vendor_type(struct omci_context *ctx)
+{
+	if (memcmp(ctx->olt_vendor_id, "HWTC", 4) == 0)
+		return OLT_VENDOR_HWTC;
+	if (memcmp(ctx->olt_vendor_id, "ALCL", 4) == 0)
+		return OLT_VENDOR_ALCL;
+	return OLT_VENDOR_GENERIC;
+}
+
 /** \addtogroup OMCI_ME_EXTENDED_VLAN_CONFIG_DATA
    @{
 */
@@ -382,142 +403,278 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 		}
 	} else {
 		/* set entry */
+		enum olt_vendor_type vendor = get_olt_vendor_type(context);
+
 		me_dbg_msg(me, "Set entry request");
 
-		entry_overridden = false;
-		DLIST_FOR_EACH(list_entry, &me_internal_data->list_head) {
-			if (memcmp(&list_entry->table_entry.data, entry, 8) == 0) {
-				/* override entry */
-
-				dump_entry(me, "Override entry (old)",
-					   &list_entry->table_entry.data);
-
-				memcpy(&list_entry->table_entry.data,
-				       entry, sizeof(list_entry->table_entry.data));
-
-				dump_entry(me, "Override entry (new)",
-					   &list_entry->table_entry.data);
-
-				entry_overridden = true;
-
-				me_dbg_prn(me, "Overridden table entry "
-					   "(entries num = %lu)",
-					   me_internal_data->entries_num);
-				break;
+		if (vendor == OLT_VENDOR_HWTC) {
+			/* HWTC: replace semantics — delete matching entry
+			   before adding the new one (vs in-place override) */
+			DLIST_FOR_EACH_SAFE(list_entry, next_list_entry,
+					    &me_internal_data->list_head) {
+				if (memcmp(&list_entry->table_entry.data,
+					   entry, 8) == 0) {
+					DLIST_REMOVE(list_entry);
+					dump_entry(me, "Replace (remove)",
+						   &list_entry->table_entry.data);
+					if (list_entry->table_entry.def)
+						--me_internal_data->def_entries_num;
+					--me_internal_data->entries_num;
+					IFXOS_MemFree(list_entry);
+					list_entry = NULL;
+					break;
+				}
 			}
-		}
 
-		if (!entry_overridden) {
-			/* insert new entry to the head */
+			/* Allocate and insert new entry */
 			list_entry = IFXOS_MemAlloc(sizeof(*list_entry));
 			RETURN_IF_MALLOC_ERROR(list_entry);
-
 			++me_internal_data->entries_num;
-
-			memcpy(&list_entry->table_entry.data,
-			       entry, sizeof(list_entry->table_entry.data));
-
+			memcpy(&list_entry->table_entry.data, entry,
+			       sizeof(list_entry->table_entry.data));
 			dump_entry(me, "Add entry",
 				   &list_entry->table_entry.data);
 
 			if (def) {
 				++me_internal_data->def_entries_num;
 				list_entry->table_entry.def = true;
+				/* Default: tail insertion */
+				DLIST_ADD_TAIL(list_entry,
+					       &me_internal_data->list_head);
 			} else {
 				list_entry->table_entry.def = false;
+				/* Non-default: head insertion */
+				DLIST_ADD(list_entry,
+					  &me_internal_data->list_head);
 			}
-
-			DLIST_ADD_TAIL(list_entry,
-				       &me_internal_data->list_head);
-
 			me_dbg_prn(me, "Added table entry (entries num = %lu)",
 				   me_internal_data->entries_num);
-		}
 
-		sort_array = IFXOS_MemAlloc(sizeof(*sort_array) *
-						me_internal_data->entries_num);
-		RETURN_IF_MALLOC_ERROR(sort_array);
-
-		/* fill sort array */
-		sort_idx = 0;
-		sort_idx_def = 0;
-		sort_num = me_internal_data->entries_num -
-					me_internal_data->def_entries_num;
-		DLIST_FOR_EACH(list_entry, &me_internal_data->list_head) {
-			if (!list_entry->table_entry.def) {
-				sort_array[sort_idx] =
-					&list_entry->table_entry.data;
-
-				sort_idx++;
-			} else {
-				/* default entry at the end*/
-				sort_array[sort_num + sort_idx_def] =
-					&list_entry->table_entry.data;
-
-				sort_idx_def++;
+			/* Assign sequential indices from list walk (no sort) */
+			sort_idx = 0;
+			DLIST_FOR_EACH(list_entry,
+				       &me_internal_data->list_head) {
+				list_entry->table_entry.idx = sort_idx++;
 			}
-		}
-
-		/* sort only non-default entries*/
-		qsort(sort_array, sort_num, sizeof(*sort_array),
-		      tbl_entry_uid_cmp);
-
-		/* update entries index */
-		DLIST_FOR_EACH(list_entry, &me_internal_data->list_head) {
-			entry_found = false;
-			for (sort_idx = 0; sort_idx < me_internal_data->entries_num; sort_idx++) {
+		} else {
+			/* ALCL/generic: override in-place or tail-insert */
+			entry_overridden = false;
+			DLIST_FOR_EACH(list_entry,
+				       &me_internal_data->list_head) {
 				if (memcmp(&list_entry->table_entry.data,
-					   sort_array[sort_idx],
-					   8) == 0) {
-					list_entry->table_entry.idx = sort_idx;
-					entry_found = true;
+					   entry, 8) == 0) {
+					dump_entry(me, "Override entry (old)",
+						   &list_entry->table_entry.data);
+					memcpy(&list_entry->table_entry.data,
+					       entry,
+					       sizeof(list_entry->table_entry.data));
+					dump_entry(me, "Override entry (new)",
+						   &list_entry->table_entry.data);
+					entry_overridden = true;
+					me_dbg_prn(me, "Overridden table entry "
+						   "(entries num = %lu)",
+						   me_internal_data->entries_num);
 					break;
 				}
 			}
 
-			/* this should normally not happen*/
-			if (!entry_found) {
-				me_dbg_err(me, "Can't find table entry in the sorted list");
-				error = OMCI_ERROR_INVALID_VAL;
-				break;
+			if (!entry_overridden) {
+				list_entry = IFXOS_MemAlloc(sizeof(*list_entry));
+				RETURN_IF_MALLOC_ERROR(list_entry);
+				++me_internal_data->entries_num;
+				memcpy(&list_entry->table_entry.data, entry,
+				       sizeof(list_entry->table_entry.data));
+				dump_entry(me, "Add entry",
+					   &list_entry->table_entry.data);
+
+				if (def) {
+					++me_internal_data->def_entries_num;
+					list_entry->table_entry.def = true;
+				} else {
+					list_entry->table_entry.def = false;
+				}
+
+				DLIST_ADD_TAIL(list_entry,
+					       &me_internal_data->list_head);
+				me_dbg_prn(me,
+					   "Added table entry (entries num = %lu)",
+					   me_internal_data->entries_num);
 			}
 		}
 
-		omci_api_extended_vlan_config_data_tag_oper_table_clear(
-								context->api,
-								me->instance_id,
-								ds_mode);
+		/* Build sort_array for programming */
+		sort_array = IFXOS_MemAlloc(sizeof(*sort_array) *
+					    me_internal_data->entries_num);
+		RETURN_IF_MALLOC_ERROR(sort_array);
 
-		/* update HW entries */
-		for (i = 0; i < me_internal_data->entries_num; i++) {
-			ret = omci_api_extended_vlan_config_data_tag_oper_table_entry_add(
-				context->api,
-				me->instance_id,
-				i,
-				ds_mode,
-				sort_array[i]->filter_outer_prio,
-				sort_array[i]->filter_outer_vid,
-				sort_array[i]->filter_outer_tpid_de,
-				sort_array[i]->filter_inner_prio,
-				sort_array[i]->filter_inner_vid,
-				sort_array[i]->filter_inner_tpid_de,
-				sort_array[i]->filter_ether_type,
-				sort_array[i]->treatment_tags_remove,
-				sort_array[i]->treatment_outer_prio,
-				sort_array[i]->treatment_outer_vid,
-				sort_array[i]->treatment_outer_tpid_de,
-				sort_array[i]->treatment_inner_prio,
-				sort_array[i]->treatment_inner_vid,
-				sort_array[i]->treatment_inner_tpid_de);
+		if (vendor == OLT_VENDOR_HWTC) {
+			/* HWTC: list order, no sort */
+			i = 0;
+			DLIST_FOR_EACH(list_entry,
+				       &me_internal_data->list_head) {
+				sort_array[i++] =
+					&list_entry->table_entry.data;
+			}
+		} else {
+			/* ALCL/generic: non-defaults first (sorted),
+			   defaults at end */
+			sort_idx = 0;
+			sort_idx_def = 0;
+			sort_num = me_internal_data->entries_num -
+				   me_internal_data->def_entries_num;
+			DLIST_FOR_EACH(list_entry,
+				       &me_internal_data->list_head) {
+				if (!list_entry->table_entry.def) {
+					sort_array[sort_idx] =
+						&list_entry->table_entry.data;
+					sort_idx++;
+				} else {
+					sort_array[sort_num + sort_idx_def] =
+						&list_entry->table_entry.data;
+					sort_idx_def++;
+				}
+			}
 
-			if (ret != OMCI_API_SUCCESS) {
-				me_dbg_err(me, "DRV ERR(%d) Can't set table entry",
-					   ret);
-				error = OMCI_ERROR_DRV;
-				break;
+			qsort(sort_array, sort_num, sizeof(*sort_array),
+			      tbl_entry_uid_cmp);
 
+			/* Update entry indices from sorted position */
+			DLIST_FOR_EACH(list_entry,
+				       &me_internal_data->list_head) {
+				entry_found = false;
+				for (sort_idx = 0;
+				     sort_idx < me_internal_data->entries_num;
+				     sort_idx++) {
+					if (memcmp(&list_entry->table_entry.data,
+						   sort_array[sort_idx],
+						   8) == 0) {
+						list_entry->table_entry.idx =
+							sort_idx;
+						entry_found = true;
+						break;
+					}
+				}
+
+				if (!entry_found) {
+					me_dbg_err(me, "Can't find table entry "
+						   "in the sorted list");
+					error = OMCI_ERROR_INVALID_VAL;
+					break;
+				}
 			}
 		}
+
+		/* Clear and reprogram GPE tables */
+		if (error == OMCI_SUCCESS) {
+			uint32_t us_idx = 0, ds_idx = 0;
+
+			omci_api_extended_vlan_config_data_tag_oper_table_clear(
+				context->api, me->instance_id, ds_mode);
+
+			for (i = 0; i < me_internal_data->entries_num; i++) {
+				struct omci_rx_vlan_oper_table *e =
+					sort_array[i];
+
+				/* US direction */
+				ret = omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
+					context->api,
+					me->instance_id,
+					us_idx,
+					ds_mode,
+					false,
+					e->filter_outer_prio,
+					e->filter_outer_vid,
+					e->filter_outer_tpid_de,
+					e->filter_inner_prio,
+					e->filter_inner_vid,
+					e->filter_inner_tpid_de,
+					e->filter_ether_type,
+					e->treatment_tags_remove,
+					e->treatment_outer_prio,
+					e->treatment_outer_vid,
+					e->treatment_outer_tpid_de,
+					e->treatment_inner_prio,
+					e->treatment_inner_vid,
+					e->treatment_inner_tpid_de);
+
+				if (ret != OMCI_API_SUCCESS) {
+					me_dbg_err(me,
+						   "DRV ERR(%d) Can't set US "
+						   "ExtVLAN entry", ret);
+					error = OMCI_ERROR_DRV;
+					break;
+				}
+				us_idx++;
+
+				/* DS direction (only when ds_mode == 0) */
+				if (ds_mode == 0) {
+					uint8_t ds_inner_prio =
+						e->treatment_inner_prio;
+					uint16_t ds_inner_vid =
+						e->treatment_inner_vid;
+
+					/* IOP bit 8: zero DS treatment
+					   inner prio/vid */
+					if (omci_iop_mask_isset(context,
+							OMCI_IOP_OPTION_8)) {
+						ds_inner_prio = 0;
+						ds_inner_vid = 0;
+					}
+
+					/* ALCL: inject IOP DS passthrough
+					   (VID=0) before each real DS rule */
+					if (vendor == OLT_VENDOR_ALCL) {
+						ret = omci_api_extended_vlan_config_data_iop_ds_entry_add(
+							context->api,
+							me->instance_id,
+							ds_idx,
+							ds_mode);
+						if (ret != OMCI_API_SUCCESS) {
+							me_dbg_err(me,
+								"DRV ERR(%d) "
+								"Can't set IOP "
+								"DS entry",
+								ret);
+							error = OMCI_ERROR_DRV;
+							break;
+						}
+						ds_idx++;
+					}
+
+					ret = omci_api_extended_vlan_config_data_tag_oper_table_entry_add_dir(
+						context->api,
+						me->instance_id,
+						ds_idx,
+						ds_mode,
+						true,
+						e->filter_outer_prio,
+						e->filter_outer_vid,
+						e->filter_outer_tpid_de,
+						e->filter_inner_prio,
+						e->filter_inner_vid,
+						e->filter_inner_tpid_de,
+						e->filter_ether_type,
+						e->treatment_tags_remove,
+						e->treatment_outer_prio,
+						e->treatment_outer_vid,
+						e->treatment_outer_tpid_de,
+						ds_inner_prio,
+						ds_inner_vid,
+						e->treatment_inner_tpid_de);
+
+					if (ret != OMCI_API_SUCCESS) {
+						me_dbg_err(me,
+							   "DRV ERR(%d) Can't "
+							   "set DS ExtVLAN "
+							   "entry", ret);
+						error = OMCI_ERROR_DRV;
+						break;
+					}
+					ds_idx++;
+				}
+			}
+		}
+
 		IFXOS_MemFree(sort_array);
 	}
 

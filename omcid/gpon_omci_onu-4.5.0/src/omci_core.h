@@ -250,6 +250,10 @@ struct omci_context {
 
 	/** LCT port number (0xFF = not configured) */
 	uint8_t lct_port;
+
+	/** OLT vendor ID from ME 131 (OLT-G) attr 1, for vendor dispatch.
+	    Defaults to spaces. Set on OLT-G create/update. */
+	uint8_t olt_vendor_id[4];
 };
 
 /** Find timeouted entry in table attribute copy array and return its pointer
