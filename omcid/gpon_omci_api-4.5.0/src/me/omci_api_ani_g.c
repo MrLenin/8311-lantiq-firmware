@@ -80,9 +80,38 @@ struct mm_supply_voltage {
 #define FIO_MM_SUPPLY_VOLTAGE_GET \
 	_IOR(OPTIC_MM_MAGIC, 10, struct mm_supply_voltage)
 
+/*
+ * BOSA RX config — 22 bytes in v7.5.1 (was 7 packed in v4.5.0).
+ * First 14 bytes are base fields (read-only for our purposes).
+ * Bytes 14-21 are the two alarm thresholds we compute and write back.
+ */
+struct __attribute__((packed)) bosa_rx_config {
+	uint8_t  _base[14];
+	uint32_t lower_rssi;		/* lower optical threshold (RSSI units) */
+	uint32_t upper_rssi;		/* upper optical threshold (RSSI units) */
+};
 
-/** GOI power check interval */
-#define OMCI_API_ANIG_GOI_POWER_CHECK_INTERVAL                         1
+#define FIO_BOSA_RX_CFG_GET_751 \
+	_IOR(OPTIC_BOSA_MAGIC, 1, struct bosa_rx_config)
+#define FIO_BOSA_RX_CFG_SET_751 \
+	_IOW(OPTIC_BOSA_MAGIC, 0, struct bosa_rx_config)
+
+/*
+ * BOSA TX config — 34 bytes in v7.5.1 (was 32 packed in v4.5.0).
+ * First 30 bytes are base fields (read-only for our purposes).
+ * Bytes 30-33 are the two TX power threshold registers we compute.
+ */
+struct __attribute__((packed)) bosa_tx_config {
+	uint8_t  _base[30];
+	uint16_t upper_tx_power;	/* bytes 30-31 */
+	uint16_t lower_tx_power;	/* bytes 32-33 */
+};
+
+#define FIO_BOSA_TX_CFG_GET_751 \
+	_IOR(OPTIC_BOSA_MAGIC, 3, struct bosa_tx_config)
+#define FIO_BOSA_TX_CFG_SET_751 \
+	_IOW(OPTIC_BOSA_MAGIC, 2, struct bosa_tx_config)
+
 
 enum omci_api_return omci_api_ani_g_destroy(struct omci_api_ctx *ctx,
 					    uint16_t me_id)
@@ -105,9 +134,6 @@ enum omci_api_return omci_api_ani_g_update(struct omci_api_ctx *ctx,
 	enum omci_api_return ret = OMCI_API_SUCCESS;
 	struct gtc_cfg gtc_cfg, gtc_cfg_old;
 	struct gpe_cfg gpe_cfg, gpe_cfg_old;
-#if 0
-	struct goi_cfg_t goi_cfg;
-#endif
 
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n"
@@ -154,34 +180,90 @@ enum omci_api_return omci_api_ani_g_update(struct omci_api_ctx *ctx,
 	if (ret != OMCI_API_SUCCESS)
 		goto restore;
 
-#if 0
-	/* GOI */
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GOI_CFG_GET,
-					     &GOI_cfg, sizeof(GOI_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		goto GPE_Restore;
+	/* BOSA calibration — compute and write RX/TX alarm thresholds.
+	   Stock omci_api_ani_g_update performs these 5 BOSA ioctls after
+	   the GTC/GPE steps.  All go to ctx->goi_fd (/dev/optic0). */
+	{
+		struct bosa_tx_config tx_cfg;
+		struct bosa_rx_config rx_cfg;
+		struct bosa_tx_status tx_status;
 
-	GOI_cfg.nRxOpticalPowerUpperLimit = lower_optic_threshold;
-	GOI_cfg.nRxOpticalPowerLowerLimit = upper_optic_threshold;
-	GOI_cfg.nTxOpticalPowerUpperLimit = lower_tx_power_threshold;
-	GOI_cfg.nTxOpticalPowerLowerLimit = upper_tx_power_threshold;
+		/* Step 5: Read TX config (save base for write-back) */
+		memset(&tx_cfg, 0, sizeof(tx_cfg));
+		ret = dev_ctl(ctx->remote, ctx->goi_fd,
+			      FIO_BOSA_TX_CFG_GET_751, &tx_cfg, sizeof(tx_cfg));
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
 
-	GOI_cfg.nOpticalPowerCheckInterval =
-	    OMCI_API_ANIG_GOI_POWER_CHECK_INTERVAL;
+		/* Step 6: Read RX config */
+		memset(&rx_cfg, 0, sizeof(rx_cfg));
+		ret = dev_ctl(ctx->remote, ctx->goi_fd,
+			      FIO_BOSA_RX_CFG_GET_751, &rx_cfg, sizeof(rx_cfg));
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
 
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GOI_CFG_SET,
-					     &GOI_cfg, sizeof(GOI_cfg));
-	if (ret != OMCI_API_SUCCESS)
-		goto GPE_Restore;
+		/* Step 7: Compute RX alarm thresholds (G.988 → RSSI units).
+		   threshold is in 0.5 dB steps (unsigned). 0xFF = default. */
+		if (lower_optic_threshold == 0xFF)
+			rx_cfg.lower_rssi = 0x0000a1e8;
+		else
+			rx_cfg.lower_rssi = (uint32_t)(pow(10.0,
+				(double)lower_optic_threshold / -20.0) *
+				131072.0);
 
-	return ret;
+		if (upper_optic_threshold == 0xFF)
+			rx_cfg.upper_rssi = 0x00000041;
+		else
+			rx_cfg.upper_rssi = (uint32_t)(pow(10.0,
+				(double)upper_optic_threshold / -20.0) *
+				131072.0);
 
-GPE_Restore:
-	(void)dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_CFG_SET, &gpe_cfg_old,
-		      sizeof(gpe_cfg_old));
-#endif
+		ret = dev_ctl(ctx->remote, ctx->goi_fd,
+			      FIO_BOSA_RX_CFG_SET_751, &rx_cfg, sizeof(rx_cfg));
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
 
-	return ret;
+		/* Step 8: Read TX status for slope_efficiency */
+		memset(&tx_status, 0, sizeof(tx_status));
+		ret = dev_ctl(ctx->remote, ctx->goi_fd,
+			      FIO_BOSA_TX_STATUS_GET_751, &tx_status,
+			      sizeof(tx_status));
+		if (ret != OMCI_API_SUCCESS)
+			return ret;
+
+		/* Step 9: Compute TX power thresholds.
+		   threshold is signed byte in 0.5 dBm steps. 0x81 = default.
+		   slope_efficiency is fixed-point [uW/mA] × 64. */
+		{
+			float slope_eff = (float)tx_status.slope_efficiency *
+					  0.015625f; /* raw / 64 */
+			double target;
+
+			if (upper_tx_power_threshold == 0x81)
+				target = 4466.8356762896965;
+			else
+				target = pow(10.0,
+					(double)(int8_t)upper_tx_power_threshold
+					* 0.5 / 10.0) * 1000.0;
+
+			tx_cfg.upper_tx_power = (uint16_t)((float)(target /
+					(double)slope_eff) * 256.0f);
+
+			if (lower_tx_power_threshold == 0x81)
+				target = 199.52623697367426;
+			else
+				target = pow(10.0,
+					(double)(int8_t)lower_tx_power_threshold
+					* 0.5 / 10.0) * 1000.0;
+
+			tx_cfg.lower_tx_power = (uint16_t)((float)(target /
+					(double)slope_eff) * 256.0f);
+		}
+
+		ret = dev_ctl(ctx->remote, ctx->goi_fd,
+			      FIO_BOSA_TX_CFG_SET_751, &tx_cfg, sizeof(tx_cfg));
+		return ret;
+	}
 
 restore:
 	(void)dev_ctl(ctx->remote, ctx->onu_fd,

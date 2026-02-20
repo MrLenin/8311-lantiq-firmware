@@ -17,18 +17,35 @@
    @{
 */
 
-enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
-					   struct omci_api_ctx *ctx,
-					   uint16_t me_id,
-					   uint8_t pwr_reduction_mngmt_mode,
-					   uint32_t max_sleep_interval,
-					   uint32_t min_aware_interval,
-					   uint16_t min_active_held_interval)
-{
-	struct gtc_op_mode mode;
-	enum omci_api_return ret = OMCI_API_SUCCESS;
+/*
+ * v7.5.1 power management: 40-byte struct via ONU subsystem (not GTC).
+ * Stock replaced FIO_GTC_POWER_SAVING_MODE_SET entirely.
+ * GTC cmd 0x0B maps to GTC_IDLE_SET in v7.5.1 (wrong handler).
+ */
+struct onu_pwr_mgmt_ctrl {
+	uint32_t gpon_op_mode;		/* 0: 0=skip, 1=OFF, 2=DOZE, 4=CYCLIC */
+	uint32_t itransinit;		/* 4: not passed by v4.5.0 ME handler */
+	uint32_t max_sleep_interval;	/* 8 */
+	uint32_t itxinit;		/* 12: not passed by v4.5.0 ME handler */
+	uint32_t min_aware_interval;	/* 16 */
+	uint32_t min_active_held_interval; /* 20 */
+	uint32_t max_sleep_ext;		/* 24: v7.5.1 attr, not in v4.5.0 */
+	uint32_t _pad[3];		/* 28-39: zeroed */
+};
 
-	memset(&mode, 0, sizeof(mode));
+#define FIO_ONU_PWR_MGMT_CTRL_SET \
+	_IOW(ONU_MAGIC, 0, struct onu_pwr_mgmt_ctrl)
+
+enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
+				   struct omci_api_ctx *ctx,
+				   uint16_t me_id,
+				   uint8_t pwr_reduction_mngmt_mode,
+				   uint32_t max_sleep_interval,
+				   uint32_t min_aware_interval,
+				   uint16_t min_active_held_interval)
+{
+	struct onu_pwr_mgmt_ctrl pwr;
+	enum omci_api_return ret;
 
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n"
@@ -42,29 +59,32 @@ enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 		  max_sleep_interval, min_aware_interval,
 		  min_active_held_interval));
 
-	(void)max_sleep_interval;
-	(void)min_aware_interval;
-	(void)min_active_held_interval;
+	memset(&pwr, 0, sizeof(pwr));
 
-	if (pwr_reduction_mngmt_mode &
-		OMCI_API_ONU_DYN_PWR_MNGMT_CTRL_CYCLIC_SLEEP_MODE_MASK) {
-		DBG(OMCI_API_ERR, ("Unsupported power reduction mode 0x%X\n",
-			pwr_reduction_mngmt_mode));
-		return OMCI_API_ERROR;
+	/* Stock mode mapping: 0x01->1(OFF), 0x02->2(DOZE), 0x04->4(CYCLIC).
+	   Any other value -> 0 (no mode change, just register attributes). */
+	switch (pwr_reduction_mngmt_mode) {
+	case 0x01:
+		pwr.gpon_op_mode = 1;
+		break;
+	case 0x02:
+		pwr.gpon_op_mode = 2;
+		break;
+	case 0x04:
+		pwr.gpon_op_mode = 4;
+		break;
+	default:
+		break;
 	}
 
-	mode.gpon_op_mode =
-		pwr_reduction_mngmt_mode &
-			OMCI_API_ONU_DYN_PWR_MNGMT_CTRL_DOZE_MODE_MASK ?
-				GPON_POWER_SAVING_DOZING :
-				GPON_POWER_SAVING_MODE_OFF;
+	pwr.max_sleep_interval = max_sleep_interval;
+	pwr.min_aware_interval = min_aware_interval;
+	pwr.min_active_held_interval = (uint32_t)min_active_held_interval;
 
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_GTC_POWER_SAVING_MODE_SET,
-		      &mode, sizeof(mode));
-	if (ret != OMCI_API_SUCCESS)
-		return ret;
+	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_PWR_MGMT_CTRL_SET,
+		      &pwr, sizeof(pwr));
 
-	return OMCI_API_SUCCESS;
+	return ret;
 }
 
 /** @} */

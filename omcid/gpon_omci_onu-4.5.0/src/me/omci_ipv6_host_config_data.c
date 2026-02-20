@@ -38,7 +38,7 @@
    @{
 */
 
-#define IPV6_HOST_IFNAME "br-lan"
+#define IPV6_HOST_IFNAME "host"
 
 /** Read MAC address from a network interface via ioctl. */
 static int ipv6_mac_address_get(const char *name, uint8_t *mac)

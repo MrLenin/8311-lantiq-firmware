@@ -52,12 +52,10 @@
 
 const char *ip_host_ifname_get(uint16_t instance_id)
 {
-	/* let ME instance 0 be the wan interface */
-	static const char *net_name[2] = {"wan", "lan"};
-
-	assert(instance_id < 2);
-
-	return net_name[instance_id];
+	/* v7.5.1: kernel netdev renamed from "wan" to "host".
+	   Only one host interface exists; both instances map to it. */
+	(void)instance_id;
+	return "host";
 }
 
 static int ip_address_get(const char *name, char *ip_address)

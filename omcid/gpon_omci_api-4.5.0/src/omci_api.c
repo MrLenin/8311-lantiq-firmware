@@ -591,6 +591,13 @@ line_en:
 	/* bypass LCT setup (takes place in the onu-firmware)*/
 	if (ctx->remote) goto err;
 
+	/* v7.5.1: MIB reset — clear kernel MIB mirror state before re-populating.
+	   GPE_TABLE cmd 0x31 is a v7.5.1 addition (not in v4.5.0 headers). */
+	ret = dev_ctl(ctx->remote, ctx->onu_fd,
+		      _IO(GPE_TABLE_MAGIC, 0x31), NULL, 0);
+	DLOG("api_start: MIB_RESET ret=%d", ret);
+	/* Non-fatal: kernel may not support this cmd */
+
 	/* v7.5.1: Exception queues route to VUNI2 (EPN 70, base qid 0xb0).
 	   Stock uses 0xb0 for most types, 0xb4 for IPX (snoop), 0xb5 for ICMP (snoop).
 	   v4.5.0 incorrectly used 0xa8 (VUNI1/CPU1) — lct0 netdev listens on VUNI2. */

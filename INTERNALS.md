@@ -95,7 +95,104 @@ OLT writes ME 171 table entry (16 bytes)
 
 **ALCL (Nokia OLT) interop:** The `alcl_rule_add` path adds an extra "IOP DS"
 passthrough entry (from `DAT_0045d514`, 42 bytes) before each real DS entry.
-US/DS indices tracked independently.
+US/DS indices tracked independently. XREFs at `0x00416182` and `0x00416758`
+(two sites within `rx_vlan_oper_table_entry_set`, both in the ALCL vendor path).
+
+**`DAT_0045d514` decode** (42-byte v7.5.1 action format, single-tag VID=0 passthrough):
+
+Verified by decompiling `omci_api_ext_vlan_action_add` (VA `0x0043a130`) and tracing
+each `param_5[N]` access to its GPE `gpe_vlan_rule_table` bitfield position.
+
+```
+Byte  Hex   42-byte field          GPE rule/treatment field         Value
+────  ────  ─────────────────────  ───────────────────────────────  ─────
+ 0    0x01  valid                  rule word 1 bit 31               1
+ 1    0x00  (unused)
+ 2    0x00  def                    rule word 1 bit 29               0
+ 3    0x00  two_enable             rule word 0 bit 2                0
+ 4    0x01  one_enable             rule word 0 bit 1                1
+ 5    0x00  zero_enable            rule word 0 bit 0                0
+ 6    0x00  outer_de_filter        rule word 0 bit 28               0
+ 7    0x00  outer_de_enable        rule word 0 bit 27               0
+ 8    0x00  outer_reg_tpid_en      rule word 0 bit 26               0
+ 9    0x00  outer_input_tpid_en    rule word 0 bit 25               0
+10-11 0x0000 outer_vid_filter      rule word 0 bits 24-13           0
+12    0x01  outer_vid_enable       rule word 0 bit 12               1
+13    0x00  outer_pri_filter       rule word 0 bits 11-9            0
+14    0x00  outer_pri_enable       rule word 0 bit 8                0
+15-29 0x00  (all inner filter, ethertype = 0)                       0
+30    0x00  tagb_tpid              treatment word 0 bits 30-28      0
+32-33 0x0000 tagb_vid              treatment word 0 bits 27-15      0
+34    0x0F  tagb_treatment         treatment word 0 bits 14-11      15 (don't modify)
+35    0x00  taga_tpid              treatment word 0 bits 9-7        0
+36-37 0x0000 taga_vid              treatment word 1/0 split         0
+38    0x0F  taga_treatment         treatment word 1 bits 25-22      15 (don't modify)
+39    0x01  inner_not_generate     treatment word 0 bit 10          1
+40    0x01  outer_not_generate     treatment word 1 bit 21          1
+41    0x00  discard_enable         treatment word 0 bit 31          0
+```
+
+GPE words: rule `0x00001002 0x80000000`, treatment `0x00007C00 0x03E00000`
+
+**Interpretation:** Single-tag passthrough for priority-tagged frames (VID=0).
+`one_enable=1` matches single-tagged frames; `outer_vid_enable=1, vid=0` filters
+to VID 0 (priority-tagged). Treatment 15 = don't modify either tag. Inserted before
+each real DS rule in the ALCL path as a Nokia OLT interop safety net — catches
+priority-tagged DS frames that shouldn't be translated by the VID-specific rules.
+
+This format does NOT exist in v4.5.0 — v4.5.0 uses separate `gpe_vlan_rule_table` +
+`gpe_vlan_treatment_table` structs via `omci_api_rule_ds_map`. The 42-byte unified
+action format is a v7.5.1 addition that produces identical GPE table entries (same
+`FIO_GPE_EXT_VLAN_GET/SET` ioctls, same 1044-byte buffer layout). Unrelated to the
+dual-VLAN collision problem.
+
+**42-byte action format field map** (decompiled from `omci_api_ext_vlan_action_add`):
+```
+FILTER (bytes 0-29):                                GPE rule bitfield:
+  byte 0:      valid                                rule word 1 bit 31
+  byte 1:      (unused)
+  byte 2:      def                                  rule word 1 bit 29
+  byte 3:      two_enable                           rule word 0 bit 2
+  byte 4:      one_enable                           rule word 0 bit 1
+  byte 5:      zero_enable                          rule word 0 bit 0
+  byte 6:      outer_de_filter                      rule word 0 bit 28
+  byte 7:      outer_de_enable                      rule word 0 bit 27
+  byte 8:      outer_reg_tpid_en                    rule word 0 bit 26
+  byte 9:      outer_input_tpid_en                  rule word 0 bit 25
+  bytes 10-11: outer_vid_filter (BE u16 & 0xFFF)    rule word 0 bits 24-13
+  byte 12:     outer_vid_enable                     rule word 0 bit 12
+  byte 13:     outer_pri_filter (& 7)               rule word 0 bits 11-9
+  byte 14:     outer_pri_enable                     rule word 0 bit 8
+  byte 15:     inner_de_filter                      rule word 1 bit 20
+  byte 16:     inner_de_enable                      rule word 1 bit 19
+  byte 17:     inner_reg_tpid_en                    rule word 1 bit 18
+  byte 18:     inner_input_tpid_en                  rule word 1 bit 17
+  byte 19:     (unused)
+  bytes 20-21: inner_vid_filter (BE u16 & 0xFFF)    rule word 1 bits 16-5
+  byte 22:     inner_vid_enable                     rule word 1 bit 4
+  byte 23:     inner_pri_filter (& 7)               rule word 1 bits 3-1
+  byte 24:     inner_pri_enable                     rule word 1 bit 0
+  byte 25:     ethtype_filter1_en (IPv4 0x0800)     rule word 1 bit 21
+  byte 26:     ethtype_filter2_en (PPPoE 0x8863)    rule word 1 bit 22
+  byte 27:     ethtype_filter3_en (ARP 0x0806)      rule word 1 bit 23
+  byte 28:     ethtype_filter4_en (IPv6 0x86DD)     rule word 1 bit 24
+  byte 29:     ethtype_filter5_en                   rule word 1 bit 25
+
+TREATMENT (bytes 30-41):                             GPE treatment bitfield:
+  byte 30:     tagb_tpid (& 7)                      treatment word 0 bits 30-28
+  byte 31:     (unused)
+  bytes 32-33: tagb_vid (BE u16 & 0x1FFF)            treatment word 0 bits 27-15
+  byte 34:     tagb_treatment (& 0xF, 15=no modify)  treatment word 0 bits 14-11
+  byte 35:     taga_tpid (& 7)                      treatment word 0 bits 9-7
+  bytes 36-37: taga_vid (BE u16 & 0x1FFF)            treatment word 1:0 split
+  byte 38:     taga_treatment (& 0xF, 15=no modify)  treatment word 1 bits 25-22
+  byte 39:     inner_not_generate (& 1)              treatment word 0 bit 10
+  byte 40:     outer_not_generate (& 1)              treatment word 1 bit 21
+  byte 41:     discard_enable (& 1)                  treatment word 0 bit 31
+```
+NOTE: "outer"/"inner" in the 42-byte format map to GPE `outer`/`inner` respectively.
+The naming is consistent with the GPE `gpe_vlan_rule_table` struct, NOT with OMCI
+ME 171 conventions (which swap inner/outer depending on direction).
 
 **Template system:** Matcher table at `DAT_0048a910` (68 entries × 128 bytes)
 classifies rules by pattern. Action template table at `UNK_00486158` (272-byte
@@ -192,7 +289,7 @@ if `action_register` in {1, 2} → BLOCK (1). Single ioctl `0x80080725`
 | `DAT_0045cc38` | `"HWTC"` (Huawei vendor string) |
 | `DAT_0045cd04` | `"ALCL"` (Alcatel vendor string) |
 | `DAT_0045d484` | ME 171 handler vtable |
-| `DAT_0045d514` | Hardcoded IOP DS action (42 bytes, passthrough) |
+| `DAT_0045d514` | Hardcoded IOP DS action (42 bytes, single-tag VID=0 passthrough). XREF 2× in ALCL path. See decode above |
 | `DAT_0045d540` | ME 171 auto-default entry (16 bytes, untagged passthrough) |
 | `UNK_00486158` | Action template table (272-byte stride) |
 | `DAT_0048a910` | Rule matcher table (128-byte stride, 68 entries) |
