@@ -449,7 +449,210 @@ the expected alarm debounce/holdoff timer in the event handler.
 
 ---
 
-## 11. Methodology for Future Comparisons
+## 11. IOP (Interoperability Option) Mask
+
+### 11a. `omci_iop_mask_isset` — Semantic Mismatch
+
+**Shipping (FUN_00408cec) vs v4.5.0 `omci_interface.c:1646`**
+
+The IOP mask is a 32-bit bitmask at context offset `0x154c` (shipping) / `iop_mask`
+field (v4.5.0), set via `--iop-mask` CLI argument and queryable via `iop_mask_get` /
+`iop_mask_set` commands.
+
+| | Implementation | `omci_iop_mask_isset(ctx, 8)` tests... |
+|---|---|---|
+| **Shipping** | `(param & ctx->iop_mask) != 0` | bit 3 (mask 0x08) |
+| **v4.5.0** | `((1u << param) & ctx->iop_mask) != 0` | bit 8 (mask 0x100) |
+
+The shipping binary treats the parameter as a **direct mask value**. The v4.5.0
+source treats it as a **bit position** and shifts `1 << param`. This causes:
+
+- **IOP 0x20 (bit 5)**: Shipping tests bit 5. Our code does `1 << 0x20` = `1 << 32`
+  = **undefined behavior** on 32-bit `uint32_t`.
+- **IOP 0x08 (bit 3)**: Shipping tests bit 3. Our code tests bit 8.
+- **IOP 0x02 (bit 1)**: Shipping tests bit 1. Our code tests bit 2.
+
+**Fix**: Change `omci_iop_mask_isset` to use direct mask comparison, and rename
+option defines from bit positions to mask values.
+
+### 11b. Stock IOP Bits — Complete Inventory
+
+Only **5 calls** to `omci_iop_mask_isset` exist in the shipping binary, using
+**3 distinct mask values**:
+
+| Mask | Bit | Call Sites | Function | Purpose |
+|---|---|---|---|---|
+| `0x02` | 1 | T-CONT `me_update` x1 | `FUN_00423a70` | Skip Alloc-ID termination on deactivation |
+| `0x08` | 3 | `rx_vlan_oper_table_entry_set` x4 | ExtVLAN table | Zero DS treatment inner_prio/vid |
+| `0x20` | 5 | `me171_init` x1 | ExtVLAN init | Enable common IGMP SCE meter |
+
+Our code defines `OMCI_IOP_OPTION_0` (MCC multicast), `OMCI_IOP_OPTION_4` (US
+pre-scan), and `OMCI_IOP_OPTION_8` (DS zeroing). The stock binary does not use
+options 0 or 4 at all — MCC was rewritten in v7.5.1 and the US pre-scan logic
+changed.
+
+### 11c. IOP Bit 1 (0x02) — T-CONT Alloc-ID Termination Skip
+
+**Shipping `me_update` for ME 262 (T-CONT) — FUN_00423a70:**
+
+```
+FUN_00423a70(ctx, me, data):
+    if (!me->is_initialized):
+        omci_api_tcont_create(ctx->api, me->instance_id, data->policy)
+    else if (data->alloc_id == 0xFF || data->alloc_id == 0xFFFF):
+        if (omci_iop_mask_isset(ctx, 0x02)):      ← IOP bit 1
+            log("IOP option to skip Alloc-IDs termination upon T-CONT deactivation")
+            return SUCCESS                         ← skip termination
+        omci_api_tcont_delete(ctx->api, me->instance_id)
+    else:
+        omci_api_tcont_set(ctx->api, me->instance_id)
+```
+
+**v4.5.0 `me_update` dispatches to `omci_api_tcont_update()` which internally
+checks for 0xFF/0xFFFF** — same deactivation detection but no IOP gate:
+
+```
+v4.5.0:  me_update → tcont_update() → { tcont_delete | tcont_set }
+v7.5.1:  me_update → iop_check → { tcont_delete | tcont_set }
+```
+
+The stock moved the 0xFF/0xFFFF check from the API layer into the ME handler and
+inserted the IOP gate between detection and action. The API-layer function
+`omci_api_tcont_update()` was eliminated.
+
+**Status: TODO** — Need to restructure `me_update` to 3-way dispatch with IOP gate.
+
+### 11d. IOP Bit 3 (0x08) — DS Treatment Zeroing
+
+Used in `rx_vlan_oper_table_entry_set` (all three vendor paths: HWTC, ALCL,
+generic). When set, zeros the downstream treatment's `inner_prio` and `inner_vid`
+fields before programming the GPE table.
+
+**Status: IMPLEMENTED** — Our code checks this via `OMCI_IOP_OPTION_8` in
+`omci_extended_vlan_config_data.c:632`. Functionally correct but uses wrong
+mask semantics (tests bit 8 instead of bit 3 due to `1 << 8`).
+
+### 11e. IOP Bit 5 (0x20) — Common IGMP SCE Meter
+
+**Shipping `me171_init` (ME 171 ExtVLAN init) — FUN_00415810:**
+
+After `me_data_write`, the stock checks:
+```
+if (omci_iop_mask_isset(ctx, 0x20)):     ← IOP bit 5
+    ret = omci_api_sce_meter_helper(ctx->api, 1)
+    if (ret != 0):
+        error("DRV ERR(%d) Can't enable common IGMP meter")
+        return -13
+```
+
+`omci_api_sce_meter_helper` (FUN_00446ba0) reads/writes the GPE SCE constants
+table to enable a common IP handling meter across all IGMP sessions.
+
+**Status: TODO** — Our `me_init` in `omci_extended_vlan_config_data.c:1229`
+has no such check. Requires implementing `omci_api_sce_meter_helper` (SCE
+constants GET/SET ioctls).
+
+---
+
+## 12. OLT Vendor Dispatch
+
+### 12a. Vendor ID Match Function
+
+**Shipping FUN_00408bf8 — OLT vendor comparison:**
+
+```c
+bool olt_vendor_match(int ctx, void *vendor_str) {
+    lock();
+    result = memcmp(ctx + 8, vendor_str, 4) == 0;
+    unlock();
+    return result;
+}
+```
+
+Called from `rx_vlan_oper_table_entry_set` to dispatch between HWTC (Huawei),
+ALCL (Nokia/Alcatel), and generic vendor paths. The vendor ID is stored at
+context offset +8 in the shipping binary.
+
+**Our implementation**: `get_olt_vendor_type()` in
+`omci_extended_vlan_config_data.c:37` uses `memcmp(ctx->olt_vendor_id, ...)`.
+Functionally equivalent but without locking.
+
+### 12b. OLT Type Detection and Persistence
+
+**Shipping OLT-G `me_update` (FUN_0041f6f0, MIPS16e) — additional logic
+not in v4.5.0:**
+
+After caching the vendor ID (only when attr 1 bit is set in mask, with locking),
+the stock classifies the OLT type:
+
+```
+if vendor == "ALCL":
+    if version == "              " (blank): skip
+    olt_type = *(uint16_t *)(data->olt_version + 4)   // bytes 4-5 of version
+    if olt_type > 2: force to 0, log "Wrong ALU OLT type"
+    fw_setenv("olt_type", type_table[olt_type])        // "0", "1", or "2"
+else:
+    if vendor == "    " (blank): skip
+    fw_setenv("olt_type", "0")                         // default for non-ALCL
+```
+
+The ALU OLT type is a uint16 from bytes 4-5 of the OLT version string (attr 3).
+Valid values: 0, 1, 2 — mapping to different Nokia/ALU OLT hardware generations.
+Saved to U-Boot env for consumption by external shell scripts.
+
+**Status: TODO (low priority)** — Only affects external scripts, not omcid logic.
+Our vendor dispatch works via `olt_vendor_id` comparison directly.
+
+### 12c. Nokia Version Gate — SW Image Flash Compatibility
+
+**Shipping FUN_00440fb8 (470 bytes) — called from ImageStoreThread
+(FUN_00441678):**
+
+A flash compatibility check during OLT-initiated firmware updates:
+
+1. Reads `/proc/flashinfo` to get device flash type ID
+2. Compares incoming image's equipment ID against known Nokia products:
+   - `6BA1896SPLQA17` — standard, logged as "Standard support version"
+   - `3FE56853AOPD95` — Nokia AOPD, logged as "Nokia support version"
+   - `3FE47113AOPE01` — Nokia AOPE, requires minimum version
+3. Checks OLT version string prefixes (`1620-00801`, `1620-00802`,
+   `1620-00802-01`) with byte-level minimum version comparisons
+4. Returns -1 if image is too old for the flash → blocks update with
+   "image_version:%s don't support new flash"
+
+**Call chain:**
+```
+ImageStoreThread → FUN_00440cc0 (download) → FUN_00440fb8 (version gate)
+                                            → FUN_004412a4 (flash write)
+```
+
+**Status: N/A** — OLT-initiated firmware updates are blocked by our reboot NOP
+patch (0x417B6) and `fw_update_guard`. We control firmware via our own update
+mechanism.
+
+---
+
+## 13. ME Handler Divergences Not Yet Audited
+
+The IOP analysis revealed that the stock v7.5.1 binary restructured several ME
+handlers beyond what the earlier phase audits covered. Known examples:
+
+| ME | Handler | Stock Change | Our Status |
+|---|---|---|---|
+| ME 262 (T-CONT) | `me_update` | 3-way dispatch + IOP gate (was 2-way) | TODO |
+| ME 131 (OLT-G) | `me_update` | Added OLT type classification + env persistence | TODO (low) |
+| ME 171 (ExtVLAN) | `me_init` | Added IOP bit 5 SCE meter enable | TODO |
+
+**A systematic audit of all ME handlers against stock decompilation is
+recommended.** The phase 8-13 audits focused on API-layer functions and ME
+attribute definitions. The ME handler layer (`me_init`, `me_update`,
+`me_shutdown`, `me_validate`) may contain additional vendor additions not yet
+cataloged — particularly in handlers for MEs that interact with the GTC/GPE
+subsystems (T-CONTs, GEM ports, bridges, schedulers).
+
+---
+
+## 14. Methodology for Future Comparisons
 
 For systematic binary-vs-source comparison at scale:
 

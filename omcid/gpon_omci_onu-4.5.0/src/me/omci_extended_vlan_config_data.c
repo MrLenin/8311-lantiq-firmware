@@ -28,6 +28,12 @@
 /** IOP option bit for zeroing DS treatment_inner_prio/vid (all vendor paths) */
 #define OMCI_IOP_OPTION_8  8
 
+/** Dual-VLAN debug log to /tmp/8311_dual_vlan.log */
+#define DVLOG(fmt, ...) do { \
+	FILE *_f = fopen("/tmp/8311_dual_vlan.log", "a"); \
+	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
+} while (0)
+
 /** OLT vendor type for vendor-specific ExtVLAN programming paths */
 enum olt_vendor_type {
 	OLT_VENDOR_HWTC,
@@ -755,11 +761,29 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 					me_internal_data->entries_num,
 					coll_groups, 4);
 
+				DVLOG("detect: %zu entries, %d collisions",
+				      me_internal_data->entries_num,
+				      num_collisions);
+
 				if (num_collisions > 0) {
+					int g;
+					for (g = 0; g < num_collisions; g++) {
+						int v;
+						DVLOG("  group %d: treat_vid=%u count=%u",
+						      g, coll_groups[g].treatment_vid,
+						      coll_groups[g].count);
+						for (v = 0; v < coll_groups[g].count; v++)
+							DVLOG("    filter_vid[%d]=%u",
+							      v, coll_groups[g].filter_vids[v]);
+					}
+
 					cfg_count = read_dual_vlan_config(
 						cfg_mappers, cfg_vids,
 						MAX_SHADOW_DS_TABLES,
 						&cfg_auto);
+
+					DVLOG("config: count=%d auto=%d",
+					      cfg_count, cfg_auto);
 
 					if (cfg_count > 0)
 						dual_vlan_active = true;
@@ -821,6 +845,8 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 							context->api,
 							mme, &sidx);
 						if (ret != OMCI_API_SUCCESS) {
+							DVLOG("shadow create FAIL: mapper=0x%04x ret=%d",
+							      mme, ret);
 							me_dbg_err(me,
 								"DRV ERR(%d) "
 								"shadow create "
@@ -828,6 +854,8 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 								ret, mme);
 							continue;
 						}
+						DVLOG("shadow create OK: mapper=0x%04x idx=%u",
+						      mme, sidx);
 
 						if (me_internal_data->shadow_ds_count <
 						    MAX_SHADOW_DS_TABLES) {
@@ -840,6 +868,9 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 					}
 				}
 
+				DVLOG("result: %d collision groups, %d shadow DS tables",
+				      num_collisions,
+				      me_internal_data->shadow_ds_count);
 				me_dbg_msg(me,
 					   "DUAL_VLAN: %d collision groups, "
 					   "%d shadow DS tables created",
@@ -981,6 +1012,8 @@ rx_vlan_oper_table_entry_set(struct omci_context *context,
 									ret, mme);
 						}
 
+						DVLOG("DS split: VID %u -> shadow mapper 0x%04x (omci_idx=%d)",
+						      e->filter_inner_vid, mme, omci_idx);
 						me_dbg_msg(me,
 							   "DUAL_VLAN: VID %u -> "
 							   "shadow mapper 0x%04x",
