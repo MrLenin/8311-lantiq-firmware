@@ -23,7 +23,7 @@ Derived from OpenWRT. Translates and extends work from the right.com.cn forums.
     vlanexec.sh            # VLAN tagging daemon (OLT interoperability)
     monitoptic.sh          # Optic monitoring daemon (RX/TX, factory reset)
     monitomcid.sh          # OMCID health monitoring daemon
-    omcid                  # Patched OMCID binary
+    omcid                  # Custom-built OMCID binary (from v4.5.0 SDK source)
   usr/lib/lua/luci/        # LuCI web interface
     controller/8311.lua    # Routes, form generation, status pages
     model/cbi/8311-*.lua   # CBI form models (config, network, optic-cal)
@@ -122,7 +122,10 @@ omcid/
   gpon_omci_api-4.5.0/     # OMCI API library (ioctl wrappers, ME API functions)
   gpon_omci_onu-4.5.0/     # OMCI ONU daemon (ME handlers, MIB parser, CLI, main)
   gpon_onu_drv-4.5.0/      # Kernel driver headers (ioctls, structs) — updated for v7.5.1
+  ghidra/                  # Pyghidra decompilation scripts and output
   IOCTL_COMPAT.md          # Ioctl compatibility documentation
+  DIVERGENCES.md           # v4.5.0 vs v7.5.1 ME handler divergence audit
+  INFRA_DIVERGENCES.md     # Infrastructure-level divergences
 ```
 
 ### Build and Deploy
@@ -146,15 +149,22 @@ cd ~/dev && ./build.sh
 
 ```sh
 # Venv: /tmp/pyghidra-env/
-# Ghidra: /mnt/c/devel/ghidra_12.0.2_PUBLIC
+# Ghidra: ~/ghidra_12.0.3_PUBLIC (also at /mnt/c/devel/)
+# Ghidra project: ~/ghidra_projects/omcid_v751 (persistent, 139+ named functions)
 # Stock binary: ~/dev-orig/opt/lantiq/bin/omcid (stripped v7.5.1)
-/tmp/pyghidra-env/bin/python3 /tmp/decompile_pptp4.py
-# Output: /tmp/pptp_uni_decompiled.c
+
+# Canonical scripts in omcid/ghidra/ (project-tracked):
+#   create_project.py, rename_functions.py, decompile_*.py, known_functions.py
+# Ad-hoc scripts in /tmp/decompile_*.py (disposable, not tracked)
+
+/tmp/pyghidra-env/bin/python3 ~/dev/omcid/ghidra/decompile_ext_vlan.py
+# Output: ~/dev/omcid/ghidra/output/
 ```
 
 Find functions by their `__FUNCTION__` string references (file offsets via `strings -t x`),
 convert to VA (base 0x400000 + offset), cross-reference in Ghidra.
-Detailed findings go in `internals.md` (memory file).
+Detailed findings go in `internals.md` (Claude memory file at
+`~/.claude/projects/-home-ibutsu-dev/memory/internals.md`).
 
 ### Logging
 
@@ -186,7 +196,7 @@ Use the DLOG macro for debug logging (syslog is unreliable at boot):
 
 - This firmware runs on real networking hardware connected to ISP infrastructure
 - Bad VLAN config or OMCI handling can disrupt internet connectivity
-- The `config_onu.sh` script patches a binary (`omcid`) - be very careful with offsets
+- `config_onu.sh` applies runtime binary patches to `omcid` (802.1x disable, version override) - be careful with offsets
 - Factory reset is triggered by unplugging fiber 5 times quickly (monitoptic.sh)
 - Auto-reboot features exist for recovery from bad states - respect their logic
 
