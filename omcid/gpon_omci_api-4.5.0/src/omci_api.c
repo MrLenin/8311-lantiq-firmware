@@ -977,36 +977,44 @@ enum omci_api_return dev_ctl(const uint8_t remote, const int fd,
 		exchange.length = data_sz;
 		exchange.p_data = p_data;
 
-		/* Ioctl trace: log ALL ioctls during startup */
+		/* Ioctl trace: full trace if /tmp/8311_ioctl_trace exists */
 		{
-			static int _ioctl_trace_fd = -2;
-			if (_ioctl_trace_fd == -2)
-				_ioctl_trace_fd = open("/tmp/8311_ioctl.log",
+			static int _trace_fd = -2;
+			static int _trace_all = -1;
+			if (_trace_fd == -2) {
+				_trace_fd = open("/tmp/8311_ioctl.log",
 					O_WRONLY | O_APPEND | O_CREAT, 0644);
-			if (_ioctl_trace_fd >= 0) {
+				_trace_all = (access("/tmp/8311_ioctl_trace",
+					F_OK) == 0) ? 1 : 0;
+			}
+			if (_trace_fd >= 0 && _trace_all) {
 				char _buf[80];
 				int _n = snprintf(_buf, sizeof(_buf),
 					"ioctl cmd=0x%08x sz=%u\n",
 					cmd, (unsigned)data_sz);
 				if (_n > 0)
-					write(_ioctl_trace_fd, _buf, _n);
+					write(_trace_fd, _buf, _n);
 			}
 		}
 
 		ret = device_ioctl(fd, cmd, (unsigned long)&exchange);
 
-		/* Log errors and LAN ioctls */
+		/* Log ioctl failures (skip event polling ioctls — they fail
+		   normally when no data is queued and would flood the log) */
 		{
 			int result = (ret < exchange.error) ? ret : exchange.error;
-			if (result != 0) {
+			if (result != 0
+			    && cmd != FIO_ONU_EVENT_FIFO
+			    && cmd != FIO_OPTIC_EVENT_FIFO) {
 				static int _err_fd = -2;
 				if (_err_fd == -2)
 					_err_fd = open("/tmp/8311_ioctl.log",
 						O_WRONLY | O_APPEND | O_CREAT, 0644);
 				if (_err_fd >= 0) {
-					char _buf[80];
+					char _buf[96];
 					int _n = snprintf(_buf, sizeof(_buf),
-						"  -> FAIL ret=%d err=%d\n",
+						"ioctl cmd=0x%08x sz=%u -> FAIL ret=%d err=%d\n",
+						cmd, (unsigned)data_sz,
 						ret, exchange.error);
 					if (_n > 0)
 						write(_err_fd, _buf, _n);

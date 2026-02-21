@@ -508,6 +508,9 @@ enum omci_error mib_line_parse(struct omci_context *context,
 			break;
 
 		case OMCI_ATTR_TYPE_TBL:
+			/* Table attrs can't be set via mec — consume token,
+			   skip. Data stays at zero from memset. */
+			break;
 		case OMCI_ATTR_TYPE_UNKNOWN:
 			return OMCI_ERROR;
 		}

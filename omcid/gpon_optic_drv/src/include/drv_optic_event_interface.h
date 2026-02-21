@@ -119,6 +119,10 @@ struct optic_fifo_data {
 	struct optic_fifo_header header;
 	/** Event data. */
 	union optic_fifo_payload data;
+	/** v7.5.1: alarm active flag (0 = inactive/cleared, nonzero = active).
+	    Stock reads this directly for alarm set/clear instead of inferring
+	    from the optic_irq enum value. */
+	uint32_t alarm_active;
 } __PACKED__;
 
 

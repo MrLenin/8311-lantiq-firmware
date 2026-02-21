@@ -18,10 +18,13 @@
 */
 
 /*
- * v7.5.1 power management: 40-byte struct via ONU subsystem (not GTC).
+ * v7.5.1 power management: 40-byte struct via /dev/onu, magic 8 (not GTC).
  * Stock replaced FIO_GTC_POWER_SAVING_MODE_SET entirely.
  * GTC cmd 0x0B maps to GTC_IDLE_SET in v7.5.1 (wrong handler).
+ * Stock ioctl = 0x80280800 = _IOW(8, 0, 40-byte struct).
  */
+#define ONU_PWR_MAGIC	8
+
 struct onu_pwr_mgmt_ctrl {
 	uint32_t gpon_op_mode;		/* 0: 0=skip, 1=OFF, 2=DOZE, 4=CYCLIC */
 	uint32_t itransinit;		/* 4: not passed by v4.5.0 ME handler */
@@ -34,7 +37,7 @@ struct onu_pwr_mgmt_ctrl {
 };
 
 #define FIO_ONU_PWR_MGMT_CTRL_SET \
-	_IOW(ONU_MAGIC, 0, struct onu_pwr_mgmt_ctrl)
+	_IOW(ONU_PWR_MAGIC, 0, struct onu_pwr_mgmt_ctrl)
 
 enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 				   struct omci_api_ctx *ctx,
@@ -45,7 +48,6 @@ enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 				   uint16_t min_active_held_interval)
 {
 	struct onu_pwr_mgmt_ctrl pwr;
-	enum omci_api_return ret;
 
 	DBG(OMCI_API_MSG, ("%s\n"
 		  "   me_id=%u\n"
@@ -62,7 +64,8 @@ enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 	memset(&pwr, 0, sizeof(pwr));
 
 	/* Stock mode mapping: 0x01->1(OFF), 0x02->2(DOZE), 0x04->4(CYCLIC).
-	   Any other value -> 0 (no mode change, just register attributes). */
+	   Any other value -> gpon_op_mode stays 0 (from memset). Stock always
+	   calls dev_ctl regardless of mode and ignores the return value. */
 	switch (pwr_reduction_mngmt_mode) {
 	case 0x01:
 		pwr.gpon_op_mode = 1;
@@ -81,10 +84,11 @@ enum omci_api_return omci_api_onu_dyn_pwr_mngmt_ctrl_update(
 	pwr.min_aware_interval = min_aware_interval;
 	pwr.min_active_held_interval = (uint32_t)min_active_held_interval;
 
-	ret = dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_PWR_MGMT_CTRL_SET,
-		      &pwr, sizeof(pwr));
+	/* Stock returns void — never checks dev_ctl result. */
+	dev_ctl(ctx->remote, ctx->onu_fd, FIO_ONU_PWR_MGMT_CTRL_SET,
+		&pwr, sizeof(pwr));
 
-	return ret;
+	return OMCI_API_SUCCESS;
 }
 
 /** @} */

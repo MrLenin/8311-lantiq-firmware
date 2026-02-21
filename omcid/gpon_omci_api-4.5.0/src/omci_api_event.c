@@ -31,60 +31,79 @@ static void omci_api_goi_handle(struct omci_api_ctx *ctx)
 	enum omci_api_return ret;
 	struct omci_api_event event;
 	struct optic_fifo_data fifo_data;
-	bool active = false;
 
-	ret = dev_ctl(ctx->remote, ctx->goi_fd, FIO_OPTIC_EVENT_FIFO,
+	/* Stock v7.5.1: read from goi_fd_nfc (the fd that select() watches
+	   and that FIO_OPTIC_EVENT_SET was called on). */
+	ret = dev_ctl(ctx->remote, ctx->goi_fd_nfc, FIO_OPTIC_EVENT_FIFO,
 		      &fifo_data, sizeof(fifo_data));
 	if (ret < OMCI_API_SUCCESS) {
 		DBG(OMCI_API_WRN, ("optic fifo event get failed\n"));
 		return;
 	}
 
-	/* NOTE! When RPC is used, event data may come with the wrong
-	 * byte order! Here we should care about it! */
-
 	fifo_data.header.id = ONU_OMCI_NTOH32(fifo_data.header.id);
 	fifo_data.header.len = ONU_OMCI_NTOH32(fifo_data.header.len);
 
-	switch (fifo_data.header.id) {
-	case OPTIC_FIFO_ALARM:
-		fifo_data.data.alarm = ONU_OMCI_NTOH32(fifo_data.data.alarm);
+	if (fifo_data.header.id != OPTIC_FIFO_ALARM) {
+		DBG(OMCI_API_MSG, ("GOI EVENT #%u (0x%x)\n",
+			  fifo_data.header.id, fifo_data.header.id));
+		return;
+	}
 
-		switch (fifo_data.data.alarm) {
+	/* Stock v7.5.1 alarm handling: alarm type from fifo_data.data.alarm,
+	   active/cleared state from fifo_data.alarm_active field (not from
+	   SET/CLEAR enum pairs like v4.5.0 used). Maps optic IRQ numbers to
+	   G.988 alarm numbers on ANI-G (class 256) or ONU2-G (class 263). */
+	fifo_data.data.alarm = ONU_OMCI_NTOH32(fifo_data.data.alarm);
 
-		case OPTIC_IRQ_TEMPALARM_YELLOW_SET:
-			active = true;
-		case OPTIC_IRQ_TEMPALARM_YELLOW_CLEAR:
-			/** \todo define a clean place for the G988.4
-				  definitions*/
-			event.alarm.alarm = 8;
-			event.alarm.active = active;
-			break;
-		case OPTIC_IRQ_TEMPALARM_RED_SET:
-			active = true;
-		case OPTIC_IRQ_TEMPALARM_RED_CLEAR:
-			event.alarm.alarm = 9;
-			event.alarm.active = active;
-			break;
-		default:
-			DBG(OMCI_API_MSG, ("GOI ALARM #%u (0x%x)\n",
-				ONU_OMCI_NTOH32(fifo_data.data.alarm),
-				ONU_OMCI_NTOH32(fifo_data.data.alarm)));
-			return;
-		}
+	event.type = OMCI_API_EVENT_ALARM;
+	event.alarm.active = (fifo_data.alarm_active != 0);
 
-		event.type = OMCI_API_EVENT_ALARM;
+	switch (fifo_data.data.alarm) {
+	case 5: /* OPTIC_IRQ_OV — ANI-G alarm 8 (high Rx optical power) */
+		event.alarm.alarm = 8;
 		event.alarm.class_id = 256;
 		event.alarm.instance_id = 0;
-
-		ctx->event.cb(ctx->caller, &event);		
 		break;
+	case 6: /* OPTIC_IRQ_BP0IBA — ANI-G alarm 9 */
+		event.alarm.alarm = 9;
+		event.alarm.class_id = 256;
+		event.alarm.instance_id = 0;
+		break;
+	case 7: /* OPTIC_IRQ_BP1IBA — ONU2-G alarm 6 */
+		event.alarm.alarm = 6;
+		event.alarm.class_id = 263;
+		event.alarm.instance_id = 0;
+		break;
+	case 8: /* OPTIC_IRQ_BP0BA — ONU2-G alarm 5 */
+		event.alarm.alarm = 5;
+		event.alarm.class_id = 263;
+		event.alarm.instance_id = 0;
+		break;
+	case 9: /* OPTIC_IRQ_BP1BA — ONU2-G alarm 4 */
+		event.alarm.alarm = 4;
+		event.alarm.class_id = 263;
+		event.alarm.instance_id = 0;
+		break;
+	case 10: /* OPTIC_IRQ_BIASL — ONU2-G alarm 1 */
+		event.alarm.alarm = 1;
+		event.alarm.class_id = 263;
+		event.alarm.instance_id = 0;
+		break;
+	case 11: /* OPTIC_IRQ_MODL — ONU2-G alarm 0 */
+		event.alarm.alarm = 0;
+		event.alarm.class_id = 263;
+		event.alarm.instance_id = 0;
+		break;
+	case 12: /* OPTIC_IRQ_TEMPALARM_YELLOW_SET — stock ignores */
+		return;
 	default:
-		DBG(OMCI_API_MSG, ("GOI EVENT #%u (0x%x)\n",
-			  ONU_OMCI_NTOH32(fifo_data.header.id),
-			  ONU_OMCI_NTOH32(fifo_data.header.id)));
-		break;
+		DBG(OMCI_API_MSG, ("GOI ALARM #%u (0x%x)\n",
+			  fifo_data.data.alarm, fifo_data.data.alarm));
+		return;
 	}
+
+	ctx->event.cb(ctx->caller, &event);
 }
 
 static void omci_api_onu_event_link_state_change(struct omci_api_ctx *ctx,
@@ -315,10 +334,10 @@ enum omci_api_return event_handling_start(struct omci_api_ctx *ctx)
 	dev_ctl(ctx->remote, ctx->onu_fd_nfc, FIO_ONU_EVENT_ENABLE_SET,
 		&fifo_mask, sizeof(fifo_mask));
 
-	/* v7.5.1 stock: psm_fsm_event_mask_set(0xFFFFFFFF) during event init.
+	/* v7.5.1 stock: psm_fsm_event_mask_set(0xFFFFFFFF) on onu_fd_nfc.
 	   Enables all PSM FSM event types. Result not checked (fire-and-forget). */
 	psm_mask = 0xFFFFFFFF;
-	dev_ctl(ctx->remote, ctx->onu_fd, FIO_GPE_PSM_FSM_EVENT_MASK_SET,
+	dev_ctl(ctx->remote, ctx->onu_fd_nfc, FIO_GPE_PSM_FSM_EVENT_MASK_SET,
 		&psm_mask, sizeof(psm_mask));
 
 	/* v7.5.1 stock: enable optic event FIFO on goi_fd_nfc.

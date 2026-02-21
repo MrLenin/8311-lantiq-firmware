@@ -134,7 +134,7 @@ typedef unsigned char bool;
 #    define OMCI_ME_PM_CLASS_NUM			18
 #  else
 /** Number of supported PM Managed Entities */
-#    define OMCI_ME_PM_CLASS_NUM			14
+#    define OMCI_ME_PM_CLASS_NUM			18
 #  endif
 #else
 /** Number of supported PM Managed Entities */
@@ -169,7 +169,7 @@ typedef unsigned char bool;
 #define OMCI_ME_BASE_CLASS_NUM			62
 
 /** Number of customer Managed Entities */
-#define OMCI_ME_CUSTOMER_CLASS_NUM		20
+#define OMCI_ME_CUSTOMER_CLASS_NUM		33
 
 /** Number of supported Managed Entity classes.
    \note This is a number of items in the me_def_class_array
