@@ -12,8 +12,6 @@ etc/mibs/data_1v_8q.ini F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/mibs/data_1v_8q
 etc/rc.d/S94vlan-svc.sh S @TIMESTAMP 777 0 0 ../init.d/vlan-svc.sh
 etc/uci-defaults/30_luci-theme-bootstrap F @TIMESTAMP 644 0 0 cat ./8311-mods/etc/uci-defaults/30_luci-theme-bootstrap
 etc/uci-defaults/sfp-pins-preconfig F @TIMESTAMP 664 0 0 cat ./8311-mods/etc/uci-defaults/sfp-pins-preconfig
-lib/librt.so.0 F @TIMESTAMP 755 0 0 cat ./8311-mods/lib/omci_logger.so
-lib/librt_orig.so.0 S @TIMESTAMP 777 0 0 librt-0.9.33.2.so
 lib/modules/3.10.49/mod_optic.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_optic.ko
 lib/modules/3.10.49/mod_onu.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/3.10.49/mod_onu.ko
 lib/functions/int.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/functions/int.sh
