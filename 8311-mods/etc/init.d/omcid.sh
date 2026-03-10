@@ -215,20 +215,10 @@ start_service() {
 
 	logger -t "[omcid]" "Use OMCI mib file: $mib_file"
 
-	# --- Phase 6: Validate / restore / mod the omcid binary ---
-	# Check that the binary is a valid OMCI daemon (help output contains "OMCI").
-	# If invalid, or if the version doesn't match the expected stock version and
-	# mod_omcid is unset, restore the original binary from backup.
-	# If mod_omcid=1 explicitly, apply the modded binary instead.
+	# --- Phase 6: Validate omcid binary ---
 	omcid_valid=$(${OMCID_BIN} -h | grep -c OMCI)
-	omcid_version_default="6BA1896SPE2C05, internal_version =1620-00802-05-00-000D-01"
-	omcid_version_current=$(${OMCID_BIN} -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75)
-	mod_omcid=$(uci -q get 8311.config.mod_omcid)
-
-	if [ "$omcid_valid" = "0" ] || { [ -z "$mod_omcid" ] && [ "$omcid_version_default" != "$omcid_version_current" ]; }; then
-		/opt/lantiq/bin/config_onu.sh restore
-	elif [ "$mod_omcid" = "1" ]; then
-		/opt/lantiq/bin/config_onu.sh mod
+	if [ "$omcid_valid" = "0" ]; then
+		logger -t "[omcid]" "ERROR: omcid binary is invalid"
 	fi
 
 	# --- Phase 7: Log level ---

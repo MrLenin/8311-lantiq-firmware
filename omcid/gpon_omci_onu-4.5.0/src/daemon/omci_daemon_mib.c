@@ -20,10 +20,8 @@
 
 #include <memory.h>
 
-#define DLOG(fmt, ...) do { \
-	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
-	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_mib.log"
+#include "omci_8311_log.h"
 #include "daemon/omci_daemon.h"
 
 #ifdef WIN32

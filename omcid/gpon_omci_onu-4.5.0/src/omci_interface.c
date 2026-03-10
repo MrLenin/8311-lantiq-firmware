@@ -17,10 +17,8 @@
 #include "ifxos_print_io.h"
 #include "ifxos_time.h"
 
-#define DLOG(fmt, ...) do { \
-	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
-	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_mib.log"
+#include "omci_8311_log.h"
 
 #define OMCI_DBG_MODULE OMCI_DBG_MODULE_ME
 
@@ -638,6 +636,70 @@ enum omci_error omci_version_info_get(struct omci_context *context,
 	} else {
 		strcpy(version->onu_version, "n/a");
 		strcpy(version->omci_api_version, "n/a");
+	}
+
+	/* 8311 mod: override onu_version with active bank's SW version
+	   if configured via UCI sw_verA/sw_verB. Some OLTs (Nokia) can
+	   access the ONU CLI via ANI-side management and compare this
+	   against the OMCI SW Image version reported via ME 7.
+	   Uses the same sw_verA/sw_verB UCI options as the SW Image ME,
+	   with the same bank selection logic (override_active fallback
+	   to committed_image). */
+	{
+		FILE *fp;
+		char buf[OMCI_MAX_INFO_STRING_LEN];
+		size_t len;
+		int bank = 0;  /* default to bank A */
+		int got_override = 0;
+
+		/* Check override_active UCI option */
+		fp = popen("uci -q get 8311.config.override_active", "r");
+		if (fp) {
+			len = fread(buf, 1, sizeof(buf) - 1, fp);
+			(void)pclose(fp);
+			if (len > 0 && buf[0] != '\n') {
+				if (buf[0] == 'B' || buf[0] == '1') {
+					bank = 1;
+					got_override = 1;
+				} else if (buf[0] == 'A' || buf[0] == '0') {
+					got_override = 1;
+				}
+			}
+		}
+
+		/* Fall back to committed_image fwenv */
+		if (!got_override) {
+			fp = popen(
+			    "fw_printenv -n committed_image 2>/dev/null",
+			    "r");
+			if (fp) {
+				len = fread(buf, 1, 2, fp);
+				(void)pclose(fp);
+				if (len > 0 && buf[0] == '1')
+					bank = 1;
+			}
+		}
+
+		/* Read sw_verA or sw_verB */
+		fp = popen(bank
+			   ? "uci -q get 8311.config.sw_verB"
+			   : "uci -q get 8311.config.sw_verA", "r");
+		if (fp) {
+			len = fread(buf, 1, sizeof(buf) - 1, fp);
+			(void)pclose(fp);
+			if (len > 0 && buf[0] != '\n') {
+				buf[len] = '\0';
+				if (buf[len - 1] == '\n')
+					buf[len - 1] = '\0';
+				if (buf[0] != '\0') {
+					strncpy(version->onu_version, buf,
+						OMCI_MAX_INFO_STRING_LEN - 1);
+					version->onu_version[
+					    OMCI_MAX_INFO_STRING_LEN - 1]
+					    = '\0';
+				}
+			}
+		}
 	}
 
 	dbg_out_ret(__func__, OMCI_SUCCESS);

@@ -11,6 +11,9 @@
 #include "omci_api_common.h"
 #include "omci_api_debug.h"
 #include "me/omci_api_traffic_descriptor.h"
+#include <unistd.h>
+
+#define _8311_DEBUG_FLAG "/tmp/8311_debug"
 
 /** \addtogroup OMCI_API_TABLE_ACCESS
 
@@ -1720,7 +1723,7 @@ enum omci_api_return omci_api_lan_port_enable(struct omci_api_ctx *ctx,
 		      enable ? FIO_LAN_PORT_ENABLE : FIO_LAN_PORT_DISABLE,
 		      &idx, sizeof(idx));
 
-	{
+	if (access(_8311_DEBUG_FLAG, F_OK) == 0) {
 		FILE *_f = fopen("/tmp/8311_carrier.log", "a");
 		if (_f) {
 			fprintf(_f, "lan_port_enable: port=%u en=%u "

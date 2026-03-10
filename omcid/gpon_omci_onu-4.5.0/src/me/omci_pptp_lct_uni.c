@@ -28,10 +28,8 @@
 #include "omci_debug.h"
 #include "omci_me_handlers.h"
 
-#define DLOG(fmt, ...) do { \
-	FILE *_f = fopen("/tmp/8311_me83.log", "a"); \
-	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_me83.log"
+#include "omci_8311_log.h"
 #include "me/omci_pptp_lct_uni.h"
 #include "me/omci_api_pptp_lct_uni.h"
 

@@ -12,10 +12,8 @@
 #include <stdio.h>
 #include "omci_api_common.h"
 
-#define DLOG(fmt, ...) do { \
-	FILE *_f = fopen("/tmp/8311_me11.log", "a"); \
-	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_me11.log"
+#include "omci_8311_log.h"
 #include "omci_api_debug.h"
 #include "me/omci_api_pptp_ethernet_uni.h"
 

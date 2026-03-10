@@ -173,7 +173,7 @@ static int omci_arg_parse(int argc, char *argv[])
 			}
 			{
 				unsigned int tmp = 0;
-				ret = sscanf(optarg, "%u", &tmp);
+				ret = sscanf(optarg, "%i", &tmp);
 				if (!ret || tmp > 0xFF) {
 					omci_printfe("Invalid value for "
 						     "argument '-o'\n");

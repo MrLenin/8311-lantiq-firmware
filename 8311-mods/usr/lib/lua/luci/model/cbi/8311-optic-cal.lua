@@ -52,6 +52,7 @@ local warning_msg =
 
 -- UCI config file /etc/config/gpon
 local gpon_map = Map("gpon", translate("Optic Calibration"))
+gpon_map.apply_on_parse = true
 
 -- 'goi' - section
 local goi_section = gpon_map:section(NamedSection, "goi", "GOI")

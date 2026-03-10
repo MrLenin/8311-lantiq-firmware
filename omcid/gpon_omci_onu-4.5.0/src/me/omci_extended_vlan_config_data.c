@@ -28,11 +28,8 @@
 /** IOP option bit for zeroing DS treatment_inner_prio/vid (all vendor paths) */
 #define OMCI_IOP_OPTION_8  8
 
-/** Dual-VLAN debug log to /tmp/8311_dual_vlan.log */
-#define DVLOG(fmt, ...) do { \
-	FILE *_f = fopen("/tmp/8311_dual_vlan.log", "a"); \
-	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_dual_vlan.log"
+#include "omci_8311_log.h"
 
 /** OLT vendor type for vendor-specific ExtVLAN programming paths */
 enum olt_vendor_type {

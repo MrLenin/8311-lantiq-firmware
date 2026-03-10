@@ -19,14 +19,10 @@ lib/modules/3.10.49/mod_onu.ko F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/modules/
 lib/functions/int.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/functions/int.sh
 lib/functions/hexbin.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/functions/hexbin.sh
 lib/8311-omci-lib.sh F @TIMESTAMP 644 0 0 cat ./8311-mods/lib/8311-omci-lib.sh
-sbin/mtd F @TIMESTAMP 755 0 0 cat ./8311-mods/sbin/mtd
-sbin/mtd.real F @TIMESTAMP 755 0 0 cat ./build/stock/sbin/mtd
-opt/lantiq/bin/fw_printenv F @TIMESTAMP 755 0 0 cat ./build/stock/usr/sbin/fw_printenv
 opt/lantiq/bin/config_onu.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/config_onu.sh
 opt/lantiq/bin/omcid F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/omcid
 opt/lantiq/bin/system_info.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/system_info.sh
 opt/lantiq/bin/monitomcid.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/monitomcid.sh
-opt/lantiq/bin/omci_sync_time.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/omci_sync_time.sh
 opt/lantiq/bin/monitoptic.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/monitoptic.sh
 opt/lantiq/bin/vlanexec.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/opt/lantiq/bin/vlanexec.sh
 usr/bin/luci-me-dump F @TIMESTAMP 775 0 0 cat ./8311-mods/usr/bin/luci-me-dump
@@ -46,9 +42,6 @@ usr/libexec D @TIMESTAMP 755 0 0
 usr/libexec/sftp-server F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/libexec/sftp-server
 usr/sbin/dropbear F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/dropbear
 etc/init.d/dropbear F @TIMESTAMP 755 0 0 cat ./8311-mods/etc/init.d/dropbear
-usr/sbin/fw_setenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_setenv
-usr/sbin/fw_printenv F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/fw_printenv
-opt/lantiq/bin/fw_setenv S @TIMESTAMP 777 0 0 /opt/lantiq/bin/fw_printenv
 usr/sbin/8311-extvlan-decode.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/8311-extvlan-decode.sh
 usr/sbin/8311-support.sh F @TIMESTAMP 755 0 0 cat ./8311-mods/usr/sbin/8311-support.sh
 usr/lib/lua/luci/view/8311 D @TIMESTAMP 775 0 0

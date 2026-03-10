@@ -15,10 +15,44 @@
 
    Issues FIO_LAN_PORT_802_1X_AUTH_CFG_SET (defined in drv_onu_lan_interface.h)
    when the OLT updates ME 290 attributes.
+
+   8311 mod: When UCI 8311.config.omcid_8021x=1, enforcement is disabled —
+   all ports are forced OPEN regardless of what the OLT requests. This
+   replaces the former runtime binary patch at offset 0x43589.
 */
 #include "omci_api_common.h"
 #include "omci_api_debug.h"
 #include "me/omci_api_dot1x_port_ext_pkg.h"
+#include <stdio.h>
+
+/** Cached 802.1x disable flag: -1=unchecked, 0=enforce, 1=disable */
+static int dot1x_disable_cached = -1;
+
+static int dot1x_enforcement_disabled(void)
+{
+	FILE *fp;
+	char val[8];
+	size_t len;
+
+	if (dot1x_disable_cached >= 0)
+		return dot1x_disable_cached;
+
+	dot1x_disable_cached = 0;
+	fp = popen("uci -q get 8311.config.omcid_8021x", "r");
+	if (!fp)
+		return 0;
+
+	len = fread(val, 1, sizeof(val) - 1, fp);
+	(void)pclose(fp);
+
+	if (len > 0) {
+		val[len] = '\0';
+		if (val[0] == '1')
+			dot1x_disable_cached = 1;
+	}
+
+	return dot1x_disable_cached;
+}
 
 enum omci_api_return
 omci_api_dot1x_port_ext_pkg_update(struct omci_api_ctx *ctx,
@@ -50,6 +84,12 @@ omci_api_dot1x_port_ext_pkg_update(struct omci_api_ctx *ctx,
 
 	auth_cfg.port_id = port_idx;
 
+	/* 8311 mod: when enforcement is disabled via UCI, force OPEN always */
+	if (dot1x_enforcement_disabled()) {
+		auth_cfg.auth_result = LAN_PORT_802_1X_AUTH_OPEN;
+		DBG(OMCI_API_MSG, ("%s: 802.1x disabled via UCI, "
+				   "forcing OPEN\n", __FUNCTION__));
+	}
 	/*
 	 * Standard OMCI decision tree (G.988 Section 9.3.13):
 	 *
@@ -58,7 +98,7 @@ omci_api_dot1x_port_ext_pkg_update(struct omci_api_ctx *ctx,
 	 * - action_register=1 (force re-auth): -> BLOCK (until re-auth passes)
 	 * - action_register=2 (force unauthenticated): -> BLOCK
 	 */
-	if (!dot1x_enable || action_register == 3)
+	else if (!dot1x_enable || action_register == 3)
 		auth_cfg.auth_result = LAN_PORT_802_1X_AUTH_OPEN;
 	else
 		auth_cfg.auth_result = LAN_PORT_802_1X_AUTH_BLOCK;

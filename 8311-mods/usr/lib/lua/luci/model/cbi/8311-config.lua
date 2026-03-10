@@ -39,6 +39,11 @@ local nixio = require "nixio"
 -- Map("8311") binds this form to /etc/config/8311
 local config_map = Map("8311")
 
+-- Skip the servicectl/luci-reload XHR apply mechanism. There is no ucitrack
+-- entry for "8311", so luci-reload has nothing to do and the status poll can
+-- hang indefinitely. Our on_after_commit handler already applies all changes.
+config_map.apply_on_parse = true
+
 -- Use our custom "map" template (view/map.htm) which adds tab support
 -- at the Map level, rather than the stock cbi/map template.
 config_map.template = "map"
@@ -51,7 +56,7 @@ local omcid_opts = {"omcc_version", "iop_mask", "mib_file", "omci_log_level",
                     "omci_log_to_console", "sw_verA", "sw_verB", "pon_slot",
                     "vendor_id", "equipment_id", "hw_ver", "uni_type",
                     "cp_hw_ver_sync", "override_active", "override_commit",
-                    "mod_omcid", "patch_version", "omcid_8021x",
+                    "omcid_8021x",
                     "dual_vlan", "dual_vlan_mapper_list", "vlan_mapper_map"}
 
 -- Snapshot omcid-relevant options before commit so we can detect changes
@@ -69,7 +74,6 @@ end
 -- restart omcid if any omcid-relevant option changed.
 function config_map.on_after_commit(configMap)
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh set")
-	luci.sys.call("/opt/lantiq/bin/config_onu.sh mod")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh disable")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh ignore")
 	luci.sys.call("/opt/lantiq/bin/config_onu.sh reboot")
@@ -177,22 +181,6 @@ local sw_verB =
 sw_verB.datatype = "and(string, maxlength(14))"
 sw_verB.default = tools.fw_getenv { "image1_version" }
 
-local fw_match_b64 =
-	config:taboption("pon", Value, "fw_match_b64", translate("Firmware Version Match"),
-	translate("PCRE pattern match for automatic updating of Software Versions when " ..
-	"OLT uploads a firmware upgrade. Must contain a single sub-pattern match."))
-
-fw_match_b64.datatype = "and(string, maxlength(14))"
-fw_match_b64.rmempty = true
-
-local fw_match_num =
-	config:taboption("pon", Value, "fw_match_num", translate("Firmware Match Number"),
-	translate("If there are multiple matches for the Firmware Version Match pattern, " ..
-	"use this specific match number."))
-
-fw_match_num.datatype = "and(uinteger,range(1,99))"
-fw_match_num.default = "1"
-
 local override_active =
 	config:taboption("pon", ListValue, "override_active", translate("Override active " ..
 	"firmware bank"), translate("Override which software bank is marked as active in " ..
@@ -232,8 +220,15 @@ local omcc_version =
 	translate("The OMCC version to use in hexadecimal format between 0x80 and 0xBF. " ..
 	"Default is 0xA0 (160)."))
 
-omcc_version.datatype = "and(uinteger,range(0x80,0xBF))"
 omcc_version.default = "0xA0"
+
+function omcc_version.validate(self, value)
+	local n = tonumber(value)
+	if n and n >= 0x80 and n <= 0xBF and n == math.floor(n) then
+		return value
+	end
+	return nil, translate("Must be an integer between 0x80 (128) and 0xBF (191)")
+end
 
 local iop_mask =
 	config:taboption("pon", Value, "iop_mask", translate("OMCI Interoperability Mask"),
@@ -606,50 +601,15 @@ fw_update_guard.rmempty = true
 ---------------------------------------
 -- Advanced Tab Start
 ---------------------------------------
--- Options here modify the omcid binary at runtime (patching), which is
--- inherently risky -- an incorrect patch can cause a boot loop.
--- Most options are gated behind the mod_omcid flag via :depends().
-local mod_omcid =
-	config:taboption("advanced", Flag, "mod_omcid", translate("Patch OMCID"),
-	translate("Change the behavior of OMCID by patching the binary. WARNING: " ..
-	"Patching OMCID may result in infinite-reboot loop!!!!"))
-
-mod_omcid.datatype = "bool"
-mod_omcid.default = false
-mod_omcid.rmempty = true
-
-local patch_version =
-	config:taboption("advanced", Flag, "patch_version", translate("Patch Software " ..
-	"Version"), translate("Patch the omcid version string to match the active bank's " ..
-	"software version (from Software Version A/B on the PON tab). Respects active " ..
-	"bank override if set."))
-
-patch_version.datatype = "bool"
-patch_version.default = false
-patch_version.rmempty = true
-patch_version:depends("mod_omcid", "1")
-
 local omcid_8021x =
-	config:taboption("advanced", Flag, "omcid_8021x", translate("Patch 802.1x " ..
+	config:taboption("advanced", Flag, "omcid_8021x", translate("Disable 802.1x " ..
 	"Enforcement"), translate("Disable enforcement of 802.1x by the ONU. May help in " ..
-	"deployments where the ONU is erroneously dropping 802.1x traffic."))
+	"deployments where the ONU is erroneously dropping 802.1x traffic. " ..
+	"Requires omcid restart to take effect."))
 
 omcid_8021x.datatype = "bool"
 omcid_8021x.default = false
 omcid_8021x.rmempty = true
-omcid_8021x:depends("mod_omcid", "1")
-
-local restore_8021x =
-	config:taboption("advanced", Button, "restore_8021x",
-	translate("Restore 802.1x Enforcement"))
-
-restore_8021x.inputtitle = translate("Restore")
-restore_8021x.inputstyle = "apply"
-restore_8021x:depends("mod_omcid", "1")
-
-function restore_8021x.write(self, section, value)
-	luci.sys.call("/opt/lantiq/bin/config_onu.sh restore_8021x")
-end
 
 local disable_sigstatus =
 	config:taboption("advanced", Flag, "disable_sigstatus", translate("Disable " ..

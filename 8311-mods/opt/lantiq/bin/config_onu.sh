@@ -5,11 +5,10 @@
 #   - GPON serial number, PLOAM/LOID credentials (via sfp_i2c EEPROM writes)
 #   - Vendor ID, equipment ID, HW version (MIB customization for ISP spoofing)
 #   - Network interface settings (LCT IP, gateway, MAC addresses)
-#   - omcid binary patching (version string, 802.1x enforcement)
 #   - RX LOS GPIO override, factory reset, console/ASC toggle
 #
 # Usage: config_onu.sh <command>
-# Commands: load, set, init, setip, update, mod, restore_8021x,
+# Commands: load, set, init, setip, update,
 #           ignore, disable, rebootcause, rebootnum, reboot, switch, switchasc,
 #           initasc, factoryreset
 #
@@ -21,8 +20,6 @@ command=$1
 STOCK_EQUIPMENT_ID="BVL3A5HNAAG010SP"
 STOCK_HW_VER="3FE56641AAAA01"
 STOCK_VENDOR_ID="ALCL"
-omcid_stock_csum="e3d83ea6bc5598768d7ae9756f483324"  # MD5 of baked-in patched omcid binary
-
 # Read current identity from firmware env and sync to UCI config.
 # Called during initial setup to populate the web UI with current values.
 load_config() {
@@ -279,155 +276,6 @@ set_ip() {
 		fw_setenv ethaddr "${host_mac_upper}"
 		uci set network.host.macaddr="${host_mac_upper}"
 		uci commit network.host
-	fi
-}
-
-# Determine the software version for the effective active bank.
-# Checks override_active first; falls back to committed_image fwenv.
-# Reads sw_verA/sw_verB from UCI, falling back to image{N}_version fwenv.
-get_active_sw_ver() {
-	local active_bank
-	local override_active
-	local version
-
-	override_active=$(uci -q get 8311.config.override_active)
-
-	case "$override_active" in
-		A|0) active_bank=0 ;;
-		B|1) active_bank=1 ;;
-		*)
-			# Real active bank from committed_image (bypass our wrapper)
-			active_bank=$(/opt/lantiq/bin/fw_printenv committed_image 2>&- | cut -f2 -d=)
-			[ -z "$active_bank" ] && active_bank=0
-			;;
-	esac
-
-	if [ "$active_bank" = "0" ]; then
-		version=$(uci -q get 8311.config.sw_verA)
-		[ -z "$version" ] && version=$(/opt/lantiq/bin/fw_printenv image0_version 2>&- | cut -f2 -d=)
-	else
-		version=$(uci -q get 8311.config.sw_verB)
-		[ -z "$version" ] && version=$(/opt/lantiq/bin/fw_printenv image1_version 2>&- | cut -f2 -d=)
-	fi
-
-	echo "$version"
-}
-
-# Patch the omcid binary in-place. Copies to /tmp, applies patches, copies back.
-# Safety: only patches if MD5 matches either stock checksum or the last-patched
-# checksum (stored in UCI). This prevents double-patching or patching unknown binaries.
-mod_omcid() {
-	local mod_omcid
-	local omcid_csum
-	local omcid_csum_current
-
-	mod_omcid=$(uci -q get 8311.config.mod_omcid)
-	omcid_csum=$(uci -q get 8311.config.omcid_csum)
-	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
-
-	logger -t "[config_onu]" "Patching OMCID ..."
-
-	# Allow patching if: (a) stock binary (no prior patches), or
-	# (b) previously-patched binary (checksum matches our last known state)
-	if [ -n "$mod_omcid" ] &&
-		{ { [ -z "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_stock_csum" ]; } ||
-		  { [ -n "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_csum" ]; }; }; then
-
-		local disable_8021x
-		local patch_version
-		local omcid_version
-
-		disable_8021x=$(uci -q get 8311.config.omcid_8021x)
-		patch_version=$(uci -q get 8311.config.patch_version)
-
-		cp /opt/lantiq/bin/omcid /tmp/omcid
-
-		[ "$disable_8021x" = "1" ] && mod_omcid_8021x
-
-		if [ "$patch_version" = "1" ]; then
-			omcid_version=$(get_active_sw_ver)
-			if [ -n "$omcid_version" ]; then
-				mod_omcid_version "$omcid_version"
-			else
-				logger -t "[config_onu]" "WARNING: patch_version enabled but no sw_ver configured for active bank."
-			fi
-		fi
-
-		cp /tmp/omcid /opt/lantiq/bin/omcid
-
-		uci set 8311.config.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
-		uci commit 8311.config
-	else
-		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, patching aborted ..."
-	fi
-}
-
-# Patch the omcid version string at a fixed binary offset.
-# $1 = new version string (max 58 chars, zero-padded to 58 bytes)
-# The version string is reported by omcid -v and visible to the OLT.
-mod_omcid_version() {
-	local omcid_version_cut
-	local omcid_version_current
-
-	local omcid_version_user="$1"
-
-	omcid_version_cut=$(echo "$omcid_version_user" | cut -c 1-58)
-	omcid_version_current=$(/opt/lantiq/bin/omcid -v | tail -n 1 | sed 's/\r//g' | cut -c 18-75)
-
-	# Convert version string to hex, zero-pad to 116 hex chars (58 bytes)
-	printf '%s' "$omcid_version_cut" | hexdump -e '60/1 "%02x" "\n"' |
-		awk '{width=116; printf("%s",$1); for(i=0;i<width-length($1);++i) printf "%c", 0; print ""}' |
-		cut -c 1-116 | xxd -r -p >/tmp/omcid_ver
-
-	# Binary offset in omcid where the version string is stored
-	local omcid_version_offset_2=316133
-
-	if [ "$omcid_version_cut" != "$omcid_version_current" ]; then
-		logger -t "[config_onu]" "Modding OMCID version: $omcid_version_cut."
-		#dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_1 conv=notrunc
-		dd if=/tmp/omcid_ver of=/tmp/omcid obs=1 seek=$omcid_version_offset_2 conv=notrunc 2>>/dev/null
-	fi
-}
-
-# Patch omcid to disable 802.1x enforcement by zeroing one byte.
-# Offset 275849 is a boolean flag in the omcid binary; 0x01=enforce, 0x00=disable.
-mod_omcid_8021x() {
-	local omcid_8021x_offset=275849
-
-	logger -t "[config_onu]" "Disabling enforcement of 802.1x ..."
-	printf '\x00' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
-}
-
-# Restore 802.1x enforcement in omcid by writing 0x01 back to the patch offset.
-restore_omcid_8021x() {
-	local patch_version
-	local omcid_csum
-	local omcid_csum_current
-
-	local omcid_8021x_offset=275849
-
-	patch_version=$(uci -q get 8311.config.patch_version)
-	omcid_csum=$(uci -q get 8311.config.omcid_csum)
-	omcid_csum_current=$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)
-
-	logger -t "[config_onu]" "Restoring OMCID 802.1x behaviour ..."
-
-	if [ -n "$omcid_csum" ] && [ "$omcid_csum_current" = "$omcid_csum" ]; then
-		logger -t "[config_onu]" "Re-enabling enforcement of 802.1x ..."
-
-		cp /opt/lantiq/bin/omcid /tmp/omcid
-		printf '\x01' | dd of=/tmp/omcid conv=notrunc seek=$omcid_8021x_offset bs=1 count=1 2>/dev/null
-		cp /tmp/omcid /opt/lantiq/bin/omcid
-
-		if [ "$patch_version" != "1" ]; then
-			uci -q delete 8311.config.omcid_csum
-			uci commit 8311.config
-		else
-			uci set 8311.config.omcid_csum="$(md5sum /opt/lantiq/bin/omcid | cut -d' ' -f 1)"
-			uci commit 8311.config
-		fi
-	else
-		logger -t "[config_onu]" "ERROR: OMCID checksum mismatch, unable to restore ..."
 	fi
 }
 
@@ -698,12 +546,6 @@ setip)
 	;;
 update)
 	update_goi
-	;;
-mod)
-	mod_omcid
-	;;
-restore_8021x)
-	restore_omcid_8021x
 	;;
 ignore)
 	ignore_rx_msg_lost

@@ -13,10 +13,8 @@
 #include <stdio.h>
 #include "ifxos_memory_alloc.h"
 
-#define DLOG(fmt, ...) do { \
-	FILE *_df = fopen("/tmp/8311_mib.log", "a"); \
-	if (_df) { fprintf(_df, fmt "\n", ##__VA_ARGS__); fclose(_df); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_mib.log"
+#include "omci_8311_log.h"
 
 #define OMCI_DBG_MODULE   OMCI_DBG_MODULE_MIB
 

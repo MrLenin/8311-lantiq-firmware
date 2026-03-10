@@ -28,10 +28,8 @@
 
 #define GOI_NAME "optic"
 
-#define DLOG(fmt, ...) do { \
-	FILE *_f = fopen("/tmp/8311_api.log", "a"); \
-	if (_f) { fprintf(_f, fmt "\n", ##__VA_ARGS__); fclose(_f); } \
-} while (0)
+#define DLOG_FILE "/tmp/8311_api.log"
+#include "omci_8311_log.h"
 
 /*#define LOCAL_ETH*/
 
@@ -44,13 +42,16 @@ static void _diag_serdes(struct omci_api_ctx *ctx, const char *label)
 	cfg.in.index = 0;
 	if (dev_ctl(0, ctx->onu_fd, FIO_LAN_PORT_CFG_GET,
 		    &cfg, sizeof(cfg)) == 0) {
-		f = fopen("/tmp/8311_serdes.log", "a");
-		if (f) {
-			fprintf(f, "SERDES[%s]: enable=%u speed=%u duplex=%u\n",
-				label, cfg.out.uni_port_en,
-				cfg.out.speed_mode,
-				cfg.out.duplex_mode);
-			fclose(f);
+		if (access(_8311_DEBUG_FLAG, F_OK) == 0) {
+			f = fopen("/tmp/8311_serdes.log", "a");
+			if (f) {
+				fprintf(f, "SERDES[%s]: enable=%u speed=%u "
+					"duplex=%u\n",
+					label, cfg.out.uni_port_en,
+					cfg.out.speed_mode,
+					cfg.out.duplex_mode);
+				fclose(f);
+			}
 		}
 	}
 }
